@@ -154,16 +154,30 @@ Savaştıkça (hasar verdikçe, nokta tuttukça) **komuta puanı** dolar. Kararg
 | 5-9 dk | İHA'lar sahaya çıkar. Keşif savaşı başlar, hava savunma kurulur, ortadaki petrol tesisi için büyük kavga |
 | 9-15 dk | Kademe 3, uçaklar ve destek yetenekleri. Hava savunması çöken taraf hızla kaybeder |
 
-## 12. İlk oynanabilir sürümün kapsamı
+## 12. İlk oynanabilir sürüm (prototip)
 
+Durum: **yapıldı**, Godot 4.3 ile. Çalıştırma ve kontroller için [README](../README.md).
+
+İçinde olanlar:
 - Tek harita, yapay zekâya karşı 1'e 1.
-- Tek doktrin (ortak havuzdan 8 birim): manga, tanksavar, tank, obüs, kısa menzil hava savunma, uzun menzil hava savunma, keşif İHA, silahlı İHA.
-- Sis, ikmal noktaları, kademe 1-2.
-- Uçaklar, kalan doktrinler, destek yetenekleri ve çok oyunculu mod sonraki aşamalara kalır.
-- Motor: Godot 4. Birim adları ve değerleri tek bir veri dosyasında tutulur.
+- 7 birim: manga, Javelin timi, Altay, Fırtına, Korkut, Global Hawk, Bayraktar TB2. Yapı olarak Hisar.
+- Sis, ikmal noktaları, petrol tesisi, enerji, kademe 1-2.
 
-## 13. Açık sorular
+Tasarımdan bilinçli sapmalar (prototipi küçük tutmak için):
+- Radar binası yok; hava savunma silahları hava hedefini sis olmadan görür.
+- Zırhlı araç, çok namlulu roketatar ve helikopter yok.
+- Harita düz; engel ve yol bulma yok.
+- Yere dokunmak "saldırarak ilerle" emridir. Ateş etmeden çekilmek için "Geri Çekil" düğmesi var.
 
-- Kurgu: hayali bir çatışma mı, tamamen kurgusuz "tatbikat" havası mı?
+Sonraki aşamalar: insanlı uçaklar ve hava üssü, doktrin seçimi, destek yetenekleri, ses, çok oyunculu mod.
+
+## 13. Kurgu
+
+Karar: **hayali bir çatışma**. Gerçek ülkeler taraf olarak yer almaz; ekipman adları gerçektir.
+Prototipte taraflar yalnızca "Mavi" ve "Kızıl" olarak geçer. Hikâye, taraf adları ve harita kurgusu ayrıca yazılacak.
+
+## 14. Açık sorular
+
 - Deniz birimleri olacak mı? (Öneri: ilk sürümde hayır.)
 - Maç içi ilerleme dışında kalıcı ilerleme (birim açma, seviye) olacak mı?
+- Hikâye: tarafların adı, çatışmanın nedeni, haritaların geçtiği bölge.
