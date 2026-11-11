@@ -84,7 +84,9 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/game.gd` | Maç döngüsü, ekonomi, inşa, araştırma, füzeler, seçim, emirler, efektler |
 | `scripts/unit.gd`, `air_unit.gd`, `building.gd`, `entity.gd`, `shot.gd` | Kara birimi, hava aracı, bina, ortak taban, mermi |
 | `scripts/models.gd` | Kodla üretilen low-poly modeller; uçak ölçüleri `JETS` tablosunda |
-| `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel) |
+| `scripts/tanks.gd` | Ayrıntılı tank modelleri (T-72B3, T-90M, Leopard 2A6, Merkava Mk 4): gerçek ölçülerle yürüyen aksam, kule, reaktif zırh, takım rengi tanıma örtüsü |
+| `scripts/kit.gd` | Araç mesh kurucusu: parçaları malzeme başına tek yüzeyde birleştirir, çamur/toz/gölgeyi köşe rengine işler |
+| `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda) |
 | `scripts/terrain.gd` | Arazi ve yol bulma |
 | `scripts/fog.gd` | Savaş sisi |
 | `scripts/controls.gd`, `camera_rig.gd` | Dokunmatik kontroller ve kamera |

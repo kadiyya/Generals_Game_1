@@ -11,6 +11,7 @@ const GLASS := Color(0.12, 0.2, 0.28)
 
 static var _mats := {}
 static var _skin := {}   # renk -> [texture türü, ölçek]: bu renkteki parçalar desenli çizilir
+static var _vehicles := {}   # model + renkler -> [gövde mesh, kule mesh, kule z]: her araç bir kez kurulur
 
 # Kanat ve yatay kuyruk: sağ yarının köşeleri (x, z). Dikey kuyruk: (z, y).
 const JETS := {
@@ -220,41 +221,8 @@ static func build(d: Dictionary, team: int) -> Node3D:
 		"at":
 			for o in [Vector3(-0.4, 0, 0.0), Vector3(0.4, 0, 0.0)]:
 				_soldier(n, o, bc, tc, true)
-		"tank_ru":
-			# T-64 / T-72: alçak gövde, yuvarlak küçük kule, uzun namlu
-			_tracks(n, 2.2, 3.7)
-			box(n, Vector3(2.0, 0.5, 3.5), Vector3(0, 0.55, 0), bc)
-			cyl(n, 0.8, 0.95, 0.45, Vector3(0, 1.02, 0.1), bc, Vector3.ZERO, 10)
-			box(n, Vector3(0.8, 0.07, 0.6), Vector3(0, 1.27, 0.0), tc)
-			cyl(n, 0.09, 0.09, 2.9, Vector3(0, 1.02, 2.2), DARK, Vector3(90, 0, 0))
-			cyl(n, 0.22, 0.22, 0.7, Vector3(0.7, 0.9, -1.75), bc, Vector3(0, 0, 90))
-		"tank_ru2":
-			# T-90M / Karrar: yuvarlak kule üstünde köşeli ek zırh ve arka sepet
-			_tracks(n, 2.3, 3.8)
-			box(n, Vector3(2.1, 0.5, 3.6), Vector3(0, 0.55, 0), bc)
-			cyl(n, 0.8, 0.95, 0.45, Vector3(0, 1.02, 0.1), bc, Vector3.ZERO, 10)
-			box(n, Vector3(1.9, 0.4, 0.5), Vector3(0, 1.05, 0.85), bc, Vector3(0, 0, 0))
-			box(n, Vector3(1.6, 0.4, 0.7), Vector3(0, 1.05, -0.95), bc)
-			box(n, Vector3(0.8, 0.07, 0.6), Vector3(0, 1.28, 0.0), tc)
-			cyl(n, 0.09, 0.09, 2.9, Vector3(0, 1.02, 2.3), DARK, Vector3(90, 0, 0))
-			box(n, Vector3(0.3, 0.3, 0.3), Vector3(-0.45, 1.4, 0.2), DARK)
-		"tank_leo":
-			# Leopard 2 / Arjun / VT-4: kutu kule, öne doğru kama zırh
-			_tracks(n, 2.4, 3.9)
-			box(n, Vector3(2.2, 0.6, 3.7), Vector3(0, 0.6, 0), bc)
-			box(n, Vector3(1.8, 0.55, 2.0), Vector3(0, 1.2, -0.3), bc)
-			prism(n, Vector3(1.8, 0.8, 0.55), Vector3(0, 1.2, 1.1), bc, Vector3(90, 0, 0))
-			box(n, Vector3(1.0, 0.07, 0.7), Vector3(0, 1.5, -0.4), tc)
-			cyl(n, 0.1, 0.1, 2.7, Vector3(0, 1.2, 2.4), DARK, Vector3(90, 0, 0))
-		"tank_merkava":
-			# Merkava: kule arkada, yassı ve geniş kama; motor önde
-			_tracks(n, 2.4, 4.0)
-			box(n, Vector3(2.2, 0.6, 3.8), Vector3(0, 0.6, 0), bc)
-			box(n, Vector3(2.2, 0.25, 1.4), Vector3(0, 0.95, 1.2), bc, Vector3(-8, 0, 0))
-			box(n, Vector3(1.9, 0.4, 1.6), Vector3(0, 1.15, -0.9), bc)
-			prism(n, Vector3(1.9, 1.3, 0.4), Vector3(0, 1.15, 0.5), bc, Vector3(90, 0, 0))
-			box(n, Vector3(1.0, 0.07, 0.7), Vector3(0, 1.38, -0.9), tc)
-			cyl(n, 0.1, 0.1, 2.8, Vector3(0, 1.15, 2.0), DARK, Vector3(90, 0, 0))
+		"tank_ru", "tank_ru2", "tank_leo", "tank_merkava":
+			_vehicle(n, id, bc, tc)
 		"ifv_low":
 			# BMP sınıfı: alçak, sivri burun, küçük kule
 			_tracks(n, 2.1, 3.5)
@@ -490,6 +458,33 @@ static func build(d: Dictionary, team: int) -> Node3D:
 
 
 # ---------------------------------------------------------------- parçalar
+
+## Ayrıntılı araç modeli (şimdilik tanklar, tanks.gd): gövde ve kule iki mesh olarak eklenir.
+## Toz rengi haritanın toprağından türetilir; mesh model, renk ve toz başına bir kez üretilip paylaşılır.
+static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
+	var ground: Color = Defs.MAP.get("ground", Color(0.55, 0.5, 0.38))
+	var dust := ground.lerp(Color(0.66, 0.6, 0.48), 0.55)
+	var key := "%s|%s|%s|%s" % [id, bc.to_html(), tc.to_html(), dust.to_html()]
+	if not _vehicles.has(key):
+		var h := Kit.new()
+		var t := Kit.new()
+		h.dust = dust
+		t.dust = dust
+		Tanks.slots(h, bc, tc)
+		Tanks.slots(t, bc, tc)
+		var tz := Tanks.design(id, h, t)
+		_vehicles[key] = [h.mesh(), t.mesh(), tz]
+	var c: Array = _vehicles[key]
+	var hull := MeshInstance3D.new()
+	hull.name = "Hull"
+	hull.mesh = c[0]
+	n.add_child(hull)
+	var tur := MeshInstance3D.new()
+	tur.name = "Turret"
+	tur.mesh = c[1]
+	tur.position.z = c[2]
+	n.add_child(tur)
+
 
 static func _jet(n: Node3D, p: Dictionary, col: Color, tc: Color) -> void:
 	var l: float = p.len
