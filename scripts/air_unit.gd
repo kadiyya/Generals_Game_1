@@ -15,6 +15,7 @@ var ammo := 0
 var state := "patrol"   # patrol / rearm
 var rearm_t := 0.0
 var life := -1.0
+var bob_t := randf() * 6.0
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -145,3 +146,7 @@ func _fly(goal: Vector3, dt: float) -> void:
 	position.y = alt
 	rotation.y = yaw
 	model.rotation.z = lerpf(model.rotation.z, -tr * 0.2, minf(1.0, dt * 5.0))
+	if d.get("small", false):
+		bob_t += dt * 5.0
+		model.position.y = sin(bob_t) * 0.18
+		model.rotation.x = sin(bob_t * 0.7) * 0.08

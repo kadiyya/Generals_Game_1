@@ -46,6 +46,8 @@ var controls: Controls
 var zone_ring: MeshInstance3D
 var _recalc_t := 0.0
 var _alert_t := -100.0
+var dust_color := Color(0.6, 0.55, 0.42)
+var _puff: SphereMesh = null
 
 
 func _ready() -> void:
@@ -92,6 +94,8 @@ func _ready() -> void:
 		add_child(load("res://tools/inputtest.gd").new())
 	elif args.has("--gallery"):
 		add_child(load("res://tools/gallery.gd").new())
+	elif args.has("--animtest"):
+		add_child(load("res://tools/animtest.gd").new())
 
 
 func set_speed(i: int) -> void:
@@ -158,6 +162,7 @@ func _build_world() -> void:
 	var w := Defs.MAP_W
 	var h := Defs.MAP_H
 	var ground: Color = Defs.MAP.ground
+	dust_color = ground.lerp(Color(0.75, 0.7, 0.6), 0.55)
 	var outer := Models.box(deco, Vector3(w + 80, 0.2, h + 80), Vector3(0, -0.2, 0), ground)
 	outer.material_override = Tex.mat("ground", ground.darkened(0.45), 0.05, true)
 	var land := Models.box(deco, Vector3(w, 0.2, h), Vector3(0, -0.1, 0), ground)
@@ -635,6 +640,7 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	s.mult = MISSILE_MULT
 	s.splash = float(m.splash)
 	s.boom = 6.0
+	s.trail = true
 	if not m.get("hypersonic", false):
 		for e in entities:
 			if e.is_building and e.team != b.team and e.kind == "sam" and e.built and e.powered():
@@ -847,6 +853,7 @@ func fx_shot(src: Entity, target: Entity, base: float, speed: float, arc: float,
 	s.mult = src.d.mult
 	s.splash = float(src.d.get("splash", 0.0))
 	s.tag = src.d.get("tag", "")
+	s.trail = homing
 	add_child(s)
 	s.launch()
 
@@ -867,6 +874,95 @@ func fx_explosion(pos: Vector3, size: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(m, "scale", Vector3.ONE * size * 2.0, 0.22)
 	tw.tween_callback(m.queue_free)
+	if size >= 1.5:
+		fx_puff(pos, Color(0.28, 0.27, 0.26), size * 1.5, 1.1, 1.6)
+
+
+## Duman / toz bulutu: büyür, yükselir, sonra küçülüp kaybolur.
+func fx_puff(pos: Vector3, col: Color, size: float, secs: float, rise := 0.6) -> void:
+	var m := MeshInstance3D.new()
+	m.mesh = _puff_mesh()
+	m.material_override = Models.glow(col)
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(m)
+	m.global_position = pos
+	m.scale = Vector3.ONE * size * 0.3
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(m, "scale", Vector3.ONE * size, secs * 0.6)
+	tw.tween_property(m, "global_position", pos + Vector3(0, rise, 0), secs)
+	tw.chain().tween_property(m, "scale", Vector3.ONE * 0.02, secs * 0.4)
+	tw.chain().tween_callback(m.queue_free)
+
+
+func _puff_mesh() -> SphereMesh:
+	if _puff == null:
+		_puff = SphereMesh.new()
+		_puff.radius = 0.5
+		_puff.height = 1.0
+		_puff.radial_segments = 6
+		_puff.rings = 3
+	return _puff
+
+
+## Namlu alevi ve ardından duman.
+func fx_muzzle(pos: Vector3, proj: String) -> void:
+	var size := 0.35
+	match proj:
+		"shell":
+			size = 1.1
+		"arc":
+			size = 1.4
+		"missile":
+			size = 0.7
+		"beam":
+			return
+	var m := MeshInstance3D.new()
+	m.mesh = _puff_mesh()
+	m.material_override = Models.glow(Color(1.0, 0.85, 0.35))
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(m)
+	m.global_position = pos
+	m.scale = Vector3.ONE * size
+	var tw := create_tween()
+	tw.tween_property(m, "scale", Vector3.ONE * size * 0.2, 0.08)
+	tw.tween_callback(m.queue_free)
+	if proj != "tracer":
+		fx_puff(pos, Color(0.7, 0.7, 0.68), size * 1.3, 0.7, 0.8)
+
+
+## Yerde kalan yanık izi ve yükselen duman.
+func fx_scorch(pos: Vector3, r: float) -> void:
+	var m := Models.cyl(self, r, r, 0.02, Vector3(pos.x, 0.06, pos.z), Color(0.1, 0.09, 0.08), Vector3.ZERO, 10)
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fx_puff(Vector3(pos.x, 0.6, pos.z), Color(0.2, 0.2, 0.2), r * 1.6, 1.6, 3.0)
+	var tw := create_tween()
+	tw.tween_interval(30.0)
+	tw.tween_property(m, "scale", Vector3(0.05, 1.0, 0.05), 3.0)
+	tw.tween_callback(m.queue_free)
+
+
+## Vurulan hava aracı duman bırakarak yere düşer ve patlar.
+func fx_crash(pos: Vector3, r: float) -> void:
+	fx_explosion(pos, r * 1.2)
+	var m := MeshInstance3D.new()
+	m.mesh = _puff_mesh()
+	m.material_override = Models.glow(Color(0.15, 0.15, 0.15))
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(m)
+	m.global_position = pos
+	m.scale = Vector3.ONE * r
+	var ground := Vector3(pos.x + randf_range(-3.0, 3.0), 0.3, pos.z + randf_range(-3.0, 3.0))
+	var secs := 0.35 + pos.y * 0.08
+	var tw := create_tween()
+	tw.tween_property(m, "global_position", ground, secs).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(m.queue_free)
+	tw.tween_callback(fx_explosion.bind(ground, r * 1.4))
+	tw.tween_callback(fx_scorch.bind(ground, r))
+	for i in 4:
+		var f := (i + 1) / 5.0
+		get_tree().create_timer(secs * f, false).timeout.connect(
+			fx_puff.bind(pos.lerp(ground, f * f), Color(0.3, 0.3, 0.3), r * 0.9, 0.9, 0.3))
 
 
 func fx_marker(pos: Vector3, c: Color) -> void:

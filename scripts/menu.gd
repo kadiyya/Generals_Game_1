@@ -13,7 +13,7 @@ func _ready() -> void:
 			Scenarios.chosen = int(a.trim_prefix("--scn="))
 		elif a.begins_with("--side="):
 			Scenarios.side = int(a.trim_prefix("--side="))
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest"):
 		_start.call_deferred()
 		return
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
