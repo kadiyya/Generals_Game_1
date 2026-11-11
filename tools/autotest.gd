@@ -1,13 +1,24 @@
 extends Node
-## Geliştirme aracı: oyunu senaryoyla oynatır, ekran görüntüsü alır ve çıkar.
-## Kullanım: godot --path . --fixed-fps 30 -- --autotest [--shots=KLASÖR] [--end=SANİYE]
+## Geliştirme aracı: oyuncu yerine oynayan basit bir bot. Her binayı kurar, her birimi üretir,
+## araştırma yapar, füze atar ve saldırır; böylece bütün kod yolları çalışır.
+## Kullanım: godot --headless --path . --fixed-fps 30 -- --autotest [--scn=N] [--side=N] [--end=SANİYE] [--idle]
+## Ekran görüntüsü için --headless olmadan --shots=KLASÖR ekle.
+
+const WANT_B := [["kisla", 1], ["santral", 2], ["fabrika", 1], ["maden", 2], ["havaalani", 1],
+	["teknoloji", 1], ["sam", 1], ["santral", 4], ["fuze", 1], ["havaalani", 2]]
+const SHOTS := [[2.0, "01_baslangic"], [70.0, "02_us"], [200.0, "03_hava_alani"], [330.0, "04_ordu"],
+	[400.0, "05_ileri"], [470.0, "06_saldiri"], [520.0, "07_harita"]]
 
 var out_dir := ""
-var end_time := 420.0
-var step := 0
-var log_t := 0.0
-var busy := false
+var end_time := 560.0
 var idle := false   # --idle: oyuncu hiçbir şey yapmaz; yapay zekânın temposunu ölçer
+var busy := false
+var log_t := 0.0
+var act_t := 0.0
+var shot_i := 0
+var attacked := false
+var made := {}
+var launched := 0
 
 
 func _ready() -> void:
@@ -20,7 +31,8 @@ func _ready() -> void:
 		elif a.begins_with("--end="):
 			end_time = float(a.trim_prefix("--end="))
 	if not idle:
-		Game.I.teams[Defs.PLAYER].money = 20000.0
+		Game.I.teams[Defs.PLAYER].money = 60000.0
+	print("SENARYO %s  taraf=%s  rakip=%s" % [Defs.SCN.name, Scenarios.country(0).name, Scenarios.country(1).name])
 
 
 func _shot(name: String) -> void:
@@ -33,20 +45,76 @@ func _shot(name: String) -> void:
 	busy = false
 
 
-func _hq() -> Vector3:
-	return Game.I.teams[Defs.PLAYER].hq.position
-
-
-func _b(id: String):
-	return Game.I.nearest_building(Defs.PLAYER, id, Vector3.ZERO)
-
-
-func _units(id := "") -> Array:
+func _units(cat := "") -> Array:
 	var out: Array = []
 	for e in Game.I.entities:
-		if e.team == Defs.PLAYER and not e.is_building and (id == "" or e.def_id == id):
+		if e.team == Defs.PLAYER and not e.is_building and (cat == "" or e.d.cat == cat):
 			out.append(e)
 	return out
+
+
+func _site(kind: String) -> Vector3:
+	var g := Game.I
+	var home: Vector3 = g.teams[0].hq.position
+	for r in [16.0, 26.0, 35.0, 41.0]:
+		for k in 12:
+			var ang: float = k * TAU / 12.0 + r * 0.05
+			var p: Vector3 = home + Vector3(cos(ang), 0, sin(ang)) * r
+			if g.can_place(0, kind, p):
+				return p
+	return Vector3.INF
+
+
+func _act() -> void:
+	var g := Game.I
+	var ts = g.teams[0]
+	while ts.cranes < Defs.MAX_CRANES:
+		g.buy_crane(0)
+	for w in WANT_B:
+		var bd: Dictionary = Defs.BUILDINGS[Defs.bid(0, w[0])]
+		if g.count_kind(0, w[0], false) < w[1] and ts.tier >= int(bd.get("tier", 1)):
+			var p := _site(w[0])
+			if p != Vector3.INF:
+				g.place_building(0, w[0], p)
+	if g.can_upgrade(0) == "":
+		g.start_tier_upgrade(0)
+	for e in g.entities:
+		if e.team != 0 or not e.is_building or not e.built:
+			continue
+		# her birimden birer tane (uçaklardan ikişer) üret
+		for id in e.d.get("produces", []):
+			var ud: Dictionary = Defs.UNITS[id]
+			var want := 2 if ud.cat == "kara" else 1
+			if int(made.get(id, 0)) < want and ts.tier >= int(ud.get("tier", 1)) and e.queue.size() < 3:
+				if g.queue_unit(e, id):
+					made[id] = int(made.get(id, 0)) + 1
+		if e.kind == "teknoloji" and e.research_id == "":
+			for r in Scenarios.RESEARCH:
+				if g.can_research(0, r.id):
+					g.start_research(e, r)
+					break
+		if e.kind == "fuze" and g.time > 300.0:
+			for i in e.missile_ready.size():
+				if e.missile_ready[i] <= 0.0 and ts.tier >= int(g.missile_info(0, i).tier):
+					for t in g.entities:
+						if t.team == 1 and t.is_building and g.fog.sees(0, t.position):
+							if g.launch_missile(e, i, t.position):
+								launched += 1
+							break
+	if g.time > 320.0 and not attacked:
+		attacked = true
+		g.select_category("")
+	if g.time > 335.0:
+		var hq1 = g.teams[1].hq
+		if hq1 != null and is_instance_valid(hq1):
+			var ground: Array = []
+			for u in _units("kara") + _units("hs"):
+				if u.order == "idle":
+					ground.append(u)
+			if not ground.is_empty():
+				g.order_move(ground, hq1.position, true)
+			for u in _units("hava"):
+				u.set_patrol(hq1.position + Vector3(signf(g.teams[0].hq.position.x) * 26.0, 0, 0))
 
 
 func _process(dt: float) -> void:
@@ -55,7 +123,7 @@ func _process(dt: float) -> void:
 		return
 	log_t -= dt
 	if log_t <= 0.0:
-		log_t = 30.0
+		log_t = 60.0
 		var c := [0, 0]
 		for e in g.entities:
 			c[e.team] += 1
@@ -63,129 +131,53 @@ func _process(dt: float) -> void:
 		for p in g.points:
 			if p.owner_team >= 0:
 				own[p.owner_team] += 1
-		print("t=%d  varlik=%s  nokta=%s  para=[%d,%d]  kademe=[%d,%d] dalga-bitti=%s" % [
+		print("t=%d  varlik=%s  nokta=%s  para=[%d,%d]  kademe=[%d,%d]  fuze=%d" % [
 			int(g.time), c, own, int(g.teams[0].money), int(g.teams[1].money),
-			g.teams[0].tier, g.teams[1].tier, g.over])
-	var t := g.time
-	if idle:
-		if t > end_time or g.over:
-			print("AUTOTEST BITTI  t=%d  kazanan=%d" % [int(g.time), g.winner])
-			get_tree().quit()
+			g.teams[0].tier, g.teams[1].tier, launched])
+	if g.time > end_time or g.over:
+		_shot("08_son")
+		var kinds := {}
+		for id in made:
+			kinds[Defs.UNITS[id].cls] = true
+		print("AUTOTEST BITTI  t=%d  kazanan=%d  uretilen_tur=%d  sinif=%d  arastirma=%d  fuze=%d" % [
+			int(g.time), g.winner, made.size(), kinds.size(), g.teams[0].researched.size(), launched])
+		set_process(false)
+		await get_tree().create_timer(0.2, true, false, true).timeout
+		get_tree().quit()
 		return
-	match step:
-		0:
-			if t > 1.0:
-				_shot("01_baslangic")
-				step += 1
-		1:
-			g.buy_crane(Defs.PLAYER)
-			g.place_building(Defs.PLAYER, "kisla", _hq() + Vector3(16, 0, -10))
-			g.place_building(Defs.PLAYER, "santral", _hq() + Vector3(-2, 0, 16))
-			g.place_building(Defs.PLAYER, "fabrika", _hq() + Vector3(18, 0, 10))
-			g.place_building(Defs.PLAYER, "santral", _hq() + Vector3(-14, 0, -12))
-			var m := _units("manga")
-			g.order_move([m[0]], Vector3(-68, 0, -38), true)
-			g.order_move([m[1]], Vector3(-68, 0, 38), true)
-			g.open_build_menu()
-			step += 1
-		2:
-			if t > 4.0:
-				_shot("02_insa_menusu")
-				step += 1
-		3:
-			if t > 50.0:
-				var k = _b("kisla")
-				var f = _b("fabrika")
-				if k != null and f != null:
-					for id in ["manga", "manga", "tanksavar", "tanksavar"]:
-						g.queue_unit(k, id)
-					for id in ["tank", "tank", "tank", "korkut"]:
-						g.queue_unit(f, id)
-					g.start_tier_upgrade(Defs.PLAYER)
-					g.select([f])
-					step += 1
-		4:
-			if t > 60.0:
-				_shot("03_fabrika")
-				step += 1
-		5:
-			if t > 100.0:
-				g.place_building(Defs.PLAYER, "iha", _hq() + Vector3(4, 0, -20))
-				g.place_building(Defs.PLAYER, "hisar", _hq() + Vector3(28, 0, 0))
-				g.queue_unit(_b("fabrika"), "obus")
-				g.queue_unit(_b("fabrika"), "obus")
-				step += 1
-		6:
-			if t > 104.0:
-				_shot("04_us")
-				step += 1
-		7:
-			if t > 135.0:
-				var s = _b("iha")
-				if s != null:
-					for id in ["kesif", "tb2", "tb2"]:
-						g.queue_unit(s, id)
-					step += 1
-		8:
-			if t > 215.0:
-				g.select_category("")
-				g.cam.focus = _hq() + Vector3(22, 0, 0)
-				g.cam.dist = 46.0
-				step += 1
-		9:
-			if t > 216.0:
-				_shot("05_ordu")
-				var ground: Array = []
-				for u in _units():
-					if u is AirUnit:
-						u.set_patrol(Vector3(30, 0, 0) if u.def_id == "kesif" else Vector3(8, 0, 0))
-					elif u.def_id != "manga":
-						ground.append(u)
-				g.order_move(ground, Vector3(-12, 0, 0), true)
-				g.order_move(_units("manga").slice(2), Vector3(0, 0, 0), true)
-				step += 1
-		10:
-			if t > 250.0:
-				g.cam.focus = Vector3(-45, 0, 0)
-				g.cam.dist = 70.0
-				step += 1
-		11:
-			if t > 251.0:
-				_shot("06_gecit")
-				step += 1
-		12:
-			if t > 290.0:
-				g.cam.focus = Vector3(0, 0, 0)
-				g.cam.dist = 60.0
-				_shot("07_orta")
-				step += 1
-		13:
-			if t > 300.0:
-				var ground: Array = []
-				for u in _units():
-					if u is AirUnit:
-						u.set_patrol(Vector3(70, 0, 0))
-					elif u.def_id != "manga":
-						ground.append(u)
-				g.order_move(ground, g.teams[1].hq.position, true)
-				g.select(ground)
-				step += 1
-		14:
-			if t > 370.0:
-				g.cam.focus = Vector3(70, 0, 0)
-				g.cam.dist = 70.0
-				_shot("08_saldiri")
-				step += 1
-		15:
-			if t > 372.0:
-				g.cam.focus = Vector3(0, 0, 0)
+	if idle:
+		return
+	if shot_i < SHOTS.size() and g.time > SHOTS[shot_i][0]:
+		var hq: Vector3 = g.teams[0].hq.position
+		var dirx := -signf(hq.x)
+		match shot_i:
+			0, 1:
+				g.cam.focus = hq + Vector3(dirx * 12.0, 0, 0)
+				g.cam.dist = 62.0
+				if shot_i == 1:
+					g.open_build_menu()
+			2:
+				var af = g.nearest_building(0, "havaalani", hq)
+				if af != null:
+					g.cam.focus = af.position
+					g.cam.dist = 44.0
+					g.select([af])
+			3:
+				g.cam.focus = hq + Vector3(dirx * 22.0, 0, 0)
+				g.cam.dist = 52.0
+			4:
+				g.cam.focus = Vector3(hq.x * 0.35, 0, hq.z)
+				g.cam.dist = 62.0
+			5:
+				g.cam.focus = Vector3(-hq.x * 0.75, 0, g.teams[1].hq.position.z)
+				g.cam.dist = 66.0
+			6:
+				g.cam.focus = Vector3.ZERO
 				g.cam.dist = 130.0
-				_shot("09_harita")
-				step += 1
-		16:
-			if t > end_time or g.over:
-				_shot("10_son")
-				step += 1
-		17:
-			print("AUTOTEST BITTI  t=%d  kazanan=%d" % [int(g.time), g.winner])
-			get_tree().quit()
+		_shot(SHOTS[shot_i][1])
+		shot_i += 1
+		return
+	act_t -= dt
+	if act_t <= 0.0:
+		act_t = 2.0
+		_act()

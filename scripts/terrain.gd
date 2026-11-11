@@ -7,6 +7,8 @@ const CELL := 2.0
 const LAND := 0
 const MOUNTAIN := 1
 const WATER := 2
+const TREES := 3
+const RUINS := 4
 
 var gw := 0
 var gh := 0
@@ -18,9 +20,12 @@ func _ready() -> void:
 	gw = int(ceil(Defs.MAP_W / CELL))
 	gh = int(ceil(Defs.MAP_H / CELL))
 	kind.resize(gw * gh)
-	_fill(Defs.WATER, WATER)
-	_fill(Defs.MOUNTAINS, MOUNTAIN)
-	_fill(Defs.BRIDGES, LAND)
+	var m: Dictionary = Defs.MAP
+	_fill(m.water, WATER)
+	_fill(m.rock, MOUNTAIN)
+	_fill(m.trees, TREES)
+	_fill(m.ruins, RUINS)
+	_fill(m.bridges, LAND)
 	astar.region = Rect2i(0, 0, gw, gh)
 	astar.cell_size = Vector2(CELL, CELL)
 	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
@@ -125,41 +130,49 @@ func block_circle(p: Vector3, r: float, v: bool) -> void:
 
 
 func _visuals() -> void:
-	for r in Defs.WATER:
-		var m := Models.box(self, Vector3(r[2] - r[0], 0.06, r[3] - r[1]),
+	var m: Dictionary = Defs.MAP
+	for r in m.water:
+		var w := Models.box(self, Vector3(r[2] - r[0], 0.06, r[3] - r[1]),
 			Vector3((r[0] + r[2]) * 0.5, 0.0, (r[1] + r[3]) * 0.5), Color(0.16, 0.36, 0.55))
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	for r in Defs.BRIDGES:
+		w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for r in m.bridges:
 		var big: bool = (r[2] - r[0]) > 12.0
 		Models.box(self, Vector3(r[2] - r[0], 0.12, r[3] - r[1]),
 			Vector3((r[0] + r[2]) * 0.5, 0.03, (r[1] + r[3]) * 0.5),
-			Color(0.45, 0.47, 0.33) if big else Color(0.5, 0.48, 0.44))
-	var cells: Array = []
-	for y in gh:
-		for x in gw:
-			if kind[y * gw + x] == MOUNTAIN:
-				cells.append(Vector2i(x, y))
-	if cells.is_empty():
-		return
+			m.ground.darkened(0.08) if big else Color(0.5, 0.48, 0.44))
 	var cone := CylinderMesh.new()
 	cone.top_radius = 0.0
 	cone.bottom_radius = 1.0
 	cone.height = 1.0
 	cone.radial_segments = 5
 	cone.rings = 1
+	var cube := BoxMesh.new()
+	_scatter(MOUNTAIN, cone, Color(0.42, 0.39, 0.35), Vector2(1.7, 2.6), Vector2(3.5, 8.5))
+	_scatter(TREES, cone, Color(0.16, 0.33, 0.18), Vector2(1.0, 1.5), Vector2(3.0, 5.0))
+	_scatter(RUINS, cube, Color(0.5, 0.47, 0.44), Vector2(1.3, 1.9), Vector2(1.0, 3.2))
+
+
+func _scatter(k: int, mesh: Mesh, col: Color, size: Vector2, height: Vector2) -> void:
+	var cells: Array = []
+	for y in gh:
+		for x in gw:
+			if kind[y * gw + x] == k:
+				cells.append(Vector2i(x, y))
+	if cells.is_empty():
+		return
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = cone
+	mm.mesh = mesh
 	mm.instance_count = cells.size()
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 11
+	rng.seed = 11 + k
 	for i in cells.size():
-		var w := center(cells[i]) + Vector3(rng.randf_range(-0.5, 0.5), 0, rng.randf_range(-0.5, 0.5))
-		var s := rng.randf_range(1.7, 2.6)
-		var h := rng.randf_range(3.5, 8.5)
+		var w := center(cells[i]) + Vector3(rng.randf_range(-0.4, 0.4), 0, rng.randf_range(-0.4, 0.4))
+		var s := rng.randf_range(size.x, size.y)
+		var h := rng.randf_range(height.x, height.y)
 		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, h, s))
 		mm.set_instance_transform(i, Transform3D(b, Vector3(w.x, h * 0.5, w.z)))
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
-	mi.material_override = Models.mat(Color(0.42, 0.39, 0.35))
+	mi.material_override = Models.mat(col)
 	add_child(mi)

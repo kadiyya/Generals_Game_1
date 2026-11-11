@@ -107,6 +107,9 @@ func _tap(pos: Vector2) -> void:
 	if g.placing != "":
 		g.try_place(world)
 		return
+	if g.targeting != null:
+		g.try_launch(world)
+		return
 	var e = g.pick_entity(pos)
 	if e != null and e.team == Defs.PLAYER:
 		if dbl and not e.is_building:

@@ -18,7 +18,7 @@ var nav_ok := true
 func setup(id: String, t: int, def: Dictionary) -> void:
 	super.setup(id, t, def)
 	speed = float(d.speed)
-	rotation.y = PI * 0.5 if t == Defs.PLAYER else -PI * 0.5
+	rotation.y = PI * 0.5 if position.x < 0.0 else -PI * 0.5
 
 
 func go(p: Vector3, attack_move: bool) -> void:
@@ -40,7 +40,7 @@ func stop() -> void:
 
 
 func weapon_range() -> float:
-	return float(d.get("range", 0.0))
+	return wrange()
 
 
 func _process(dt: float) -> void:

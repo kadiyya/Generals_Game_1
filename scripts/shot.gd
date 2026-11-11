@@ -13,6 +13,9 @@ var homing := false
 var base := 0.0
 var mult: Dictionary = {}
 var splash := 0.0
+var tag := ""
+var intercept_at := -1.0   # 0..1 arası ise füze o noktada önlenir
+var boom := 1.2
 var t := 0.0
 var dur := 0.1
 
@@ -28,6 +31,11 @@ func _process(dt: float) -> void:
 	t += dt / dur
 	var f := minf(t, 1.0)
 	global_position = start.lerp(end, f) + Vector3(0, arc * 4.0 * f * (1.0 - f), 0)
+	if intercept_at >= 0.0 and t >= intercept_at:
+		Game.I.fx_explosion(global_position, 3.0)
+		Game.I.on_missile_intercepted(src_team)
+		queue_free()
+		return
 	if t >= 1.0:
 		_hit()
 
@@ -36,14 +44,10 @@ func _hit() -> void:
 	var g := Game.I
 	var attacker = src if (src != null and is_instance_valid(src)) else null
 	if splash > 0.0:
-		g.fx_explosion(end, splash * 0.8)
-		for e in g.entities.duplicate():
-			if e.alive and e.team != src_team and not e.is_air:
-				var dist: float = Entity.flat(e.global_position, end) - e.radius
-				if dist <= splash:
-					e.take_damage(base * float(mult.get(e.armor, 0.0)), attacker)
+		g.fx_explosion(end, maxf(boom, splash * 0.8))
+		g.splash_damage(end, splash, base, mult, src_team, tag, attacker)
 	else:
-		g.fx_explosion(end, 1.2)
+		g.fx_explosion(end, boom)
 		if target != null and is_instance_valid(target) and target.alive:
-			target.take_damage(base * float(mult.get(target.armor, 0.0)), attacker)
+			target.take_damage(base * float(mult.get(target.armor, 0.0)), attacker, tag)
 	queue_free()

@@ -98,7 +98,7 @@ Oyuncu her senaryoda **iki tarafı da** oynayabilir.
 | 1 | Rusya – Ukrayna (Harkiv açıkları) | Açık |
 | 2 | İran – İsrail | Açık |
 | 3 | Pakistan – Hindistan | Açık |
-| 4 | Çin – ABD: ada çıkarması | Kilitli (deniz modu) |
+| 4 | Çin – ABD: Tayvan çıkarması | Kilitli (deniz modu) |
 | 5 | Çin – ABD: okyanus | Kilitli (deniz modu) |
 | 6 | Türkiye – Yunanistan: adalar | Kilitli (deniz modu) |
 
@@ -119,8 +119,7 @@ Oyuncu her senaryoda **iki tarafı da** oynayabilir.
 - **Hindistan (dengeli):** insan gücü fazla; piyadesi ucuz, birlik sınırı daha yüksek.
 
 ### 6.4 – 6.6 Kilitli senaryolar
-- **Çin – ABD, ada çıkarması:** Çin adaya çıkmak ister, ABD denizde geçişi durdurmaya çalışır.
-  Not: mesajda ada "Tayland" olarak geçiyor; Tayvan kastedildiğini varsaydım, düzeltmen gerekirse söyle.
+- **Çin – ABD, Tayvan çıkarması:** Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır.
 - **Çin – ABD, okyanus:** amaç karşı tarafın karadaki üslerini yok etmek.
 - **Türkiye – Yunanistan:** Türkiye'nin silahları üstün; Yunanistan çok sayıda adayı silahlandırmış ve kaynağa erişimi kolay.
 
@@ -293,27 +292,27 @@ Her ülke son kademede bir ya da iki deneysel sistem açabilir. Pahalı, tek ya 
 
 | Özellik | Durum |
 |---|---|
-| Yavaş tempo, dayanıklı ve pahalı birimler | Yapıldı |
+| Yavaş tempo, dayanıklı ve pahalı birimler, karargâh yanında onarım | Yapıldı |
 | Hız düğmesi ve duraklatıp emir verme | Yapıldı |
-| Büyük harita, dağ / nehir / deniz / köprü, yol bulma | Yapıldı (tek harita) |
-| Binaları istenen yere kurma | Yapıldı |
-| Vinç: aynı anda yürüyen inşaat sayısı | Yapıldı |
-| Düğmelerde küçük resimler | Yapıldı |
-| Dolar ve kaynak noktalarında `+$/sn` | Yapıldı |
-| Tankların piyadeye ateş etmesi | Düzeltildi |
-| Karargâh yanında onarım | Yapıldı |
-| Senaryo ve taraf seçimi, ülke envanterleri | Sıradaki aşama |
-| Hava alanı, uçaklar, küçük / büyük İHA ayrımı | Sıradaki aşama |
-| Modellerin gerçeğine benzetilmesi | Sıradaki aşama (uçaklarla birlikte) |
-| Teknoloji merkezi ve araştırmalar | Sonra |
-| Kaynak binası | Sonra |
-| Balistik füzeler ve füze savunması | Sonra |
-| Doktrin farkları | Sonra |
-| Deneysel silahlar | Sonra |
-| Deniz modu ve kilitli senaryolar | En son |
+| Büyük haritalar, engeller, yol bulma | Yapıldı (3 harita) |
+| Binaları istenen yere kurma, vinç | Yapıldı |
+| Düğmelerde küçük resimler, dolar, `+$/sn` | Yapıldı |
+| Senaryo ve taraf seçimi; iki taraf da oynanabilir | Yapıldı (3 senaryo açık, 3 kilitli) |
+| Ülke envanterleri (gerçek adlar) | Yapıldı: Ukrayna, Rusya, İsrail, İran, Pakistan, Hindistan |
+| Hava alanı ve uçaklar, pist sınırı, görünmez uçak | Yapıldı |
+| Küçük / büyük İHA ayrımı, kamikaze ve dolanan mühimmat | Yapıldı |
+| Gerçeğine benzeyen modeller | Yapıldı (16 uçak silueti, ülkeye özel tank ve araçlar) |
+| Teknoloji merkezi ve araştırmalar | Yapıldı (6 araştırma) |
+| Kaynak binası (Maden Ocağı) | Yapıldı |
+| Balistik füzeler, hava savunmayla önleme, hipersonik | Yapıldı |
+| Doktrin farkları | Yapıldı (maliyet / dayanıklılık / füze çarpanları) |
+| Deneysel silahlar (Kademe 3) | Kısmen: lazer drone katili, görünmez İHA, hipersonik füze. Ravn X, FH-97, Kızılelma kilitli ülkelerle gelecek |
+| Tablodaki bütün sistemler | Kısmen: her ülkede 16-18 birim oyunda; bölüm 7'deki listelerin kalanı sonra |
+| Elektronik harp, fiber optik FPV, karşı batarya radarı | Sonra (şimdilik araştırmalar düz çarpan) |
+| Zorluk seçimi, ses | Sonra |
+| Deniz modu ve kilitli senaryolar (ABD, Çin, Türkiye, Yunanistan) | En son |
 
 ## 13. Açık sorular
 
-- Çin senaryosundaki ada Tayvan mı?
 - Uygulama mağazası: süren savaşları konu alan oyunlar mağaza kurallarına takılabilir. Yayın aşamasında senaryo adlarını gözden geçirmek gerekebilir.
 - Gerçek üretici adları ve logoları kullanılmayacak; yalnızca sistem adları.

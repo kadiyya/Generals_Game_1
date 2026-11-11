@@ -1,6 +1,6 @@
 extends Node
 ## Geliştirme aracı: dokunmatik girdileri taklit edip kontrollerin çalıştığını doğrular.
-## Kullanım (gerçek pencere gerekir): godot --path . -- --inputtest
+## Kullanım (gerçek pencere gerekir; nehirli ve dağlı harita için 3. senaryo): godot --path . -- --inputtest --scn=2
 
 var fails := 0
 
@@ -48,7 +48,7 @@ func _tap(pos: Vector2) -> void:
 func _count(id: String) -> int:
 	var n := 0
 	for e in Game.I.entities:
-		if e.team == Defs.PLAYER and e.def_id == id:
+		if e.team == Defs.PLAYER and e.is_building and e.kind == id:
 			n += 1
 	return n
 
@@ -70,7 +70,7 @@ func _run() -> void:
 	_check("Insa dugmesi menuyu acar", g.menu == "build" and g.hud.bottom.visible)
 
 	# 2) Kışla düğmesi -> yerleştirme modu -> haritaya dokun -> bina kurulur
-	await _tap(g.hud.actions.get_child(1).get_global_rect().get_center())
+	await _tap(g.hud.actions.get_child(2).get_global_rect().get_center())
 	await _frames(2)
 	_check("bina dugmesi yerlestirme modunu acar", g.placing == "kisla")
 	await _tap(_screen(g.teams[0].hq.position + Vector3(16, 0, -8)))
@@ -78,7 +78,7 @@ func _run() -> void:
 	_check("haritaya dokununca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
 
 	# 2b) dağın üstüne bina kurulamaz
-	_check("dagin ustune bina kurulamaz", not g.can_place(0, "kisla", Vector3(-45, 0, -30)) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
+	_check("dagin ustune bina kurulamaz", not g.terrain.is_land(Vector3(-45, 0, -50)) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
 
 	# 2c) hız düğmesi oyunu duraklatır
 	await _tap(g.hud.speed_btn.get_global_rect().get_center())
@@ -91,7 +91,7 @@ func _run() -> void:
 	g.clear_selection()
 	var m: Unit = null
 	for e in g.entities:
-		if e.team == Defs.PLAYER and e.def_id == "manga":
+		if e.team == Defs.PLAYER and e.cls == "inf":
 			m = e
 	await _tap(_screen(m.aim_pos()))
 	_check("birime dokununca secilir", g.selection.size() == 1 and g.selection[0] == m)
@@ -150,13 +150,35 @@ func _run() -> void:
 	_check("Hepsi dugmesi butun birimleri secer", g.selected_units().size() == 2)
 
 	# 9b) yol bulma: nehrin karşısına giden birim köprüden geçer, suya girmez
-	var path := g.terrain.find_path(Vector3(-30, 0, 20), Vector3(30, 0, 20))
+	var path := g.terrain.find_path(Vector3(-30, 0, 38), Vector3(30, 0, 38))
 	var wet := false
 	for wp in path:
 		if not g.terrain.is_land(wp):
 			wet = true
 	_check("yol nehri kopruden gecer", path.size() > 5 and not wet)
-	_check("dagin icinden duz gidilemez", not g.terrain.line_clear(Vector3(-60, 0, -30), Vector3(-30, 0, -30)))
+	_check("dagin icinden duz gidilemez", not g.terrain.line_clear(Vector3(-60, 0, -50), Vector3(-30, 0, -50)))
+
+	# 9c) doktrin: Pakistan'da (Balistik Füze) Füze Üssü Kademe 2'de açılır, füze ucuzdur
+	_check("fuze doktrini fuze ussunu kademe 2'de acar", int(Defs.BUILDINGS[Defs.bid(0, "fuze")].tier) == 2 and g.missile_info(0, 0).cost < Scenarios.country(0).missiles[0].cost)
+
+	# 9d) uçak pist sınırı ve füze hedefleme
+	g.teams[0].tier = 3
+	g.teams[0].money = 50000.0
+	var af := g.spawn_building(Defs.bid(0, "havaalani"), 0, g.teams[0].hq.position + Vector3(0, 0, -22), true)
+	var jet := g.unit_of(0, "fighter")
+	var queued := 0
+	for i in 6:
+		if g.queue_unit(af, jet):
+			queued += 1
+	_check("bir hava alani en cok 4 ucak alir", queued == Defs.PLANES_PER_AIRFIELD)
+	var fz := g.spawn_building(Defs.bid(0, "fuze"), 0, g.teams[0].hq.position + Vector3(-14, 0, 14), true)
+	for z in [22.0, 30.0]:
+		g.spawn_building(Defs.bid(0, "santral"), 0, g.teams[0].hq.position + Vector3(-20, 0, z - 40.0), true)
+	g.recalc()
+	g.fog.recompute()
+	_check("fuze ussunun enerjisi var", fz.powered())
+	_check("gorulmeyen hedefe fuze atilamaz", not g.launch_missile(fz, 0, g.teams[1].hq.position))
+	_check("gorulen hedefe fuze atilir", g.launch_missile(fz, 0, g.teams[0].hq.position + Vector3(12, 0, 0)) and fz.missile_ready[0] > 0.0)
 
 	# 10) küçük haritaya dokun -> kamera oraya gider
 	await _tap(g.hud.minimap.get_global_rect().get_center())

@@ -63,6 +63,18 @@ func _ready() -> void:
 	speed_btn.pressed.connect(_on_speed)
 	root.add_child(speed_btn)
 	_update_speed_btn()
+	var menu_btn := Button.new()
+	menu_btn.text = "Menü"
+	menu_btn.anchor_left = 1.0
+	menu_btn.anchor_right = 1.0
+	menu_btn.offset_left = -208.0
+	menu_btn.offset_right = -8.0
+	menu_btn.offset_top = 110.0
+	menu_btn.offset_bottom = 158.0
+	menu_btn.focus_mode = Control.FOCUS_NONE
+	menu_btn.pressed.connect(_to_menu)
+	root.add_child(menu_btn)
+	blockers.append(menu_btn)
 
 	minimap = Control.new()
 	minimap.position = Vector2(8, 48)
@@ -129,7 +141,7 @@ func _ready() -> void:
 	toast_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toast_lbl)
 
-	blockers = [top, speed_btn, minimap, side, bottom]
+	blockers += [top, speed_btn, minimap, side, bottom]
 	Game.I.selection_changed.connect(rebuild)
 	_rebuild_now()
 
@@ -188,12 +200,12 @@ func _process(_dt: float) -> void:
 	var ts = g.teams[Defs.PLAYER]
 	var tier_txt := "Kademe %d" % ts.tier
 	if ts.upgrading:
-		tier_txt = "Kademe 2: %%%d" % int(ts.upgrade_t / Defs.TIER2_TIME * 100.0)
+		tier_txt = "Kademe %d: %%%d" % [ts.tier + 1, int(ts.upgrade_t / Defs.TIER_TIME[ts.tier] * 100.0)]
 	var pw := "Enerji %d/%d" % [ts.power_used, ts.power_prod]
 	if ts.power_used > ts.power_prod:
 		pw += " (YETERSİZ)"
-	lbl_top.text = "$%d (+$%d/sn)     %s     Birlik %d/%d     Vinç %d     %s     %02d:%02d" % [
-		int(ts.money), int(ts.income), pw, ts.pop, Defs.POP_CAP, ts.cranes, tier_txt,
+	lbl_top.text = "%s    $%d (+$%d/sn)    %s    Birlik %d/%d    Vinç %d    %s    %02d:%02d" % [
+		Scenarios.country(Defs.PLAYER).name, int(ts.money), int(ts.income), pw, ts.pop, ts.pop_cap, ts.cranes, tier_txt,
 		int(g.time) / 60, int(g.time) % 60]
 	minimap.queue_redraw()
 	_run_refreshers()
@@ -205,16 +217,22 @@ func _process(_dt: float) -> void:
 func icon(id: String) -> Texture2D:
 	if _icons.has(id):
 		return _icons[id]
-	var def: Dictionary = Defs.UNITS[id] if Defs.UNITS.has(id) else Defs.BUILDINGS.get(id, {})
+	var def: Dictionary = {}
+	var r := 3.0
+	if Defs.UNITS.has(id):
+		def = Defs.UNITS[id]
+		r = float(def.get("icon_r", float(def.radius) * 1.55))
+	elif Defs.BUILDINGS.has(id):
+		def = Defs.BUILDINGS[id]
+		r = float(def.radius)
 	var vp := SubViewport.new()
 	vp.size = Vector2i(128, 128)
 	vp.own_world_3d = true
 	vp.transparent_bg = true
 	add_child(vp)
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	var m: Node3D = Models.crane() if id == "vinc" else Models.build(id, Defs.PLAYER)
+	var m: Node3D = Models.crane() if id == "vinc" else Models.build(def, Defs.PLAYER)
 	vp.add_child(m)
-	var r: float = float(def.get("icon_r", def.get("radius", 3.0)))
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	vp.add_child(sun)
@@ -226,10 +244,13 @@ func icon(id: String) -> Texture2D:
 	c.fov = 30.0
 	c.environment = env
 	vp.add_child(c)
-	var mid := Vector3(0, 0.0 if def.get("air", false) else r * 0.45, 0)
+	var mid := Vector3(0, 0.0 if def.get("air", false) else r * 0.4, 0)
+	var dir := Vector3(0.55, 0.6, 0.75)
+	if def.get("air", false):
+		dir = Vector3(0.35, 1.0, 0.45)     # hava araçları üstten: siluet okunur
 	if id == "vinc":
 		mid = Vector3(-1.0, 3.0, 0)
-	c.look_at_from_position(mid + Vector3(0.55, 0.6, 0.75).normalized() * r * 5.2, mid, Vector3.UP)
+	c.look_at_from_position(mid + dir.normalized() * r * 5.2, mid, Vector3.UP)
 	_icons[id] = vp.get_texture()
 	return _icons[id]
 
@@ -252,19 +273,24 @@ func _rebuild_now() -> void:
 	var g := Game.I
 	bottom.visible = true
 	if g.placing != "":
-		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[g.placing].name
+		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[Defs.bid(0, g.placing)].name
 		_btn("İptal", g.cancel_placing)
 		return
-	var hq_selected: bool = g.selection.size() == 1 and g.selection[0] is Building and g.selection[0].def_id == "hq"
+	if g.targeting != null:
+		title.text = "%s: hedef için haritada görebildiğin bir yere dokun" % g.missile_info(0, g.targeting_i).name
+		_btn("İptal", g.cancel_targeting)
+		return
+	var hq_selected: bool = g.selection.size() == 1 and g.selection[0] is Building and g.selection[0].kind == "hq"
 	if g.menu == "build" or hq_selected:
-		title.text = "İnşa: bir bina seç, sonra haritada yerini göster"
-		for id in Defs.BUILD_MENU:
+		title.text = "İnşa: bir bina seç, sonra haritada yerini göster  (%s)" % Scenarios.doctrine(0).name
+		for kind in Defs.BUILD_KINDS:
+			var id := Defs.bid(0, kind)
 			var bd: Dictionary = Defs.BUILDINGS[id]
-			var b := _btn("%s\n$%d" % [bd.name, bd.cost], g.begin_placing.bind(id), id)
-			refreshers.append(_refresh_cost.bind(b, int(bd.cost), int(bd.get("tier", 1))))
+			var b := _btn("%s\n$%d" % [bd.name, bd.cost], g.begin_placing.bind(kind), id)
+			refreshers.append(_refresh_cost.bind(b, bd.name, int(bd.cost), int(bd.get("tier", 1))))
 		var cr := _btn("Vinç", _crane, "vinc")
 		refreshers.append(_refresh_crane.bind(cr))
-		var up := _btn("Kademe 2\n$%d" % Defs.TIER2_COST, _upgrade)
+		var up := _btn("Kademe", _upgrade)
 		refreshers.append(_refresh_upgrade.bind(up))
 		_btn("Kapat", g.clear_selection)
 		_run_refreshers()
@@ -288,8 +314,22 @@ func _rebuild_now() -> void:
 		if b.built:
 			for id in b.d.get("produces", []):
 				var ud: Dictionary = Defs.UNITS[id]
-				var btn := _btn("%s\n$%d" % [ud.name, ud.cost], _queue.bind(b, id), id)
-				refreshers.append(_refresh_cost.bind(btn, int(ud.cost), int(ud.get("tier", 1))))
+				var cost := g.unit_cost(0, id)
+				var label: String = ud.name
+				if int(ud.get("count", 1)) > 1:
+					label += " x%d" % int(ud.count)
+				var btn := _btn("%s\n$%d" % [label, cost], _queue.bind(b, id), id)
+				refreshers.append(_refresh_cost.bind(btn, label, cost, int(ud.get("tier", 1))))
+			if b.kind == "teknoloji":
+				for r in Scenarios.RESEARCH:
+					var rb := _btn("%s\n$%d" % [r.name, r.cost], _research.bind(b, r))
+					rb.tooltip_text = r.desc
+					refreshers.append(_refresh_research.bind(rb, b, r))
+			if b.kind == "fuze":
+				var ms: Array = Scenarios.country(0).missiles
+				for i in ms.size():
+					var mb := _btn(ms[i].name, g.begin_targeting.bind(b, i))
+					refreshers.append(_refresh_missile.bind(mb, b, i))
 		_btn("Kapat", g.clear_selection)
 		_run_refreshers()
 		return
@@ -304,9 +344,9 @@ func _run_refreshers() -> void:
 func _btn(text: String, cb: Callable, icon_id := "") -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(132, 112)
+	b.custom_minimum_size = Vector2(126, 112)
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", 15)
 	if icon_id != "":
 		b.icon = icon(icon_id)
 		b.expand_icon = true
@@ -317,9 +357,14 @@ func _btn(text: String, cb: Callable, icon_id := "") -> Button:
 	return b
 
 
-func _refresh_cost(b: Button, cost: int, tier: int) -> void:
+func _refresh_cost(b: Button, label: String, cost: int, tier: int) -> void:
 	var ts = Game.I.teams[Defs.PLAYER]
-	b.disabled = ts.tier < tier or ts.money < cost
+	if ts.tier < tier:
+		b.text = "%s\nKademe %d" % [label, tier]
+		b.disabled = true
+	else:
+		b.text = "%s\n$%d" % [label, cost]
+		b.disabled = ts.money < cost
 
 
 func _refresh_crane(b: Button) -> void:
@@ -333,11 +378,52 @@ func _refresh_crane(b: Button) -> void:
 
 
 func _refresh_upgrade(b: Button) -> void:
-	var ts = Game.I.teams[Defs.PLAYER]
-	b.visible = ts.tier < 2
-	b.disabled = ts.upgrading or ts.money < Defs.TIER2_COST
+	var g := Game.I
+	var ts = g.teams[Defs.PLAYER]
+	b.visible = ts.tier < Defs.MAX_TIER
+	if not b.visible:
+		return
+	var why := g.can_upgrade(Defs.PLAYER)
+	b.disabled = why != ""
 	if ts.upgrading:
-		b.text = "Kademe 2\n%%%d" % int(ts.upgrade_t / Defs.TIER2_TIME * 100.0)
+		b.text = "Kademe %d\n%%%d" % [ts.tier + 1, int(ts.upgrade_t / Defs.TIER_TIME[ts.tier] * 100.0)]
+	elif why == "Teknoloji Merkezi gerekli":
+		b.text = "Kademe %d\nTek. Merkezi" % (ts.tier + 1)
+	else:
+		b.text = "Kademe %d\n$%d" % [ts.tier + 1, Defs.TIER_COST[ts.tier]]
+
+
+func _refresh_research(btn: Button, b: Building, r: Dictionary) -> void:
+	if not is_instance_valid(b):
+		return
+	var g := Game.I
+	var ts = g.teams[Defs.PLAYER]
+	if ts.researched.has(r.id):
+		btn.text = "%s\ntamam" % r.name
+		btn.disabled = true
+	elif b.research_id == r.id:
+		btn.text = "%s\n%%%d" % [r.name, int(b.research_t / float(r.time) * 100.0)]
+		btn.disabled = true
+	else:
+		btn.text = "%s\n$%d" % [r.name, r.cost]
+		btn.disabled = b.research_id != "" or ts.money < float(r.cost) or not g.can_research(Defs.PLAYER, r.id)
+
+
+func _refresh_missile(btn: Button, b: Building, i: int) -> void:
+	if not is_instance_valid(b):
+		return
+	var g := Game.I
+	var ts = g.teams[Defs.PLAYER]
+	var m := g.missile_info(Defs.PLAYER, i)
+	if ts.tier < int(m.tier):
+		btn.text = "%s\nKademe %d" % [m.name, int(m.tier)]
+		btn.disabled = true
+	elif b.missile_ready[i] > 0.0:
+		btn.text = "%s\n%d sn" % [m.name, int(ceil(b.missile_ready[i]))]
+		btn.disabled = true
+	else:
+		btn.text = "%s\n$%d" % [m.name, int(m.cost)]
+		btn.disabled = ts.money < float(m.cost)
 
 
 func _refresh_building_title(b: Building) -> void:
@@ -352,6 +438,16 @@ func _refresh_building_title(b: Building) -> void:
 	elif not b.queue.is_empty():
 		s += "  |  Üretim: %s %%%d  |  Kuyruk: %d" % [
 			Defs.UNITS[b.queue[0]].name, int(b.prod_fraction() * 100.0), b.queue.size()]
+	elif b.research_id != "":
+		s += "  |  Araştırma: %s" % b.research_def().name
+	elif b.kind == "teknoloji":
+		s += "  |  Araştırma seç. Kademe 3 için gerekli."
+	elif b.kind == "fuze":
+		s += "  |  Füze seç, sonra görebildiğin bir hedefe dokun. Hava savunma önleyebilir."
+	elif b.kind == "havaalani":
+		s += "  |  Uçak: %d/%d pist" % [Game.I.plane_count(0), Defs.PLANES_PER_AIRFIELD * Game.I.count_kind(0, "havaalani")]
+	elif b.kind == "maden":
+		s += "  |  +$%d/sn" % int(b.d.income)
 	if b.built and int(b.d.get("power", 0)) < 0 and not b.powered():
 		s += "  |  ENERJİ YETERSİZ: Santral kur"
 	title.text = s
@@ -360,6 +456,12 @@ func _refresh_building_title(b: Building) -> void:
 func _queue(b: Building, id: String) -> void:
 	if is_instance_valid(b):
 		Game.I.queue_unit(b, id)
+		_run_refreshers()
+
+
+func _research(b: Building, r: Dictionary) -> void:
+	if is_instance_valid(b):
+		Game.I.start_research(b, r)
 		_run_refreshers()
 
 
@@ -407,7 +509,7 @@ func _draw_overlay() -> void:
 			col = Color(0.95, 0.8, 0.2)
 		overlay.draw_rect(Rect2(p.x - w * 0.5 - 1, p.y - 1, w + 2, 7), Color(0, 0, 0, 0.7))
 		overlay.draw_rect(Rect2(p.x - w * 0.5, p.y, w * f, 5), col)
-		if e is AirUnit and e.team == Defs.PLAYER and e.has_weapon():
+		if e is AirUnit and e.team == Defs.PLAYER and e.d.has("ammo"):
 			var txt := "Füze %d" % e.ammo if e.state == "patrol" else "Silahlanıyor"
 			overlay.draw_string(font, p + Vector2(-w * 0.5, -6), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
 	for pt in g.points:
@@ -444,12 +546,17 @@ func _mm_rect(r: Array) -> Rect2:
 func _draw_minimap() -> void:
 	var g := Game.I
 	minimap.draw_rect(Rect2(Vector2.ZERO, minimap.size), Color(0.16, 0.22, 0.14, 0.95))
-	for r in Defs.WATER:
+	var mp_def: Dictionary = Defs.MAP
+	for r in mp_def.water:
 		minimap.draw_rect(_mm_rect(r), Color(0.14, 0.3, 0.5))
-	for r in Defs.BRIDGES:
+	for r in mp_def.bridges:
 		minimap.draw_rect(_mm_rect(r), Color(0.4, 0.4, 0.32))
-	for r in Defs.MOUNTAINS:
+	for r in mp_def.rock:
 		minimap.draw_rect(_mm_rect(r), Color(0.42, 0.39, 0.35))
+	for r in mp_def.trees:
+		minimap.draw_rect(_mm_rect(r), Color(0.1, 0.3, 0.14))
+	for r in mp_def.ruins:
+		minimap.draw_rect(_mm_rect(r), Color(0.5, 0.47, 0.44))
 	for pt in g.points:
 		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:
@@ -521,7 +628,18 @@ func show_end(won: bool) -> void:
 	b.focus_mode = Control.FOCUS_NONE
 	b.pressed.connect(_restart)
 	vb.add_child(b)
+	var mb := Button.new()
+	mb.text = "Senaryo Seç"
+	mb.custom_minimum_size = Vector2(260, 80)
+	mb.focus_mode = Control.FOCUS_NONE
+	mb.pressed.connect(_to_menu)
+	vb.add_child(mb)
 
 
 func _restart() -> void:
 	get_tree().reload_current_scene()
+
+
+func _to_menu() -> void:
+	Engine.time_scale = 1.0
+	get_tree().change_scene_to_file("res://scenes/menu.tscn")
