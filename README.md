@@ -7,6 +7,8 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![İnşa menüsü](docs/ekran/us.png)
 
+![Harita](docs/ekran/harita.png)
+
 ## Şu an oynanabilen
 
 - Tek harita, yapay zekâya karşı 1'e 1 (sen Mavi, rakip Kızıl). Düşman karargâhını yıkan kazanır.
