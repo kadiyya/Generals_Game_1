@@ -158,8 +158,10 @@ func _build_world() -> void:
 	var w := Defs.MAP_W
 	var h := Defs.MAP_H
 	var ground: Color = Defs.MAP.ground
-	Models.box(deco, Vector3(w + 80, 0.2, h + 80), Vector3(0, -0.2, 0), ground.darkened(0.45))
-	Models.box(deco, Vector3(w, 0.2, h), Vector3(0, -0.1, 0), ground)
+	var outer := Models.box(deco, Vector3(w + 80, 0.2, h + 80), Vector3(0, -0.2, 0), ground)
+	outer.material_override = Tex.mat("ground", ground.darkened(0.45), 0.05, true)
+	var land := Models.box(deco, Vector3(w, 0.2, h), Vector3(0, -0.1, 0), ground)
+	land.material_override = Tex.mat("ground", ground, 0.07, true)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for i in 46:
@@ -167,6 +169,7 @@ func _build_world() -> void:
 		var c: Color = Defs.MAP.patch if i % 2 == 0 else ground.darkened(0.1)
 		var m := Models.cyl(deco, r, r, 0.03, Vector3(rng.randf_range(-w * 0.47, w * 0.47), -0.005, rng.randf_range(-h * 0.45, h * 0.45)), c, Vector3.ZERO, 10)
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.material_override = Tex.mat("ground", c, 0.11, true)
 
 
 func _setup_base(team: int, pos: Vector3) -> void:

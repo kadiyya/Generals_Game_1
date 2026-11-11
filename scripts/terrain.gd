@@ -135,6 +135,7 @@ func _visuals() -> void:
 		var w := Models.box(self, Vector3(r[2] - r[0], 0.06, r[3] - r[1]),
 			Vector3((r[0] + r[2]) * 0.5, 0.0, (r[1] + r[3]) * 0.5), Color(0.16, 0.36, 0.55))
 		w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		w.material_override = Tex.mat("water", Color(0.16, 0.36, 0.55), 0.06, true)
 	for r in m.bridges:
 		var big: bool = (r[2] - r[0]) > 12.0
 		Models.box(self, Vector3(r[2] - r[0], 0.12, r[3] - r[1]),
@@ -147,12 +148,12 @@ func _visuals() -> void:
 	cone.radial_segments = 5
 	cone.rings = 1
 	var cube := BoxMesh.new()
-	_scatter(MOUNTAIN, cone, Color(0.42, 0.39, 0.35), Vector2(1.7, 2.6), Vector2(3.5, 8.5))
-	_scatter(TREES, cone, Color(0.16, 0.33, 0.18), Vector2(1.0, 1.5), Vector2(3.0, 5.0))
-	_scatter(RUINS, cube, Color(0.5, 0.47, 0.44), Vector2(1.3, 1.9), Vector2(1.0, 3.2))
+	_scatter(MOUNTAIN, cone, Tex.mat("rock", Color(0.5, 0.46, 0.41), 0.22, true), Vector2(1.7, 2.6), Vector2(3.5, 8.5))
+	_scatter(TREES, cone, Tex.mat("rock", Color(0.2, 0.42, 0.22), 0.5, true), Vector2(1.0, 1.5), Vector2(3.0, 5.0))
+	_scatter(RUINS, cube, Tex.mat("panel", Color(0.55, 0.52, 0.48), 0.25, true), Vector2(1.3, 1.9), Vector2(1.0, 3.2))
 
 
-func _scatter(k: int, mesh: Mesh, col: Color, size: Vector2, height: Vector2) -> void:
+func _scatter(k: int, mesh: Mesh, material: Material, size: Vector2, height: Vector2) -> void:
 	var cells: Array = []
 	for y in gh:
 		for x in gw:
@@ -174,5 +175,5 @@ func _scatter(k: int, mesh: Mesh, col: Color, size: Vector2, height: Vector2) ->
 		mm.set_instance_transform(i, Transform3D(b, Vector3(w.x, h * 0.5, w.z)))
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
-	mi.material_override = Models.mat(col)
+	mi.material_override = material
 	add_child(mi)

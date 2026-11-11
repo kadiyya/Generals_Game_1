@@ -10,6 +10,7 @@ const WOOD := Color(0.45, 0.33, 0.2)
 const GLASS := Color(0.12, 0.2, 0.28)
 
 static var _mats := {}
+static var _skin := {}   # renk -> [texture türü, ölçek]: bu renkteki parçalar desenli çizilir
 
 # Kanat ve yatay kuyruk: sağ yarının köşeleri (x, z). Dikey kuyruk: (z, y).
 const JETS := {
@@ -66,6 +67,8 @@ const JETS := {
 
 static func mat(c: Color) -> StandardMaterial3D:
 	var k := c.to_html()
+	if _skin.has(k):
+		return Tex.mat(_skin[k][0], c, _skin[k][1])
 	if not _mats.has(k):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = c
@@ -202,6 +205,11 @@ static func build(d: Dictionary, team: int) -> Node3D:
 	var bc: Color = cdef.get("body", Color(0.33, 0.4, 0.27))
 	var ac: Color = cdef.get("air", GREY)
 	var id: String = d.get("model", "")
+	# Gövde rengi kamuflaj, uçak rengi panel çizgili, beton panel desenli çizilir.
+	_skin[bc.to_html()] = ["camo", 0.3]
+	_skin[ac.to_html()] = ["panel", 0.3]
+	_skin[CONCRETE.to_html()] = ["panel", 0.12]
+	_skin[GREY.to_html()] = ["panel", 0.2]
 	if JETS.has(id):
 		_jet(n, JETS[id], ac, tc)
 		return n
