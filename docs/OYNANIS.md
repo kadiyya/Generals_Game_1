@@ -1,4 +1,6 @@
-# Oynanış Tasarımı (v0.1 – taslak)
+# Oynanış Tasarımı (v0.1 – eski taslak)
+
+> Bu doküman yerini [TASARIM.md](TASARIM.md) (v0.2) dosyasına bıraktı. Yalnızca tarihçe olarak duruyor.
 
 Android için gerçek zamanlı strateji. Günümüz silahları, gerçek adlar, low-poly 3D.
 Hedef: **kontrolü kolay, kararı zor** bir oyun. Maç süresi 10-15 dakika.

@@ -4,11 +4,11 @@ extends Node3D
 
 const PITCH := 1.0   # radyan, aşağı bakış açısı
 const MIN_DIST := 22.0
-const MAX_DIST := 85.0
+const MAX_DIST := 130.0
 
 var camera: Camera3D
 var focus := Vector3.ZERO
-var dist := 56.0
+var dist := 60.0
 
 
 func _ready() -> void:

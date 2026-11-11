@@ -5,7 +5,7 @@ extends Node3D
 static var I: Game
 
 class TeamState:
-	var supply: float = Defs.START_SUPPLY
+	var money: float = Defs.START_MONEY
 	var tier := 1
 	var upgrading := false
 	var upgrade_t := 0.0
@@ -13,26 +13,25 @@ class TeamState:
 	var power_prod := 0
 	var power_used := 0
 	var pop := 0
+	var cranes := 1
 	var hq: Building = null
 
-class Pad:
-	var team := 0
-	var pos := Vector3.ZERO
-	var building: Building = null
-	var node: Node3D = null
-
 signal selection_changed
+
+const SPEEDS := [1.0, 0.5, 0.0]
+const SPEED_NAMES := ["Normal", "Yavaş", "Duraklatıldı"]
 
 var teams: Array = []
 var entities: Array = []
 var points: Array = []
-var pads: Array = []
 var selection: Array = []
-var sel_pad: Pad = null
+var menu := ""            # "build" ise inşa menüsü açık
 var placing := ""
 var time := 0.0
 var over := false
 var winner := -1
+var speed_i := 0
+var terrain: Terrain
 var fog: Fog
 var hud: Hud
 var cam: CameraRig
@@ -48,12 +47,14 @@ func _ready() -> void:
 	get_tree().paused = false
 	teams = [TeamState.new(), TeamState.new()]
 	_build_world()
+	terrain = Terrain.new()
+	add_child(terrain)
 	fog = Fog.new()
 	add_child(fog)
 	cam = CameraRig.new()
 	add_child(cam)
-	_setup_base(Defs.PLAYER, Vector3(-52, 0, 0))
-	_setup_base(Defs.ENEMY, Vector3(52, 0, 0))
+	_setup_base(Defs.PLAYER, Defs.BASES[Defs.PLAYER])
+	_setup_base(Defs.ENEMY, Defs.BASES[Defs.ENEMY])
 	for p in Defs.POINTS:
 		var sp := SupplyPoint.new()
 		add_child(sp)
@@ -68,15 +69,20 @@ func _ready() -> void:
 	controls = Controls.new()
 	add_child(controls)
 	add_child(EnemyAI.new())
-	cam.focus = teams[Defs.PLAYER].hq.position + Vector3(8, 0, 0)
+	cam.focus = teams[Defs.PLAYER].hq.position + Vector3(10, 0, 0)
 	recalc()
 	fog.recompute()
-	hud.toast("Boş bir yuvaya dokun ve Kışla kur. Piyadelerle ikmal noktalarını ele geçir.", 8.0)
+	hud.toast("İnşa düğmesiyle Kışla kur. Piyadelerle ikmal noktalarını ele geçir. Yetişemezsen Hız düğmesiyle duraklat.", 10.0)
 	var args := OS.get_cmdline_user_args()
 	if args.has("--autotest"):
 		add_child(load("res://tools/autotest.gd").new())
 	elif args.has("--inputtest"):
 		add_child(load("res://tools/inputtest.gd").new())
+
+
+func set_speed(i: int) -> void:
+	speed_i = i % SPEEDS.size()
+	Engine.time_scale = SPEEDS[speed_i]
 
 
 # ---------------------------------------------------------------- dünya
@@ -100,42 +106,35 @@ func _build_world() -> void:
 
 	var deco := Node3D.new()
 	add_child(deco)
-	Models.box(deco, Vector3(Defs.MAP_W + 60, 0.2, Defs.MAP_H + 60), Vector3(0, -0.2, 0), Color(0.2, 0.25, 0.17))
-	Models.box(deco, Vector3(Defs.MAP_W, 0.2, Defs.MAP_H), Vector3(0, -0.1, 0), Color(0.38, 0.44, 0.28))
-	Models.box(deco, Vector3(104, 0.04, 3.0), Vector3(0, 0.0, 0), Color(0.47, 0.44, 0.36))
-	Models.box(deco, Vector3(3.0, 0.04, 66), Vector3(0, 0.0, 0), Color(0.47, 0.44, 0.36))
+	var w := Defs.MAP_W
+	var h := Defs.MAP_H
+	Models.box(deco, Vector3(w + 80, 0.2, h + 80), Vector3(0, -0.2, 0), Color(0.2, 0.25, 0.17))
+	Models.box(deco, Vector3(w, 0.2, h), Vector3(0, -0.1, 0), Color(0.38, 0.44, 0.28))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	for i in 26:
-		var r := rng.randf_range(3.0, 8.0)
+	for i in 46:
+		var r := rng.randf_range(4.0, 10.0)
 		var c := Color(0.33, 0.4, 0.25) if i % 2 == 0 else Color(0.43, 0.46, 0.3)
-		Models.cyl(deco, r, r, 0.03, Vector3(rng.randf_range(-66, 66), 0.0, rng.randf_range(-42, 42)), c, Vector3.ZERO, 10)
-	for i in 70:
-		var x := rng.randf_range(-Defs.MAP_W * 0.5 - 20, Defs.MAP_W * 0.5 + 20)
-		var z := (Defs.MAP_H * 0.5 + rng.randf_range(2.0, 22.0)) * (1.0 if i % 2 == 0 else -1.0)
-		if i % 5 == 0:
-			z = rng.randf_range(-Defs.MAP_H * 0.5, Defs.MAP_H * 0.5)
-			x = (Defs.MAP_W * 0.5 + rng.randf_range(2.0, 22.0)) * (1.0 if i % 10 == 0 else -1.0)
-		var h := rng.randf_range(2.5, 4.5)
+		var m := Models.cyl(deco, r, r, 0.03, Vector3(rng.randf_range(-w * 0.47, w * 0.47), -0.005, rng.randf_range(-h * 0.47, h * 0.38)), c, Vector3.ZERO, 10)
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for i in 80:
+		# ağaçlar: kuzey, doğu ve batı kenarlarının dışında (güney deniz)
+		var x := rng.randf_range(-w * 0.5 - 25, w * 0.5 + 25)
+		var z := -(h * 0.5 + rng.randf_range(2.0, 25.0))
+		if i % 3 == 0:
+			z = rng.randf_range(-h * 0.5, h * 0.4)
+			x = (w * 0.5 + rng.randf_range(2.0, 25.0)) * (1.0 if i % 2 == 0 else -1.0)
+		var th := rng.randf_range(2.5, 4.5)
 		Models.cyl(deco, 0.15, 0.2, 1.0, Vector3(x, 0.5, z), Models.WOOD)
-		Models.cyl(deco, 0.0, h * 0.4, h, Vector3(x, 1.0 + h * 0.5, z), Color(0.16, 0.33, 0.18), Vector3.ZERO, 6)
+		Models.cyl(deco, 0.0, th * 0.4, th, Vector3(x, 1.0 + th * 0.5, z), Color(0.16, 0.33, 0.18), Vector3.ZERO, 6)
 
 
 func _setup_base(team: int, pos: Vector3) -> void:
-	var hq := spawn_building("hq", team, pos, null, true)
+	var hq := spawn_building("hq", team, pos, true)
 	teams[team].hq = hq
-	for i in 6:
-		var ang := i * PI / 3.0
-		var pad := Pad.new()
-		pad.team = team
-		pad.pos = pos + Vector3(cos(ang), 0, sin(ang)) * 12.5
-		pad.node = Models.pad()
-		pad.node.position = pad.pos
-		add_child(pad.node)
-		pads.append(pad)
 	var dir := -signf(pos.x)
 	for i in 2:
-		spawn_unit("manga", team, pos + Vector3(dir * 19.0, 0, -3.0 + i * 6.0))
+		spawn_unit("manga", team, pos + Vector3(dir * 12.0, 0, -3.0 + i * 6.0))
 
 
 func spawn_unit(id: String, team: int, pos: Vector3) -> Entity:
@@ -152,16 +151,15 @@ func spawn_unit(id: String, team: int, pos: Vector3) -> Entity:
 	return u
 
 
-func spawn_building(id: String, team: int, pos: Vector3, pad: Pad, instant := false) -> Building:
+func spawn_building(id: String, team: int, pos: Vector3, instant := false) -> Building:
 	var b := Building.new()
 	add_child(b)
-	b.position = pos
+	b.position = Vector3(pos.x, 0, pos.z)
 	b.setup(id, team, Defs.BUILDINGS[id])
 	b.start(instant)
-	b.pad = pad
-	if pad != null:
-		pad.building = b
 	entities.append(b)
+	terrain.block_circle(b.position, b.radius * 0.85, true)
+	recalc()
 	return b
 
 
@@ -179,8 +177,10 @@ func _process(dt: float) -> void:
 		for p in points:
 			if p.owner_team == t:
 				inc += p.income
+		if t == Defs.ENEMY:
+			inc *= Defs.AI_INCOME_MULT
 		ts.income = inc
-		ts.supply += inc * dt
+		ts.money += inc * dt
 		if ts.upgrading:
 			ts.upgrade_t += dt
 			if ts.upgrade_t >= Defs.TIER2_TIME:
@@ -193,10 +193,12 @@ func _process(dt: float) -> void:
 	if _recalc_t <= 0.0:
 		_recalc_t = 0.3
 		recalc()
+		_heal(0.3)
 	_separate()
 
 
 func recalc() -> void:
+	var building := [0, 0]
 	for t in 2:
 		teams[t].power_prod = 0
 		teams[t].power_used = 0
@@ -212,8 +214,23 @@ func recalc() -> void:
 					ts.power_prod += p
 				else:
 					ts.power_used -= p
+			else:
+				# Her vinç aynı anda bir inşaat yürütür; fazlası sırada bekler.
+				e.crane_active = building[e.team] < ts.cranes
+				building[e.team] += 1
 		else:
 			ts.pop += 1
+
+
+func _heal(dt: float) -> void:
+	for e in entities:
+		if e.is_building or not e.alive or e.hp >= e.max_hp:
+			continue
+		var hq: Building = teams[e.team].hq
+		if hq != null and is_instance_valid(hq) and hq.alive and Entity.flat(e.global_position, hq.position) <= Defs.HEAL_RADIUS:
+			e.hp = minf(e.max_hp, e.hp + e.max_hp * Defs.HEAL_RATE * dt)
+			if e is Unit:
+				e.update_figures()
 
 
 func _separate() -> void:
@@ -227,6 +244,9 @@ func _separate() -> void:
 		elif not e.is_air:
 			ground.append(e)
 	var n := ground.size()
+	var prev: Array = []
+	for u in ground:
+		prev.append(u.position)
 	for i in n:
 		var a: Entity = ground[i]
 		for j in range(i + 1, n):
@@ -254,6 +274,9 @@ func _separate() -> void:
 				var dd := sqrt(d2)
 				var over_d := min_d - dd
 				a.position += Vector3(dx, 0, dz) / dd * over_d + Vector3(-dz, 0, dx) / dd * over_d * 0.5
+	for i in n:
+		if terrain.solid(ground[i].position) and not terrain.solid(prev[i]):
+			ground[i].position = prev[i]
 
 
 # ---------------------------------------------------------------- olaylar
@@ -264,8 +287,7 @@ func on_entity_died(e: Entity) -> void:
 		selection.erase(e)
 		selection_changed.emit()
 	if e is Building:
-		if e.pad != null:
-			e.pad.building = null
+		terrain.block_circle(e.position, e.radius * 0.85, false)
 		if e.def_id == "hq":
 			_end(1 - e.team)
 	recalc()
@@ -280,7 +302,7 @@ func on_building_done(b: Building) -> void:
 
 func on_point_captured(p: SupplyPoint) -> void:
 	if p.owner_team == Defs.PLAYER:
-		hud.toast("%s ele geçirildi (+%d/sn)." % ["Petrol tesisi" if p.is_oil else "İkmal noktası", int(p.income)])
+		hud.toast("%s ele geçirildi (+$%d/sn)." % ["Petrol tesisi" if p.is_oil else "İkmal noktası", int(p.income)])
 	elif fog.sees(Defs.PLAYER, p.position):
 		hud.toast("Düşman bir nokta ele geçirdi.")
 
@@ -326,29 +348,11 @@ func queue_unit(b: Building, id: String) -> bool:
 	if ts.pop + queued_total(b.team) >= Defs.POP_CAP:
 		_msg(b.team, "Birlik sınırı doldu.")
 		return false
-	if ts.supply < float(ud.cost):
-		_msg(b.team, "Yetersiz ikmal.")
+	if ts.money < float(ud.cost):
+		_msg(b.team, "Yetersiz para.")
 		return false
-	ts.supply -= float(ud.cost)
+	ts.money -= float(ud.cost)
 	b.queue.append(id)
-	return true
-
-
-func build_on_pad(pad: Pad, id: String) -> bool:
-	var bd: Dictionary = Defs.BUILDINGS[id]
-	var ts: TeamState = teams[pad.team]
-	if pad.building != null:
-		return false
-	if ts.tier < int(bd.get("tier", 1)):
-		_msg(pad.team, "Kademe 2 gerekli.")
-		return false
-	if ts.supply < float(bd.cost):
-		_msg(pad.team, "Yetersiz ikmal.")
-		return false
-	ts.supply -= float(bd.cost)
-	var b := spawn_building(id, pad.team, pad.pos, pad)
-	if pad.team == Defs.PLAYER:
-		select([b])
 	return true
 
 
@@ -356,12 +360,26 @@ func start_tier_upgrade(team: int) -> bool:
 	var ts: TeamState = teams[team]
 	if ts.tier >= 2 or ts.upgrading:
 		return false
-	if ts.supply < Defs.TIER2_COST:
-		_msg(team, "Yetersiz ikmal.")
+	if ts.money < Defs.TIER2_COST:
+		_msg(team, "Yetersiz para.")
 		return false
-	ts.supply -= Defs.TIER2_COST
+	ts.money -= Defs.TIER2_COST
 	ts.upgrading = true
 	ts.upgrade_t = 0.0
+	return true
+
+
+func buy_crane(team: int) -> bool:
+	var ts: TeamState = teams[team]
+	if ts.cranes >= Defs.MAX_CRANES:
+		return false
+	if ts.money < Defs.CRANE_COST:
+		_msg(team, "Yetersiz para.")
+		return false
+	ts.money -= Defs.CRANE_COST
+	ts.cranes += 1
+	recalc()
+	_msg(team, "Yeni vinç hazır: aynı anda %d inşaat." % ts.cranes)
 	return true
 
 
@@ -370,29 +388,36 @@ func can_place(team: int, id: String, pos: Vector3) -> bool:
 	if Entity.flat(pos, hq.position) > Defs.BUILD_ZONE:
 		return false
 	var r: float = float(Defs.BUILDINGS[id].radius)
-	for e in entities:
-		if e.is_building and Entity.flat(pos, e.position) < r + e.radius + 1.0:
+	# Binanın oturacağı alan düz kara olmalı.
+	for off in [Vector3.ZERO, Vector3(r, 0, 0), Vector3(-r, 0, 0), Vector3(0, 0, r), Vector3(0, 0, -r)]:
+		var q: Vector3 = pos + off
+		if absf(q.x) > Defs.MAP_W * 0.5 - 1.0 or absf(q.z) > Defs.MAP_H * 0.5 - 1.0 or not terrain.is_land(q):
 			return false
-	for p in pads:
-		if Entity.flat(pos, p.pos) < r + 4.2:
+	for e in entities:
+		if e.is_building and Entity.flat(pos, e.position) < r + e.radius + 2.0:
+			return false
+	for p in points:
+		if Entity.flat(pos, p.position) < r + SupplyPoint.RADIUS:
 			return false
 	return true
 
 
-func place_free(team: int, id: String, pos: Vector3) -> bool:
+func place_building(team: int, id: String, pos: Vector3) -> bool:
 	var bd: Dictionary = Defs.BUILDINGS[id]
 	var ts: TeamState = teams[team]
 	if ts.tier < int(bd.get("tier", 1)):
 		_msg(team, "Kademe 2 gerekli.")
 		return false
-	if ts.supply < float(bd.cost):
-		_msg(team, "Yetersiz ikmal.")
+	if ts.money < float(bd.cost):
+		_msg(team, "Yetersiz para.")
 		return false
 	if not can_place(team, id, pos):
-		_msg(team, "Buraya kurulamaz. Sarı çemberin içinde boş bir yer seç.")
+		_msg(team, "Buraya kurulamaz. Sarı çemberin içinde, düz ve boş bir yer seç.")
 		return false
-	ts.supply -= float(bd.cost)
-	spawn_building(id, team, Vector3(pos.x, 0, pos.z), null)
+	ts.money -= float(bd.cost)
+	var b := spawn_building(id, team, pos)
+	if team == Defs.PLAYER and not b.crane_active:
+		hud.toast("Vinç meşgul: inşaat sıraya alındı. Karargâhtan vinç alabilirsin.")
 	return true
 
 
@@ -410,7 +435,7 @@ func cancel_placing() -> void:
 
 
 func try_place(world: Vector3) -> void:
-	if place_free(Defs.PLAYER, placing, world):
+	if place_building(Defs.PLAYER, placing, world):
 		cancel_placing()
 
 
@@ -433,21 +458,21 @@ func select(list: Array) -> void:
 		if is_instance_valid(e):
 			e.set_selected(false)
 	selection = list.duplicate()
-	sel_pad = null
+	menu = ""
 	for e in selection:
 		e.set_selected(true)
 	selection_changed.emit()
 
 
 func clear_selection() -> void:
-	if selection.is_empty() and sel_pad == null:
+	if selection.is_empty() and menu == "":
 		return
 	select([])
 
 
-func select_pad(pad: Pad) -> void:
+func open_build_menu() -> void:
 	select([])
-	sel_pad = pad
+	menu = "build"
 	selection_changed.emit()
 
 
@@ -501,13 +526,6 @@ func pick_entity(sp: Vector2):
 	return best
 
 
-func pick_pad(world: Vector3):
-	for p in pads:
-		if p.team == Defs.PLAYER and p.building == null and Entity.flat(world, p.pos) < 3.8:
-			return p
-	return null
-
-
 # ---------------------------------------------------------------- emirler
 
 func order_move(units: Array, pos: Vector3, attack_move: bool) -> void:
@@ -555,7 +573,7 @@ func order_retreat(units: Array) -> void:
 	if units.is_empty():
 		return
 	var hq: Building = teams[units[0].team].hq
-	var pos := hq.position + Vector3(-signf(hq.position.x) * 16.0, 0, 0)
+	var pos := hq.position + Vector3(-signf(hq.position.x) * 12.0, 0, 0)
 	order_move(units, pos, false)
 
 

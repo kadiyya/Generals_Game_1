@@ -121,10 +121,6 @@ func _tap(pos: Vector2) -> void:
 		else:
 			g.order_move(units, world, true)
 		return
-	var pad = g.pick_pad(world)
-	if pad != null:
-		g.select_pad(pad)
-		return
 	g.clear_selection()
 
 

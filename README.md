@@ -3,36 +3,38 @@
 Android için gerçek zamanlı strateji oyunu prototipi. Günümüz silahları, gerçek adlar, low-poly 3D.
 Motor: **Godot 4.3** (GDScript, Compatibility/GLES3 işleyici).
 
-Tasarım dokümanı: [docs/OYNANIS.md](docs/OYNANIS.md)
+Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
-![Üs](docs/ekran/us.png)
+![İnşa menüsü](docs/ekran/us.png)
 
-![Ordu](docs/ekran/ordu.png)
+## Şu an oynanabilen
 
-## Prototipte neler var
+- Tek harita, yapay zekâya karşı 1'e 1 (sen Mavi, rakip Kızıl). Düşman karargâhını yıkan kazanır.
+- **Arazi:** iki dağ sırası, ortada nehir ve üç geçit, güneyde deniz. Kara birimleri engellerin çevresinden yol bulur; İHA'lar üstünden uçar.
+- **Ekonomi (dolar):** karargâh geliri, 8 ikmal noktası ve ortadaki petrol tesisi. Her noktanın üstünde kazancı yazar.
+- **İnşa:** binalar sarı çemberin içinde istediğin yere kurulur. Vinç sayısı aynı anda kaç inşaat yürüdüğünü belirler.
+- **Binalar:** Santral, Kışla, Fabrika, İHA İstasyonu, Hisar-O+.
+- **Birimler:** Piyade Mangası, Javelin Timi, Altay, T-155 Fırtına, Korkut, RQ-4 Global Hawk, Bayraktar TB2.
+- **Tempo:** Hız düğmesi Normal / Yavaş / Duraklat arasında geçer; duraklatılmışken emir verebilirsin.
+- **Onarım:** karargâhın yanına çekilen birimler yavaşça onarılır.
+- Savaş sisi: görmediğin yer hedefini vuramazsın.
 
-- Tek harita, yapay zekâya karşı 1'e 1 (sen Mavi, rakip Kızıl).
-- Ekonomi: karargâh geliri + ele geçirilen ikmal noktaları ve ortadaki petrol tesisi.
-- Üs: karargâhın çevresinde 6 hazır yuva. Santral, Kışla, Araç Fabrikası, İHA İstasyonu.
-- Kademe 2 yükseltmesi; serbest yerleştirilen Hisar hava savunma.
-- 7 birim: Piyade Mangası, Javelin Timi, Altay Tankı, Fırtına Obüsü, Korkut, Global Hawk, Bayraktar TB2.
-- Savaş sisi: görmediğin yer hedefini vuramazsın. Fırtına 32 birim menzilden vurur ama hedefi başka bir birimin görmesi gerekir.
-- İHA'lar bölgeye atanır; TB2 iki füzesini atınca istasyona dönüp silahlanır.
-- Zafer: düşman karargâhını yık.
-
-Henüz yok: insanlı uçaklar (F-16, F-35), doktrin seçimi, destek yetenekleri, ses, çok oyunculu mod, engelli arazi ve yol bulma.
+Henüz yok: senaryo ve ülke seçimi, uçaklar ve hava alanı, küçük/büyük İHA ayrımı, teknoloji merkezi,
+balistik füzeler, deneysel silahlar, ses, deniz. Hepsi tasarım dokümanında planlı.
 
 ## Kontroller
 
 | Hareket | Sonuç |
 |---|---|
-| Dokun | Birim / bina / boş yuva seç. Birim seçiliyken: yere dokun = saldırarak ilerle, düşmana dokun = saldır |
+| Dokun | Birim / bina seç. Birim seçiliyken: yere dokun = saldırarak ilerle, düşmana dokun = saldır |
 | Çift dokun | Ekrandaki aynı tip birimlerin hepsini seç |
 | Sürükle | Kamerayı kaydır |
 | Basılı tut + sürükle | Kutu seçimi |
 | İki parmak | Yakınlaştır / uzaklaştır (bilgisayarda fare tekerleği) |
 | Küçük harita | Dokunduğun yere kamerayı götürür |
 | Kara / Hava Sav. / Hava / Hepsi | O gruptaki bütün birimleri seçer |
+| İnşa | Bina menüsünü açar; bina seç, sonra haritada yerini göster |
+| Hız | Normal / Yavaş / Duraklat |
 | Geri Çekil | Seçili birimler ateş etmeden üsse döner |
 
 ## Çalıştırma
@@ -51,7 +53,8 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 
 | Yol | İçerik |
 |---|---|
-| `scripts/defs.gd` | **Bütün sayılar ve adlar**: birim/bina değerleri, maliyetler, harita noktaları. Denge buradan ayarlanır |
+| `scripts/defs.gd` | **Bütün sayılar ve adlar**: birim/bina değerleri, maliyetler, harita (dağ, su, köprü, noktalar). Denge buradan ayarlanır |
+| `scripts/terrain.gd` | Arazi ve yol bulma |
 | `scripts/game.gd` | Ana döngü, ekonomi, seçim, emirler, efektler |
 | `scripts/unit.gd`, `air_unit.gd`, `building.gd`, `entity.gd` | Kara birimi, İHA, bina ve ortak taban |
 | `scripts/models.gd` | Kodla üretilen low-poly modeller |

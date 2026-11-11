@@ -1,11 +1,18 @@
 class_name Unit
 extends Entity
 ## Kara birimi. Emirler: idle, move (ateş etmeden git), amove (saldırarak ilerle), attack.
+## Engellerin çevresinden Terrain üzerinden yol bulur.
 
 var order := "idle"
 var dest := Vector3.ZERO
 var speed := 4.0
 var near_t := 0.0
+var nav := PackedVector3Array()
+var nav_i := 0
+var nav_goal := Vector3.INF
+var nav_wp := Vector3.ZERO
+var nav_t := 0.0
+var nav_ok := true
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -15,10 +22,11 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 
 
 func go(p: Vector3, attack_move: bool) -> void:
-	dest = Vector3(p.x, 0, p.z)
+	dest = Game.I.terrain.nearest_free(Vector3(p.x, 0, p.z))
 	order = "amove" if attack_move else "move"
 	target = null
 	near_t = 0.0
+	nav_goal = Vector3.INF
 
 
 func attack(e) -> void:
@@ -88,9 +96,34 @@ func _engage(dt: float, chase: bool) -> void:
 			fire(target)
 
 
+func _waypoint(p: Vector3, dt: float) -> Vector3:
+	nav_t -= dt
+	if nav_t > 0.0 and nav_goal.distance_to(p) < 3.0 and flat(position, nav_wp) > 1.0:
+		return nav_wp
+	nav_t = 0.25
+	var ter := Game.I.terrain
+	if ter.line_clear(position, p):
+		nav = PackedVector3Array()
+		nav_goal = p
+		nav_wp = p
+		nav_ok = true
+		return p
+	if nav.is_empty() or nav_goal.distance_to(p) > 3.0:
+		nav = ter.find_path(position, p)
+		nav_i = 0
+		nav_goal = p
+		nav_ok = not nav.is_empty()
+		if not nav_ok:
+			nav_wp = position
+			return position
+	while nav_i < nav.size() - 1 and (flat(position, nav[nav_i]) < 1.6 or ter.line_clear(position, nav[nav_i + 1])):
+		nav_i += 1
+	nav_wp = nav[nav_i]
+	return nav_wp
+
+
 func _step(p: Vector3, dt: float) -> bool:
-	var to := Vector3(p.x - position.x, 0, p.z - position.z)
-	var dist := to.length()
+	var dist := flat(position, p)
 	if dist < 0.7:
 		return true
 	if dist < 4.0:
@@ -101,8 +134,16 @@ func _step(p: Vector3, dt: float) -> bool:
 			return true
 	else:
 		near_t = 0.0
-	var dir := to / dist
-	position += dir * minf(speed * dt, dist)
+	var wp := _waypoint(p, dt)
+	if not nav_ok:
+		return true
+	var to := Vector3(wp.x - position.x, 0, wp.z - position.z)
+	var l := to.length()
+	if l < 0.05:
+		nav_t = 0.0
+		return false
+	var dir := to / l
+	position += dir * minf(speed * dt, l)
 	position.x = clampf(position.x, -Defs.MAP_W * 0.5 + 1.0, Defs.MAP_W * 0.5 - 1.0)
 	position.z = clampf(position.z, -Defs.MAP_H * 0.5 + 1.0, Defs.MAP_H * 0.5 - 1.0)
 	_face(dir, dt)
@@ -116,11 +157,16 @@ func _face(dir: Vector3, dt: float) -> void:
 
 
 func _on_damaged(attacker) -> void:
-	# Mangada can azaldıkça asker sayısı düşer.
-	if armor == "inf":
-		var n := model.get_child_count()
-		var keep := int(ceil(clampf(hp / max_hp, 0.0, 1.0) * n))
-		for i in n:
-			model.get_child(i).visible = i < maxi(keep, 1)
+	update_figures()
 	if order == "idle" and target == null and attacker != null and is_instance_valid(attacker) and attacker.alive and can_hit(attacker):
 		target = attacker
+
+
+func update_figures() -> void:
+	# Mangada can azaldıkça asker sayısı düşer.
+	if armor != "inf":
+		return
+	var n := model.get_child_count()
+	var keep := int(ceil(clampf(hp / max_hp, 0.0, 1.0) * n))
+	for i in n:
+		model.get_child(i).visible = i < maxi(keep, 1)

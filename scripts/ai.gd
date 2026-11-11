@@ -3,8 +3,9 @@ extends Node
 ## Basit yapay zekâ rakip: sırayla bina kurar, noktaları ele geçirir, dalga dalga saldırır.
 
 const T := Defs.ENEMY
-const FIRST_ATTACK := 210.0
-const EXPAND_TIME := 300.0   # bu süreden önce oyuncunun yarısındaki noktalara gitmez
+const FIRST_ATTACK := 450.0
+const TIER_TIME := 260.0
+const EXPAND_TIME := 420.0   # bu süreden önce oyuncunun yarısındaki noktalara gitmez
 
 var acc := 0.0
 var wave := 0
@@ -13,7 +14,7 @@ var claims := {}   # SupplyPoint -> manga
 
 func _process(dt: float) -> void:
 	acc += dt
-	if acc < 1.0:
+	if acc < 1.5:
 		return
 	acc = 0.0
 	var g := Game.I
@@ -46,11 +47,23 @@ func _player_air(g: Game) -> int:
 	return n
 
 
-func _free_pad(g: Game):
-	for p in g.pads:
-		if p.team == T and p.building == null:
-			return p
-	return null
+func _site(g: Game, id: String, hq_pos: Vector3) -> Vector3:
+	# Karargâhın çevresinde, halkalar hâlinde boş bir yer ara.
+	for r in [15.0, 24.0, 33.0]:
+		for k in 10:
+			var ang: float = k * TAU / 10.0 + r * 0.07
+			var p: Vector3 = hq_pos + Vector3(cos(ang), 0, sin(ang)) * r
+			if g.can_place(T, id, p):
+				return p
+	return Vector3.INF
+
+
+func _try_build(g: Game, ts, id: String) -> void:
+	if ts.money < float(Defs.BUILDINGS[id].cost):
+		return
+	var p := _site(g, id, ts.hq.position)
+	if p != Vector3.INF:
+		g.place_building(T, id, p)
 
 
 func _build(g: Game, ts) -> void:
@@ -59,17 +72,13 @@ func _build(g: Game, ts) -> void:
 		plan += [["santral", 2], ["iha", 1], ["fabrika", 2]]
 	for item in plan:
 		if _mine(g, item[0]).size() < item[1]:
-			var pad = _free_pad(g)
-			if pad != null and ts.supply >= float(Defs.BUILDINGS[item[0]].cost):
-				g.build_on_pad(pad, item[0])
+			_try_build(g, ts, item[0])
 			return
-	if ts.tier == 1 and not ts.upgrading and g.time > 110.0 and ts.supply >= Defs.TIER2_COST:
+	if ts.tier == 1 and not ts.upgrading and g.time > TIER_TIME and ts.money >= Defs.TIER2_COST:
 		g.start_tier_upgrade(T)
 		return
-	if ts.tier >= 2 and _mine(g, "hisar").is_empty() and _player_air(g) > 0 and ts.supply >= 450.0:
-		for off in [Vector3(-9, 0, 18), Vector3(-9, 0, -18), Vector3(-20, 0, 6), Vector3(8, 0, 19)]:
-			if g.place_free(T, "hisar", ts.hq.position + off):
-				break
+	if ts.tier >= 2 and _mine(g, "hisar").is_empty() and _player_air(g) > 0:
+		_try_build(g, ts, "hisar")
 
 
 func _produce(g: Game, ts) -> void:
@@ -77,11 +86,11 @@ func _produce(g: Game, ts) -> void:
 	var tanks := _mine(g, "tank").size()
 	var at := _mine(g, "tanksavar").size()
 	# Kademe 2'ye geçmek için biraz biriktir.
-	var saving: bool = ts.tier == 1 and not ts.upgrading and g.time > 110.0 and tanks + at >= 3
+	var saving: bool = ts.tier == 1 and not ts.upgrading and g.time > TIER_TIME and tanks + at >= 3
 	for k in _mine(g, "kisla", true):
 		if not k.queue.is_empty():
 			continue
-		if mangas < (3 if g.time < 200.0 else 4):
+		if mangas < (3 if g.time < 300.0 else 4):
 			g.queue_unit(k, "manga")
 		elif not saving and at < tanks / 2 + 1:
 			g.queue_unit(k, "tanksavar")
@@ -135,7 +144,7 @@ func _army(g: Game, ts) -> void:
 	# Üs savunması
 	var threat = null
 	for e in g.entities:
-		if e.team == Defs.PLAYER and not e.is_air and not e.is_building and Entity.flat(e.position, hq_pos) < 34.0:
+		if e.team == Defs.PLAYER and not e.is_air and not e.is_building and Entity.flat(e.position, hq_pos) < 40.0:
 			threat = e
 			break
 	if threat != null:
@@ -153,14 +162,14 @@ func _army(g: Game, ts) -> void:
 	var home: Array = []
 	var away_idle: Array = []
 	for u in army:
-		if Entity.flat(u.position, hq_pos) < 32.0:
+		if Entity.flat(u.position, hq_pos) < 45.0:
 			home.append(u)
 		elif u.order == "idle" and u.target == null:
 			away_idle.append(u)
 	if g.time > FIRST_ATTACK and home.size() >= mini(5 + wave * 2, 12):
 		wave += 1
 		g.order_move(army, p_hq.position, true)
-		_air(g, p_hq.position + Vector3(14, 0, 0))
+		_air(g, p_hq.position + Vector3(20, 0, 0))
 		return
 	if not away_idle.is_empty():
 		g.order_move(away_idle, p_hq.position, true)

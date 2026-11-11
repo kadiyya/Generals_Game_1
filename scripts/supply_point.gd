@@ -2,7 +2,7 @@ class_name SupplyPoint
 extends Node3D
 ## Ele geçirilebilir ikmal noktası. Yalnızca piyade mangası ele geçirir.
 
-const RADIUS := 5.0
+const RADIUS := 6.0
 const VISION := 10.0
 
 var owner_team := Defs.NEUTRAL

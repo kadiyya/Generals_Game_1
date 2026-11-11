@@ -218,10 +218,14 @@ static func _tracks(n: Node3D, w: float, l: float) -> void:
 	box(n, Vector3(0.5, 0.5, l), Vector3(w * 0.5 - 0.1, 0.27, 0), DARK)
 
 
-static func pad() -> Node3D:
+static func crane() -> Node3D:
 	var n := Node3D.new()
-	box(n, Vector3(6.6, 0.06, 6.6), Vector3(0, 0.03, 0), Color(0.42, 0.42, 0.4))
-	box(n, Vector3(5.8, 0.07, 5.8), Vector3(0, 0.04, 0), Color(0.52, 0.52, 0.5))
+	var y := Color(0.9, 0.7, 0.1)
+	box(n, Vector3(0.9, 0.3, 0.9), Vector3(0, 0.15, 0), DARK)
+	box(n, Vector3(0.3, 6.0, 0.3), Vector3(0, 3.0, 0), y)
+	box(n, Vector3(4.5, 0.25, 0.25), Vector3(-1.5, 5.8, 0), y)
+	box(n, Vector3(0.6, 0.5, 0.6), Vector3(1.0, 5.6, 0), DARK)
+	box(n, Vector3(0.05, 2.2, 0.05), Vector3(-3.2, 4.6, 0), DARK)
 	return n
 
 

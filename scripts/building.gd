@@ -7,7 +7,8 @@ var build_t := 0.0
 var build_time := 1.0
 var queue: Array[String] = []
 var prod_t := 0.0
-var pad = null
+var crane_active := true
+var crane: Node3D = null
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -23,6 +24,9 @@ func start(instant: bool) -> void:
 	else:
 		hp = max_hp * 0.2
 		model.scale.y = 0.15
+		crane = Models.crane()
+		crane.position = Vector3(radius * 0.8, 0, -radius * 0.8)
+		add_child(crane)
 
 
 func aim_pos() -> Vector3:
@@ -48,12 +52,17 @@ func _process(dt: float) -> void:
 	if not alive:
 		return
 	if not built:
+		crane.visible = crane_active
+		if not crane_active:
+			return
 		build_t += dt
 		var f := clampf(build_t / build_time, 0.0, 1.0)
 		model.scale.y = lerpf(0.15, 1.0, f)
 		hp = minf(max_hp, hp + max_hp * 0.8 * dt / build_time)
 		if f >= 1.0:
 			built = true
+			crane.queue_free()
+			crane = null
 			Game.I.on_building_done(self)
 		return
 	var needs_power: bool = int(d.get("power", 0)) < 0
@@ -86,8 +95,8 @@ func _spawn(id: String) -> void:
 	var dir := Vector3(-signf(position.x), 0, 0)
 	if dir.x == 0.0:
 		dir = Vector3(1, 0, 0)
-	var u = g.spawn_unit(id, team, position + dir * (radius + 1.5))
-	var rp := position + dir * (radius + 7.0) + Vector3(randf_range(-2.5, 2.5), 0, randf_range(-3.5, 3.5))
+	var u = g.spawn_unit(id, team, g.terrain.nearest_free(position + dir * (radius + 2.5)))
+	var rp := position + dir * (radius + 8.0) + Vector3(randf_range(-2.5, 2.5), 0, randf_range(-3.5, 3.5))
 	if u is Unit:
 		u.go(rp, false)
 	elif u is AirUnit:

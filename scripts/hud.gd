@@ -1,6 +1,6 @@
 class_name Hud
 extends CanvasLayer
-## Arayüz: üst bilgi çubuğu, küçük harita, grup düğmeleri, alt bağlam paneli, can çubukları.
+## Arayüz: üst bilgi çubuğu, hız düğmesi, küçük harita, grup düğmeleri, alt bağlam paneli, can çubukları.
 
 const MM_W := 220.0
 const MM_H := MM_W * Defs.MAP_H / Defs.MAP_W
@@ -9,8 +9,9 @@ var root: Control
 var overlay: Control
 var top: PanelContainer
 var lbl_top: Label
+var speed_btn: Button
 var minimap: Control
-var groups: GridContainer
+var side: VBoxContainer
 var bottom: PanelContainer
 var title: Label
 var actions: HBoxContainer
@@ -18,14 +19,17 @@ var toast_lbl: Label
 var end_panel: ColorRect
 var refreshers: Array = []
 var blockers: Array = []
+var _icons := {}
 var _t := 0.0
 var _toast_t := 0.0
 var _rebuild_pending := false
+var _last_ms := 0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
+	_last_ms = Time.get_ticks_msec()
 	root = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -48,6 +52,18 @@ func _ready() -> void:
 	lbl_top.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	top.add_child(lbl_top)
 
+	speed_btn = Button.new()
+	speed_btn.anchor_left = 1.0
+	speed_btn.anchor_right = 1.0
+	speed_btn.offset_left = -208.0
+	speed_btn.offset_right = -8.0
+	speed_btn.offset_top = 48.0
+	speed_btn.offset_bottom = 104.0
+	speed_btn.focus_mode = Control.FOCUS_NONE
+	speed_btn.pressed.connect(_on_speed)
+	root.add_child(speed_btn)
+	_update_speed_btn()
+
 	minimap = Control.new()
 	minimap.position = Vector2(8, 48)
 	minimap.size = Vector2(MM_W, MM_H)
@@ -55,53 +71,65 @@ func _ready() -> void:
 	minimap.gui_input.connect(_minimap_input)
 	root.add_child(minimap)
 
-	groups = GridContainer.new()
-	groups.columns = 2
-	groups.position = Vector2(8, 56 + MM_H)
-	root.add_child(groups)
+	side = VBoxContainer.new()
+	side.position = Vector2(8, 56 + MM_H)
+	root.add_child(side)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	side.add_child(grid)
 	for g in [["Kara", "kara"], ["Hava Sav.", "hs"], ["Hava", "hava"], ["Hepsi", ""]]:
 		var b := Button.new()
 		b.text = g[0]
-		b.custom_minimum_size = Vector2(108, 52)
+		b.custom_minimum_size = Vector2(108, 50)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(_on_group.bind(g[1]))
-		groups.add_child(b)
+		grid.add_child(b)
+	var build := Button.new()
+	build.text = "İnşa"
+	build.custom_minimum_size = Vector2(220, 56)
+	build.focus_mode = Control.FOCUS_NONE
+	build.pressed.connect(_on_build)
+	side.add_child(build)
 
 	bottom = PanelContainer.new()
 	bottom.anchor_top = 1.0
 	bottom.anchor_bottom = 1.0
 	bottom.anchor_right = 1.0
-	bottom.offset_top = -140.0
+	bottom.offset_top = -168.0
 	root.add_child(bottom)
 	var mc := MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		mc.add_theme_constant_override("margin_" + side, 8)
+	for s in ["left", "right", "top", "bottom"]:
+		mc.add_theme_constant_override("margin_" + s, 8)
 	bottom.add_child(mc)
 	var vb := VBoxContainer.new()
 	mc.add_child(vb)
 	title = Label.new()
 	title.clip_text = true
 	vb.add_child(title)
+	var sc := ScrollContainer.new()
+	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(sc)
 	actions = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
-	vb.add_child(actions)
+	sc.add_child(actions)
 
 	toast_lbl = Label.new()
 	toast_lbl.anchor_left = 0.5
 	toast_lbl.anchor_right = 0.5
-	toast_lbl.offset_left = -400.0
-	toast_lbl.offset_right = 400.0
+	toast_lbl.offset_left = -380.0
+	toast_lbl.offset_right = 380.0
 	toast_lbl.offset_top = 50.0
 	toast_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	toast_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.6))
 	toast_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	toast_lbl.add_theme_constant_override("outline_size", 6)
-	toast_lbl.add_theme_font_size_override("font_size", 22)
+	toast_lbl.add_theme_font_size_override("font_size", 21)
 	toast_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toast_lbl)
 
-	blockers = [top, minimap, groups, bottom]
+	blockers = [top, speed_btn, minimap, side, bottom]
 	Game.I.selection_changed.connect(rebuild)
 	_rebuild_now()
 
@@ -126,7 +154,27 @@ func _on_group(cat: String) -> void:
 	Game.I.select_category(cat)
 
 
-func _process(dt: float) -> void:
+func _on_build() -> void:
+	var g := Game.I
+	if g.placing != "":
+		g.cancel_placing()
+	g.open_build_menu()
+
+
+func _on_speed() -> void:
+	Game.I.set_speed(Game.I.speed_i + 1)
+	_update_speed_btn()
+
+
+func _update_speed_btn() -> void:
+	speed_btn.text = "Hız: %s" % Game.SPEED_NAMES[Game.I.speed_i]
+
+
+func _process(_dt: float) -> void:
+	# Oyun duraklatılmışken de arayüz çalışsın diye gerçek zamanı kullan.
+	var now := Time.get_ticks_msec()
+	var dt := minf(0.1, (now - _last_ms) / 1000.0)
+	_last_ms = now
 	overlay.queue_redraw()
 	if _toast_t > 0.0:
 		_toast_t -= dt
@@ -144,12 +192,46 @@ func _process(dt: float) -> void:
 	var pw := "Enerji %d/%d" % [ts.power_used, ts.power_prod]
 	if ts.power_used > ts.power_prod:
 		pw += " (YETERSİZ)"
-	lbl_top.text = "İkmal %d (+%d/sn)     %s     Birlik %d/%d     %s     %02d:%02d" % [
-		int(ts.supply), int(ts.income), pw, ts.pop, Defs.POP_CAP, tier_txt,
+	lbl_top.text = "$%d (+$%d/sn)     %s     Birlik %d/%d     Vinç %d     %s     %02d:%02d" % [
+		int(ts.money), int(ts.income), pw, ts.pop, Defs.POP_CAP, ts.cranes, tier_txt,
 		int(g.time) / 60, int(g.time) % 60]
 	minimap.queue_redraw()
-	for r in refreshers:
-		r.call()
+	_run_refreshers()
+
+
+# ---------------------------------------------------------------- simgeler
+
+## Birim ya da binanın 3B modelinden küçük bir resim üretir (bir kez çizilir).
+func icon(id: String) -> Texture2D:
+	if _icons.has(id):
+		return _icons[id]
+	var def: Dictionary = Defs.UNITS[id] if Defs.UNITS.has(id) else Defs.BUILDINGS.get(id, {})
+	var vp := SubViewport.new()
+	vp.size = Vector2i(128, 128)
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	add_child(vp)
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var m: Node3D = Models.crane() if id == "vinc" else Models.build(id, Defs.PLAYER)
+	vp.add_child(m)
+	var r: float = float(def.get("icon_r", def.get("radius", 3.0)))
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, 30, 0)
+	vp.add_child(sun)
+	var env := Environment.new()
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.7
+	var c := Camera3D.new()
+	c.fov = 30.0
+	c.environment = env
+	vp.add_child(c)
+	var mid := Vector3(0, 0.0 if def.get("air", false) else r * 0.45, 0)
+	if id == "vinc":
+		mid = Vector3(-1.0, 3.0, 0)
+	c.look_at_from_position(mid + Vector3(0.55, 0.6, 0.75).normalized() * r * 5.2, mid, Vector3.UP)
+	_icons[id] = vp.get_texture()
+	return _icons[id]
 
 
 # ---------------------------------------------------------------- alt panel
@@ -168,24 +250,27 @@ func _rebuild_now() -> void:
 		actions.remove_child(c)
 		c.queue_free()
 	var g := Game.I
+	bottom.visible = true
 	if g.placing != "":
-		bottom.visible = true
-		title.text = "%s yerleştiriliyor" % Defs.BUILDINGS[g.placing].name
+		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[g.placing].name
 		_btn("İptal", g.cancel_placing)
 		return
-	if g.sel_pad != null:
-		bottom.visible = true
-		title.text = "Boş yuva: ne kuralım?"
-		for id in Defs.PAD_BUILDINGS:
+	var hq_selected: bool = g.selection.size() == 1 and g.selection[0] is Building and g.selection[0].def_id == "hq"
+	if g.menu == "build" or hq_selected:
+		title.text = "İnşa: bir bina seç, sonra haritada yerini göster"
+		for id in Defs.BUILD_MENU:
 			var bd: Dictionary = Defs.BUILDINGS[id]
-			var b := _btn("%s\n%d" % [bd.name, bd.cost], _build.bind(id))
+			var b := _btn("%s\n$%d" % [bd.name, bd.cost], g.begin_placing.bind(id), id)
 			refreshers.append(_refresh_cost.bind(b, int(bd.cost), int(bd.get("tier", 1))))
+		var cr := _btn("Vinç", _crane, "vinc")
+		refreshers.append(_refresh_crane.bind(cr))
+		var up := _btn("Kademe 2\n$%d" % Defs.TIER2_COST, _upgrade)
+		refreshers.append(_refresh_upgrade.bind(up))
 		_btn("Kapat", g.clear_selection)
 		_run_refreshers()
 		return
 	var units := g.selected_units()
 	if not units.is_empty():
-		bottom.visible = true
 		var counts := {}
 		for u in units:
 			counts[u.d.name] = counts.get(u.d.name, 0) + 1
@@ -199,21 +284,12 @@ func _rebuild_now() -> void:
 		return
 	if g.selection.size() == 1 and g.selection[0] is Building:
 		var b: Building = g.selection[0]
-		bottom.visible = true
 		refreshers.append(_refresh_building_title.bind(b))
 		if b.built:
 			for id in b.d.get("produces", []):
 				var ud: Dictionary = Defs.UNITS[id]
-				var btn := _btn("%s\n%d" % [ud.name, ud.cost], _queue.bind(b, id))
+				var btn := _btn("%s\n$%d" % [ud.name, ud.cost], _queue.bind(b, id), id)
 				refreshers.append(_refresh_cost.bind(btn, int(ud.cost), int(ud.get("tier", 1))))
-			if b.def_id == "hq":
-				var ts = g.teams[Defs.PLAYER]
-				if ts.tier < 2:
-					var up := _btn("Kademe 2\n%d" % Defs.TIER2_COST, _upgrade)
-					refreshers.append(_refresh_upgrade.bind(up))
-				var hd: Dictionary = Defs.BUILDINGS["hisar"]
-				var hb := _btn("Hisar Kur\n%d" % hd.cost, g.begin_placing.bind("hisar"))
-				refreshers.append(_refresh_cost.bind(hb, int(hd.cost), 2))
 		_btn("Kapat", g.clear_selection)
 		_run_refreshers()
 		return
@@ -225,11 +301,17 @@ func _run_refreshers() -> void:
 		r.call()
 
 
-func _btn(text: String, cb: Callable) -> Button:
+func _btn(text: String, cb: Callable, icon_id := "") -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(138, 78)
+	b.custom_minimum_size = Vector2(132, 112)
 	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 16)
+	if icon_id != "":
+		b.icon = icon(icon_id)
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 	b.pressed.connect(cb)
 	actions.add_child(b)
 	return b
@@ -237,14 +319,23 @@ func _btn(text: String, cb: Callable) -> Button:
 
 func _refresh_cost(b: Button, cost: int, tier: int) -> void:
 	var ts = Game.I.teams[Defs.PLAYER]
-	b.disabled = ts.tier < tier or ts.supply < cost
-	b.tooltip_text = "Kademe 2 gerekli" if ts.tier < tier else ""
+	b.disabled = ts.tier < tier or ts.money < cost
+
+
+func _refresh_crane(b: Button) -> void:
+	var ts = Game.I.teams[Defs.PLAYER]
+	if ts.cranes >= Defs.MAX_CRANES:
+		b.text = "Vinç %d/%d\nazami" % [ts.cranes, Defs.MAX_CRANES]
+		b.disabled = true
+	else:
+		b.text = "Vinç %d/%d\n$%d" % [ts.cranes, Defs.MAX_CRANES, Defs.CRANE_COST]
+		b.disabled = ts.money < Defs.CRANE_COST
 
 
 func _refresh_upgrade(b: Button) -> void:
 	var ts = Game.I.teams[Defs.PLAYER]
 	b.visible = ts.tier < 2
-	b.disabled = ts.upgrading or ts.supply < Defs.TIER2_COST
+	b.disabled = ts.upgrading or ts.money < Defs.TIER2_COST
 	if ts.upgrading:
 		b.text = "Kademe 2\n%%%d" % int(ts.upgrade_t / Defs.TIER2_TIME * 100.0)
 
@@ -254,7 +345,10 @@ func _refresh_building_title(b: Building) -> void:
 		return
 	var s: String = b.d.name
 	if not b.built:
-		s += "  (inşa ediliyor %%%d)" % int(b.build_t / b.build_time * 100.0)
+		if b.crane_active:
+			s += "  (inşa ediliyor %%%d)" % int(b.build_t / b.build_time * 100.0)
+		else:
+			s += "  (vinç bekliyor)"
 	elif not b.queue.is_empty():
 		s += "  |  Üretim: %s %%%d  |  Kuyruk: %d" % [
 			Defs.UNITS[b.queue[0]].name, int(b.prod_fraction() * 100.0), b.queue.size()]
@@ -263,16 +357,15 @@ func _refresh_building_title(b: Building) -> void:
 	title.text = s
 
 
-func _build(id: String) -> void:
-	var g := Game.I
-	if g.sel_pad != null:
-		g.build_on_pad(g.sel_pad, id)
-
-
 func _queue(b: Building, id: String) -> void:
 	if is_instance_valid(b):
 		Game.I.queue_unit(b, id)
 		_run_refreshers()
+
+
+func _crane() -> void:
+	Game.I.buy_crane(Defs.PLAYER)
+	_run_refreshers()
 
 
 func _upgrade() -> void:
@@ -322,8 +415,12 @@ func _draw_overlay() -> void:
 		if cam.is_position_behind(wp2):
 			continue
 		var p2 := cam.unproject_position(wp2)
-		var label := "+%d/sn" % int(pt.income)
-		overlay.draw_string(font, p2 + Vector2(-24, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.9))
+		var label := "+$%d/sn" % int(pt.income)
+		var lc := Color(1, 1, 1, 0.95)
+		if pt.owner_team != Defs.NEUTRAL:
+			lc = Defs.TEAM_COLORS[pt.owner_team].lightened(0.45)
+		overlay.draw_string_outline(font, p2 + Vector2(-30, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5, Color(0, 0, 0, 0.8))
+		overlay.draw_string(font, p2 + Vector2(-30, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, lc)
 		if pt.cap_t > 0.0 and pt.cap_team != Defs.NEUTRAL:
 			var f2: float = clampf(pt.cap_t / pt.cap_time, 0.0, 1.0)
 			overlay.draw_rect(Rect2(p2.x - 41, p2.y + 5, 82, 9), Color(0, 0, 0, 0.7))
@@ -338,20 +435,32 @@ func _mm(p: Vector3) -> Vector2:
 	return Vector2((p.x / Defs.MAP_W + 0.5) * MM_W, (p.z / Defs.MAP_H + 0.5) * MM_H)
 
 
+func _mm_rect(r: Array) -> Rect2:
+	var a := _mm(Vector3(r[0], 0, r[1]))
+	var b := _mm(Vector3(r[2], 0, r[3]))
+	return Rect2(a, b - a)
+
+
 func _draw_minimap() -> void:
 	var g := Game.I
-	minimap.draw_rect(Rect2(Vector2.ZERO, minimap.size), Color(0.1, 0.14, 0.1, 0.92))
+	minimap.draw_rect(Rect2(Vector2.ZERO, minimap.size), Color(0.16, 0.22, 0.14, 0.95))
+	for r in Defs.WATER:
+		minimap.draw_rect(_mm_rect(r), Color(0.14, 0.3, 0.5))
+	for r in Defs.BRIDGES:
+		minimap.draw_rect(_mm_rect(r), Color(0.4, 0.4, 0.32))
+	for r in Defs.MOUNTAINS:
+		minimap.draw_rect(_mm_rect(r), Color(0.42, 0.39, 0.35))
 	for pt in g.points:
-		var c := Color(0.85, 0.85, 0.85)
+		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:
-			c = Defs.TEAM_COLORS[pt.owner_team]
+			c = Defs.TEAM_COLORS[pt.owner_team].lightened(0.3)
 		var mp := _mm(pt.position)
 		minimap.draw_rect(Rect2(mp - Vector2(4, 4), Vector2(8, 8)), c, false, 2.0)
 	for e in g.entities:
 		if not e.alive or not e.seen:
 			continue
 		var s := 6.0 if e.is_building else 3.5
-		minimap.draw_rect(Rect2(_mm(e.global_position) - Vector2(s, s) * 0.5, Vector2(s, s)), Defs.TEAM_COLORS[e.team])
+		minimap.draw_rect(Rect2(_mm(e.global_position) - Vector2(s, s) * 0.5, Vector2(s, s)), Defs.TEAM_COLORS[e.team].lightened(0.3))
 	var vr := get_viewport().get_visible_rect().size
 	var a := _mm(g.cam.ground_at(Vector2(0, 0)))
 	var b := _mm(g.cam.ground_at(Vector2(vr.x, 0)))
@@ -385,6 +494,7 @@ func _minimap_input(ev: InputEvent) -> void:
 # ---------------------------------------------------------------- bitiş
 
 func show_end(won: bool) -> void:
+	Engine.time_scale = 1.0
 	end_panel = ColorRect.new()
 	end_panel.color = Color(0, 0, 0, 0.65)
 	end_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

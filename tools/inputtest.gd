@@ -45,6 +45,14 @@ func _tap(pos: Vector2) -> void:
 	await _frames(2)
 
 
+func _count(id: String) -> int:
+	var n := 0
+	for e in Game.I.entities:
+		if e.team == Defs.PLAYER and e.def_id == id:
+			n += 1
+	return n
+
+
 func _screen(p: Vector3) -> Vector2:
 	return Game.I.cam.camera.unproject_position(p)
 
@@ -52,22 +60,32 @@ func _screen(p: Vector3) -> Vector2:
 func _run() -> void:
 	var g := Game.I
 	await _frames(5)
-	g.teams[0].supply = 5000.0
+	g.teams[0].money = 5000.0
 	g.cam.focus = g.teams[0].hq.position
 	await _frames(2)
 
-	# 1) boş yuvaya dokun -> inşa menüsü
-	var pad = null
-	for p in g.pads:
-		if p.team == Defs.PLAYER:
-			pad = p
-	await _tap(_screen(pad.pos))
-	_check("yuvaya dokununca insa menusu acilir", g.sel_pad == pad and g.hud.bottom.visible)
+	# 1) İnşa düğmesi -> inşa menüsü
+	await _tap(g.hud.side.get_child(1).get_global_rect().get_center())
+	await _frames(2)
+	_check("Insa dugmesi menuyu acar", g.menu == "build" and g.hud.bottom.visible)
 
-	# 2) arayüz düğmesine dokun (Android yolu: dokunma -> düğme) -> Kışla kurulur, haritaya emir gitmez
-	var btn: Button = g.hud.actions.get_child(1)
-	await _tap(btn.get_global_rect().get_center())
-	_check("dugmeye dokununca Kisla kurulur", pad.building != null and pad.building.def_id == "kisla")
+	# 2) Kışla düğmesi -> yerleştirme modu -> haritaya dokun -> bina kurulur
+	await _tap(g.hud.actions.get_child(1).get_global_rect().get_center())
+	await _frames(2)
+	_check("bina dugmesi yerlestirme modunu acar", g.placing == "kisla")
+	await _tap(_screen(g.teams[0].hq.position + Vector3(16, 0, -8)))
+	await _frames(2)
+	_check("haritaya dokununca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
+
+	# 2b) dağın üstüne bina kurulamaz
+	_check("dagin ustune bina kurulamaz", not g.can_place(0, "kisla", Vector3(-45, 0, -30)) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
+
+	# 2c) hız düğmesi oyunu duraklatır
+	await _tap(g.hud.speed_btn.get_global_rect().get_center())
+	await _tap(g.hud.speed_btn.get_global_rect().get_center())
+	_check("hiz dugmesi oyunu duraklatir", Engine.time_scale == 0.0)
+	await _tap(g.hud.speed_btn.get_global_rect().get_center())
+	_check("hiz dugmesi normale doner", Engine.time_scale == 1.0)
 
 	# 3) birime dokun -> seçilir
 	g.clear_selection()
@@ -79,7 +97,7 @@ func _run() -> void:
 	_check("birime dokununca secilir", g.selection.size() == 1 and g.selection[0] == m)
 
 	# 4) yere dokun -> hareket emri
-	var goal := m.position + Vector3(8, 0, 3)
+	var goal := m.position + Vector3(6, 0, 5)
 	await _tap(_screen(goal))
 	_check("yere dokununca birim yola cikar", m.order == "amove" and Entity.flat(m.dest, goal) < 1.0)
 
@@ -128,8 +146,17 @@ func _run() -> void:
 
 	# 9) grup düğmesi
 	g.clear_selection()
-	await _tap(g.hud.groups.get_child(3).get_global_rect().get_center())
+	await _tap(g.hud.side.get_child(0).get_child(3).get_global_rect().get_center())
 	_check("Hepsi dugmesi butun birimleri secer", g.selected_units().size() == 2)
+
+	# 9b) yol bulma: nehrin karşısına giden birim köprüden geçer, suya girmez
+	var path := g.terrain.find_path(Vector3(-30, 0, 20), Vector3(30, 0, 20))
+	var wet := false
+	for wp in path:
+		if not g.terrain.is_land(wp):
+			wet = true
+	_check("yol nehri kopruden gecer", path.size() > 5 and not wet)
+	_check("dagin icinden duz gidilemez", not g.terrain.line_clear(Vector3(-60, 0, -30), Vector3(-30, 0, -30)))
 
 	# 10) küçük haritaya dokun -> kamera oraya gider
 	await _tap(g.hud.minimap.get_global_rect().get_center())

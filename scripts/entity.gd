@@ -96,6 +96,9 @@ func find_target(max_d: float, min_d := 0.0, from := Vector3.INF):
 		if dist > max_d or dist < min_d:
 			continue
 		var s: float = dist / (0.3 + float(d.mult.get(e.armor, 0.0)))
+		# Ateş edebilen hedefler, silahsız binalardan önce gelir.
+		if e.is_building and not e.has_weapon():
+			s = s * 3.0 + 8.0
 		if s < best_s:
 			best_s = s
 			best = e
