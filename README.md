@@ -11,6 +11,8 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![Hava modelleri](docs/ekran/modeller_hava.png)
 
+![Çatışma](docs/ekran/catisma.png)
+
 ## Şu an oynanabilen
 
 **Senaryolar.** Açılışta senaryo ve taraf seçilir; her senaryoda iki tarafı da oynayabilirsin.
@@ -43,6 +45,10 @@ füzeyi önleyebilir; hipersonik füzeler (Fattah-2, BrahMos, Fatah-IV) önlenem
 doktrininde füzeler ucuzdur ve Füze Üssü bir kademe erken açılır.
 
 **Deneysel silahlar (Kademe 3):** Tryzub ve Iron Beam lazerleri (drone katili), S-70 Okhotnik-B, Ghatak, Su-57, F-35I, hipersonik füzeler.
+
+**Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız hedefe döner; ateşte geri tepme, namlu alevi ve duman;
+araçların arkasında toz; piyade yürürken adım atar, ateş ederken çömelir; füzeler duman izi bırakır; vurulan uçak
+duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
 
 Ayrıca: arazi ve yol bulma, serbest bina yerleşimi, vinç, hız düğmesi (duraklatıp emir verme), karargâh yanında onarım, savaş sisi.
 
@@ -116,3 +122,4 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
   `--scn` senaryoyu (0-2), `--side` tarafı (0-1) seçer. Ekran görüntüsü için `--headless` olmadan `--shots=KLASÖR` ekle.
 - `--inputtest`: dokunma hareketlerini taklit edip kontrolleri ve kuralları doğrular; gerçek pencere ister.
 - `--gallery`: senaryodaki bütün modelleri yan yana dizip görüntüsünü alır.
+- `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).

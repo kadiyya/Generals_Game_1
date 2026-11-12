@@ -228,42 +228,47 @@ static func build(d: Dictionary, team: int) -> Node3D:
 			_tracks(n, 2.1, 3.5)
 			box(n, Vector3(1.9, 0.6, 3.0), Vector3(0, 0.6, -0.2), bc)
 			prism(n, Vector3(1.9, 0.9, 0.6), Vector3(0, 0.6, 1.7), bc, Vector3(90, 0, 0))
-			cyl(n, 0.5, 0.6, 0.35, Vector3(0, 1.08, -0.1), bc)
-			box(n, Vector3(0.6, 0.06, 0.5), Vector3(0, 1.28, -0.1), tc)
-			cyl(n, 0.06, 0.06, 1.6, Vector3(0, 1.08, 0.9), DARK, Vector3(90, 0, 0))
+			var t := _turret(n)
+			cyl(t, 0.5, 0.6, 0.35, Vector3(0, 1.08, -0.1), bc)
+			box(t, Vector3(0.6, 0.06, 0.5), Vector3(0, 1.28, -0.1), tc)
+			cyl(t, 0.06, 0.06, 1.6, Vector3(0, 1.08, 0.9), DARK, Vector3(90, 0, 0))
 		"ifv_tall":
 			# Bradley / Namer: yüksek kutu gövde
 			_tracks(n, 2.3, 3.6)
 			box(n, Vector3(2.1, 0.95, 3.4), Vector3(0, 0.8, 0), bc)
 			box(n, Vector3(2.1, 0.4, 0.5), Vector3(0, 0.7, 1.75), bc, Vector3(-35, 0, 0))
-			box(n, Vector3(1.0, 0.45, 1.1), Vector3(0, 1.5, 0.1), bc)
-			box(n, Vector3(0.7, 0.06, 0.6), Vector3(0, 1.75, 0.1), tc)
-			cyl(n, 0.06, 0.06, 1.5, Vector3(0, 1.5, 1.2), DARK, Vector3(90, 0, 0))
-			box(n, Vector3(0.3, 0.3, 0.7), Vector3(-0.65, 1.5, 0.1), DARK)
+			var t := _turret(n)
+			box(t, Vector3(1.0, 0.45, 1.1), Vector3(0, 1.5, 0.1), bc)
+			box(t, Vector3(0.7, 0.06, 0.6), Vector3(0, 1.75, 0.1), tc)
+			cyl(t, 0.06, 0.06, 1.5, Vector3(0, 1.5, 1.2), DARK, Vector3(90, 0, 0))
+			box(t, Vector3(0.3, 0.3, 0.7), Vector3(-0.65, 1.5, 0.1), DARK)
 		"gepard":
 			_tracks(n, 2.2, 3.6)
 			box(n, Vector3(2.0, 0.6, 3.4), Vector3(0, 0.6, 0), bc)
-			box(n, Vector3(1.3, 0.7, 1.5), Vector3(0, 1.25, 0), bc)
-			box(n, Vector3(0.9, 0.06, 0.6), Vector3(0, 1.62, -0.2), tc)
+			var t := _turret(n)
+			box(t, Vector3(1.3, 0.7, 1.5), Vector3(0, 1.25, 0), bc)
+			box(t, Vector3(0.9, 0.06, 0.6), Vector3(0, 1.62, -0.2), tc)
 			for x in [-0.8, 0.8]:
-				cyl(n, 0.07, 0.07, 2.0, Vector3(x, 1.45, 0.8), DARK, Vector3(60, 0, 0))
-			box(n, Vector3(0.9, 0.5, 0.1), Vector3(0, 2.0, -0.7), GREY, Vector3(-15, 0, 0))
+				cyl(t, 0.07, 0.07, 2.0, Vector3(x, 1.45, 0.8), DARK, Vector3(60, 0, 0))
+			box(t, Vector3(0.9, 0.5, 0.1), Vector3(0, 2.0, -0.7), GREY, Vector3(-15, 0, 0))
 		"pantsir":
 			_truck(n, bc, 4.2)
-			box(n, Vector3(1.5, 0.7, 1.6), Vector3(0, 1.75, -0.7), bc)
-			box(n, Vector3(1.0, 0.06, 0.8), Vector3(0, 2.12, -0.7), tc)
+			var t := _turret(n)
+			box(t, Vector3(1.5, 0.7, 1.6), Vector3(0, 1.75, -0.7), bc)
+			box(t, Vector3(1.0, 0.06, 0.8), Vector3(0, 2.12, -0.7), tc)
 			for x in [-0.95, 0.95]:
 				for i in 3:
-					cyl(n, 0.1, 0.1, 1.5, Vector3(x, 1.6 + i * 0.22, -0.4), GREY, Vector3(65, 0, 0))
-				cyl(n, 0.05, 0.05, 1.6, Vector3(x * 0.8, 1.5, 0.3), DARK, Vector3(80, 0, 0))
-			box(n, Vector3(0.9, 0.5, 0.1), Vector3(0, 2.5, -1.2), GREY)
+					cyl(t, 0.1, 0.1, 1.5, Vector3(x, 1.6 + i * 0.22, -0.4), GREY, Vector3(65, 0, 0))
+				cyl(t, 0.05, 0.05, 1.6, Vector3(x * 0.8, 1.5, 0.3), DARK, Vector3(80, 0, 0))
+			box(t, Vector3(0.9, 0.5, 0.1), Vector3(0, 2.5, -1.2), GREY)
 		"tor":
 			_tracks(n, 2.2, 3.6)
 			box(n, Vector3(2.0, 0.6, 3.4), Vector3(0, 0.6, 0), bc)
-			box(n, Vector3(1.5, 1.2, 1.5), Vector3(0, 1.5, -0.1), bc)
-			box(n, Vector3(1.0, 0.06, 0.8), Vector3(0, 2.13, -0.1), tc)
-			box(n, Vector3(1.2, 0.7, 0.1), Vector3(0, 2.5, -0.8), GREY, Vector3(-10, 0, 0))
-			box(n, Vector3(0.8, 0.6, 0.1), Vector3(0, 1.7, 0.7), GREY)
+			var t := _turret(n)
+			box(t, Vector3(1.5, 1.2, 1.5), Vector3(0, 1.5, -0.1), bc)
+			box(t, Vector3(1.0, 0.06, 0.8), Vector3(0, 2.13, -0.1), tc)
+			box(t, Vector3(1.2, 0.7, 0.1), Vector3(0, 2.5, -0.8), GREY, Vector3(-10, 0, 0))
+			box(t, Vector3(0.8, 0.6, 0.1), Vector3(0, 1.7, 0.7), GREY)
 		"irondome":
 			_truck(n, bc, 3.6)
 			box(n, Vector3(1.7, 1.5, 1.7), Vector3(0, 2.0, -0.8), bc, Vector3(-35, 0, 0))
@@ -275,9 +280,10 @@ static func build(d: Dictionary, team: int) -> Node3D:
 			# Paletli kundağı motorlu obüs (Msta-S, K9, Raad-2)
 			_tracks(n, 2.4, 4.0)
 			box(n, Vector3(2.2, 0.7, 3.8), Vector3(0, 0.65, 0), bc)
-			box(n, Vector3(2.0, 0.95, 2.5), Vector3(0, 1.48, -0.5), bc)
-			box(n, Vector3(1.2, 0.07, 0.9), Vector3(0, 1.98, -0.5), tc)
-			cyl(n, 0.12, 0.14, 3.9, Vector3(0, 2.15, 2.3), DARK, Vector3(70, 0, 0))
+			var t := _turret(n)
+			box(t, Vector3(2.0, 0.95, 2.5), Vector3(0, 1.48, -0.5), bc)
+			box(t, Vector3(1.2, 0.07, 0.9), Vector3(0, 1.98, -0.5), tc)
+			cyl(t, 0.12, 0.14, 3.9, Vector3(0, 2.15, 2.3), DARK, Vector3(70, 0, 0))
 		"truck_gun":
 			# Kamyona monte obüs (Bohdana, CAESAR, ATMOS, SH-15)
 			_truck(n, bc, 4.6)
@@ -460,6 +466,7 @@ static func build(d: Dictionary, team: int) -> Node3D:
 # ---------------------------------------------------------------- parçalar
 
 ## Ayrıntılı araç modeli (şimdilik tanklar, tanks.gd): gövde ve kule iki mesh olarak eklenir.
+## Kule mesh'i, yatak merkezindeki "turret" düğümünün altındadır; Unit onu hedefe döndürür.
 ## Toz rengi haritanın toprağından türetilir; mesh model, renk ve toz başına bir kez üretilip paylaşılır.
 static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 	var ground: Color = Defs.MAP.get("ground", Color(0.55, 0.5, 0.38))
@@ -479,11 +486,12 @@ static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 	hull.name = "Hull"
 	hull.mesh = c[0]
 	n.add_child(hull)
+	# Unit, "turret" düğümünü bulup hedefe döndürür; düğüm kule yatağının merkezindedir.
+	var t := _turret(n)
+	t.position.z = c[2]
 	var tur := MeshInstance3D.new()
-	tur.name = "Turret"
 	tur.mesh = c[1]
-	tur.position.z = c[2]
-	n.add_child(tur)
+	t.add_child(tur)
 
 
 static func _jet(n: Node3D, p: Dictionary, col: Color, tc: Color) -> void:
@@ -567,6 +575,14 @@ static func _truck(n: Node3D, bc: Color, l: float) -> void:
 		var z := -l * 0.5 + 0.6 + i * (l - 1.2) / maxf(1.0, k - 1)
 		for x in [-0.95, 0.95]:
 			cyl(n, 0.45, 0.45, 0.3, Vector3(x, 0.45, z), DARK, Vector3(0, 0, 90))
+
+
+## Hedefe dönen parçaların (kule, namlu) toplandığı düğüm. Unit bunu adıyla bulur.
+static func _turret(n: Node3D) -> Node3D:
+	var t := Node3D.new()
+	t.name = "turret"
+	n.add_child(t)
+	return t
 
 
 static func _soldier(n: Node3D, o: Vector3, bc: Color, tc: Color, launcher: bool) -> void:

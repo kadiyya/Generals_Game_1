@@ -132,6 +132,13 @@ func fire(e) -> void:
 			g.fx_shot(self, e, base, 34.0, 0.0, true)
 		_:
 			g.fx_shot(self, e, base, 45.0, 0.0, false)
+	if seen:
+		g.fx_muzzle(muzzle_pos(), d.get("proj", "tracer"))
+	_on_fired()
+
+
+func _on_fired() -> void:
+	pass
 
 
 func take_damage(amount: float, attacker = null, tag := "") -> void:
@@ -151,7 +158,12 @@ func _on_damaged(_attacker) -> void:
 
 func die() -> void:
 	alive = false
-	Game.I.fx_explosion(aim_pos(), radius * 1.6)
+	if is_air and float(d.get("alt", 9.0)) > 5.0:
+		Game.I.fx_crash(global_position, radius)
+	else:
+		Game.I.fx_explosion(aim_pos(), radius * 1.6)
+		if not is_air:
+			Game.I.fx_scorch(global_position, radius * 1.3)
 	Game.I.on_entity_died(self)
 	visible = false
 	set_process(false)
