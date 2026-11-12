@@ -89,12 +89,13 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/defs.gd` | Genel sabitler (başlangıç parası, kademe bedelleri, yapay zekâ zorluğu) |
 | `scripts/game.gd` | Maç döngüsü, ekonomi, inşa, araştırma, füzeler, seçim, emirler, efektler |
 | `scripts/unit.gd`, `air_unit.gd`, `building.gd`, `entity.gd`, `shot.gd` | Kara birimi, hava aracı, bina, ortak taban, mermi |
-| `scripts/models.gd` | Binaların kodla üretilen modelleri; kara ve hava araçlarını önbellekli olarak kurar |
+| `scripts/models.gd` | Model girişi: bütün birim ve binaları ilgili dosyadan önbellekli olarak kurar; basit kutu/silindir yardımcıları |
 | `scripts/tanks.gd` | Ayrıntılı tank modelleri (T-72B3, T-90M, Leopard 2A6, Merkava Mk 4): gerçek ölçülerle yürüyen aksam, kule, reaktif zırh, takım rengi tanıma örtüsü |
 | `scripts/vehicles.gd` | Diğer kara araçları ve piyade: BMP, M113 türevleri, Bradley, Namer, Gepard, Shilka, Tor, obüsler, TOS-1A, kamyonlu sistemler (Pantsir, Iron Dome, HIMARS, roketatarlar, lazer) |
+| `scripts/buildings.gd` | Bina modelleri, hava savunma bataryaları, vinç ve ikmal noktaları: beton ve oluklu sac dokular, pencereler, bacalar, antenler, bayrak ve çatı şeridiyle takım rengi |
 | `scripts/aircraft.gd` | Ayrıntılı uçak ve İHA modelleri: jetler `AIRFRAMES` tablosundan (gövde istasyonları, hava alığı, nasel, kokpit camı, füze/bomba, milli işaret), İHA'lar gerçek ölçüyle; dönen pervaneler |
 | `scripts/kit.gd` | Araç mesh kurucusu: parçaları malzeme başına tek yüzeyde birleştirir, çamur/toz/gölgeyi köşe rengine işler |
-| `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda, uçak boyası) |
+| `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda, uçak boyası, beton, oluklu sac) |
 | `scripts/terrain.gd` | Arazi ve yol bulma |
 | `scripts/fog.gd` | Savaş sisi |
 | `scripts/controls.gd`, `camera_rig.gd` | Dokunmatik kontroller ve kamera |

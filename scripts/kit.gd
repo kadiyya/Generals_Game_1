@@ -13,6 +13,8 @@ const MATS := {
 	"track": ["track", 1.0, 0.7, 0.25],
 	"fabric": ["fabric", 0.9, 0.95, 0.0],
 	"paint": ["skin", 1.6, 0.42, 0.15],
+	"concrete": ["concrete", 2.6, 0.9, 0.0],
+	"corrug": ["corrug", 1.0, 0.55, 0.25],
 	"optic": ["", 1.0, 0.12, 0.3],
 }
 

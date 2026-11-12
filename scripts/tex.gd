@@ -38,6 +38,23 @@ static func texture(kind: String) -> ImageTexture:
 			img = _range(n, 0.6, 1.0, 0.06)
 		"track":
 			img = _track(n)
+		"concrete":
+			# beton: lekeler, kalıp derzleri, akıntı izleri
+			n.frequency = 0.045
+			n.fractal_octaves = 4
+			img = _range(n, 0.74, 1.0, 0.05)
+			for y in SIZE:
+				for x in SIZE:
+					if y % 42 == 0 or (x + (y / 42) * 21) % 64 == 0:
+						img.set_pixel(x, y, img.get_pixel(x, y) * 0.8)
+		"corrug":
+			# oluklu sac: dalga sırtları ve hafif pas lekeleri
+			n.frequency = 0.05
+			img = _range(n, 0.82, 1.0, 0.03)
+			for y in SIZE:
+				for x in SIZE:
+					var wave := 0.8 + 0.2 * absf(sin(x * PI / 8.0))
+					img.set_pixel(x, y, img.get_pixel(x, y) * wave)
 		"skin":
 			# uçak boyası: hafif lekeler, panel çizgileri ve perçin sıraları
 			n.frequency = 0.04

@@ -122,6 +122,9 @@ static func build(d: Dictionary, team: int) -> Node3D:
 	if Aircraft.has(id):
 		_aircraft(n, d, id, ac, tc)
 		return n
+	if Buildings.has(id):
+		_structure(n, id, bc, tc)
+		return n
 	if Vehicles.has(id) or id.begins_with("tank_"):
 		_vehicle(n, id, bc, tc)
 		return n
@@ -130,82 +133,6 @@ static func build(d: Dictionary, team: int) -> Node3D:
 			_soldiers(n, [Vector3(-0.45, 0, 0.45), Vector3(0.45, 0, 0.45), Vector3(-0.45, 0, -0.45), Vector3(0.45, 0, -0.45)], bc, tc, false)
 		"at":
 			_soldiers(n, [Vector3(-0.4, 0, 0.0), Vector3(0.4, 0, 0.0)], bc, tc, true)
-		"hq":
-			box(n, Vector3(8.0, 2.2, 8.0), Vector3(0, 1.1, 0), CONCRETE)
-			box(n, Vector3(8.15, 0.45, 8.15), Vector3(0, 1.9, 0), tc)
-			box(n, Vector3(5.0, 1.6, 5.0), Vector3(0, 3.0, 0), CONCRETE)
-			box(n, Vector3(5.1, 0.3, 5.1), Vector3(0, 3.7, 0), tc)
-			cyl(n, 0.15, 0.15, 3.5, Vector3(1.6, 5.5, 1.6), DARK)
-			box(n, Vector3(1.6, 0.9, 0.06), Vector3(2.45, 6.7, 1.6), tc)
-			cyl(n, 0.9, 0.2, 0.5, Vector3(-1.4, 4.2, -1.4), GREY, Vector3(25, 0, 0))
-		"santral":
-			box(n, Vector3(4.2, 1.6, 3.0), Vector3(0, 0.8, -0.8), CONCRETE)
-			box(n, Vector3(4.3, 0.3, 3.1), Vector3(0, 1.45, -0.8), tc)
-			cyl(n, 0.7, 1.05, 2.8, Vector3(-1.1, 1.4, 1.4), GREY)
-			cyl(n, 0.7, 1.05, 2.8, Vector3(1.1, 1.4, 1.4), GREY)
-		"maden":
-			box(n, Vector3(3.2, 1.8, 2.6), Vector3(-1.0, 0.9, -0.8), CONCRETE)
-			box(n, Vector3(3.3, 0.3, 2.7), Vector3(-1.0, 1.6, -0.8), tc)
-			box(n, Vector3(0.7, 0.3, 4.2), Vector3(1.2, 1.5, 0.3), DARK, Vector3(-28, 0, 0))
-			cyl(n, 0.0, 1.6, 1.6, Vector3(1.2, 0.8, 2.2), Color(0.3, 0.27, 0.24), Vector3.ZERO, 7)
-			cyl(n, 0.25, 0.25, 3.4, Vector3(-2.0, 2.6, -1.4), DARK)
-		"kisla":
-			box(n, Vector3(5.2, 1.6, 3.6), Vector3(0, 0.8, 0), CONCRETE)
-			prism(n, Vector3(5.4, 1.1, 3.8), Vector3(0, 2.15, 0), tc)
-			box(n, Vector3(1.0, 1.2, 0.1), Vector3(0, 0.6, 1.82), DARK)
-		"fabrika":
-			box(n, Vector3(5.6, 2.2, 5.2), Vector3(0, 1.1, 0), CONCRETE)
-			box(n, Vector3(5.7, 0.35, 5.3), Vector3(0, 2.0, 0), tc)
-			for i in 3:
-				prism(n, Vector3(5.6, 0.9, 1.7), Vector3(0, 2.65, -1.75 + i * 1.75), GREY)
-			box(n, Vector3(2.4, 1.6, 0.1), Vector3(0, 0.8, 2.62), DARK)
-			cyl(n, 0.3, 0.3, 2.0, Vector3(2.2, 3.2, -2.0), DARK)
-		"havaalani":
-			# pist, iki hangar, kule
-			box(n, Vector3(3.0, 0.06, 11.5), Vector3(2.6, 0.04, 0), DARK)
-			for i in 5:
-				box(n, Vector3(0.18, 0.07, 1.1), Vector3(2.6, 0.05, -4.4 + i * 2.2), Color(0.85, 0.85, 0.8))
-			for z in [-2.6, 2.6]:
-				box(n, Vector3(3.6, 1.3, 3.4), Vector3(-2.2, 0.65, z), CONCRETE)
-				var roof := cyl(n, 1.8, 1.8, 3.4, Vector3(-2.2, 1.3, z), GREY, Vector3(90, 0, 0), 10)
-				roof.scale = Vector3(1.0, 1.0, 0.45)
-				box(n, Vector3(3.7, 0.22, 3.5), Vector3(-2.2, 1.2, z), tc)
-			box(n, Vector3(0.8, 3.6, 0.8), Vector3(-0.2, 1.8, 0), CONCRETE)
-			box(n, Vector3(1.3, 0.7, 1.3), Vector3(-0.2, 3.9, 0), GLASS)
-			box(n, Vector3(1.4, 0.12, 1.4), Vector3(-0.2, 4.3, 0), tc)
-		"teknoloji":
-			box(n, Vector3(5.0, 1.8, 4.2), Vector3(0, 0.9, 0), CONCRETE)
-			box(n, Vector3(5.1, 0.3, 4.3), Vector3(0, 1.6, 0), tc)
-			ball(n, 1.3, Vector3(-1.0, 2.1, 0), Color(0.82, 0.85, 0.88))
-			cyl(n, 0.06, 0.06, 3.2, Vector3(1.6, 3.4, 1.0), DARK)
-			cyl(n, 0.7, 0.15, 0.4, Vector3(1.6, 2.4, -1.0), GREY, Vector3(35, 0, 0))
-		"fuze":
-			box(n, Vector3(5.0, 0.3, 5.0), Vector3(0, 0.15, 0), CONCRETE)
-			box(n, Vector3(5.1, 0.12, 5.1), Vector3(0, 0.3, 0), tc)
-			box(n, Vector3(1.6, 0.9, 3.6), Vector3(-1.2, 0.8, 0), Color(0.3, 0.33, 0.28))
-			cyl(n, 0.32, 0.32, 3.6, Vector3(1.2, 2.2, 0), Color(0.85, 0.85, 0.82))
-			cyl(n, 0.0, 0.32, 0.9, Vector3(1.2, 4.45, 0), DARK)
-			for a in 4:
-				box(n, Vector3(0.7, 0.5, 0.05), Vector3(1.2, 0.65, 0), DARK, Vector3(0, a * 45.0, 0))
-		"sam_box":
-			# Patriot / David's Sling: eğik kutu fırlatıcı
-			box(n, Vector3(2.6, 0.5, 2.6), Vector3(0, 0.25, 0), bc)
-			box(n, Vector3(2.7, 0.15, 2.7), Vector3(0, 0.5, 0), tc)
-			box(n, Vector3(1.5, 1.0, 2.0), Vector3(0, 1.4, 0), bc, Vector3(-45, 0, 0))
-			for x in [-0.4, 0.4]:
-				for y in [-0.25, 0.25]:
-					cyl(n, 0.16, 0.16, 2.2, Vector3(x, 1.5 + y, 0.2 + y), GREY, Vector3(45, 0, 0))
-			cyl(n, 0.07, 0.07, 2.2, Vector3(-1.0, 1.6, -1.0), DARK)
-			box(n, Vector3(0.9, 0.5, 0.1), Vector3(-1.0, 2.8, -1.0), GREY)
-		"sam_tube":
-			# S-400 / HQ-9 / Bavar-373: dikey dört tüp
-			box(n, Vector3(2.4, 0.6, 3.4), Vector3(0, 0.5, 0), bc)
-			box(n, Vector3(2.5, 0.15, 3.5), Vector3(0, 0.8, 0), tc)
-			box(n, Vector3(1.9, 0.9, 1.0), Vector3(0, 1.25, 1.3), bc)
-			for x in [-0.45, 0.45]:
-				for z in [-0.9, -0.1]:
-					cyl(n, 0.3, 0.3, 3.4, Vector3(x, 2.5, z), GREY)
-			box(n, Vector3(1.2, 0.9, 0.1), Vector3(0, 2.6, 1.6), GREY, Vector3(-10, 0, 0))
 	return n
 
 
@@ -278,6 +205,20 @@ static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 	t.add_child(tur)
 
 
+## Bina, vinç ya da ikmal noktası (buildings.gd): tek mesh, renk ve toz başına bir kez üretilir.
+static func _structure(n: Node3D, id: String, bc: Color, tc: Color) -> void:
+	var key := "bld|%s|%s|%s|%s" % [id, bc.to_html(), tc.to_html(), _dust().to_html()]
+	if not _vehicles.has(key):
+		var k := Kit.new()
+		k.dust = _dust()
+		Buildings.slots(k, bc, tc)
+		Buildings.design(id, k)
+		_vehicles[key] = [k.mesh()]
+	var m := MeshInstance3D.new()
+	m.mesh = _vehicles[key][0]
+	n.add_child(m)
+
+
 ## Piyade: her asker ayrı düğümdür (Unit adım, çömelme ve kayıp animasyonlarını bunlarla yapar), mesh ortaktır.
 static func _soldiers(n: Node3D, spots: Array, bc: Color, tc: Color, launcher: bool) -> void:
 	var key := "sol|%s|%s|%s|%s" % [launcher, bc.to_html(), tc.to_html(), _dust().to_html()]
@@ -310,30 +251,11 @@ static func _turret(n: Node3D) -> Node3D:
 
 static func crane() -> Node3D:
 	var n := Node3D.new()
-	var y := Color(0.9, 0.7, 0.1)
-	box(n, Vector3(0.9, 0.3, 0.9), Vector3(0, 0.15, 0), DARK)
-	box(n, Vector3(0.3, 6.0, 0.3), Vector3(0, 3.0, 0), y)
-	box(n, Vector3(4.5, 0.25, 0.25), Vector3(-1.5, 5.8, 0), y)
-	box(n, Vector3(0.6, 0.5, 0.6), Vector3(1.0, 5.6, 0), DARK)
-	box(n, Vector3(0.05, 2.2, 0.05), Vector3(-3.2, 4.6, 0), DARK)
+	_structure(n, "crane", CONCRETE, Color.WHITE)
 	return n
 
 
 static func supply_point(oil: bool) -> Node3D:
 	var n := Node3D.new()
-	cyl(n, 3.0, 3.0, 0.08, Vector3(0, 0.04, 0), Color(0.5, 0.47, 0.4), Vector3.ZERO, 16)
-	if oil:
-		for a in 4:
-			var ang := a * PI * 0.5 + PI * 0.25
-			var bx := box(n, Vector3(0.14, 4.4, 0.14), Vector3(cos(ang) * 0.6, 2.1, sin(ang) * 0.6 - 0.6), DARK)
-			bx.rotation = Vector3(-sin(ang) * 0.27, 0, cos(ang) * 0.27)
-		box(n, Vector3(0.7, 0.25, 0.7), Vector3(0, 4.2, -0.6), DARK)
-		cyl(n, 0.9, 0.9, 1.4, Vector3(1.5, 0.7, 0.8), GREY)
-		cyl(n, 0.9, 0.9, 1.4, Vector3(-1.5, 0.7, 0.8), GREY)
-	else:
-		box(n, Vector3(1.0, 0.8, 1.0), Vector3(-0.9, 0.4, -0.5), WOOD)
-		box(n, Vector3(1.0, 0.8, 1.0), Vector3(0.3, 0.4, -0.9), WOOD)
-		box(n, Vector3(0.9, 0.7, 0.9), Vector3(-0.3, 1.15, -0.7), WOOD)
-		box(n, Vector3(1.4, 0.5, 0.8), Vector3(0.9, 0.25, 0.6), Color(0.3, 0.36, 0.25))
-	cyl(n, 0.07, 0.07, 4.0, Vector3(-1.9, 2.0, 1.6), DARK)
+	_structure(n, "supply_oil" if oil else "supply_crates", Color(0.33, 0.4, 0.27), Color.WHITE)
 	return n
