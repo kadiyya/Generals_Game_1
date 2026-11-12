@@ -275,6 +275,10 @@ func _shade(sl: Array, q: Vector3, n: Vector3) -> Color:
 	return Color(c.r * ao, c.g * ao, c.b * ao)
 
 
+func is_empty() -> bool:
+	return _surf.is_empty()
+
+
 ## Birikmiş üçgenlerden mesh üretir; malzeme türü başına bir yüzey.
 func mesh() -> ArrayMesh:
 	var am := ArrayMesh.new()

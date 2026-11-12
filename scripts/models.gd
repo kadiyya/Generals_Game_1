@@ -122,110 +122,14 @@ static func build(d: Dictionary, team: int) -> Node3D:
 	if Aircraft.has(id):
 		_aircraft(n, d, id, ac, tc)
 		return n
+	if Vehicles.has(id) or id.begins_with("tank_"):
+		_vehicle(n, id, bc, tc)
+		return n
 	match id:
 		"inf":
-			for o in [Vector3(-0.45, 0, 0.45), Vector3(0.45, 0, 0.45), Vector3(-0.45, 0, -0.45), Vector3(0.45, 0, -0.45)]:
-				_soldier(n, o, bc, tc, false)
+			_soldiers(n, [Vector3(-0.45, 0, 0.45), Vector3(0.45, 0, 0.45), Vector3(-0.45, 0, -0.45), Vector3(0.45, 0, -0.45)], bc, tc, false)
 		"at":
-			for o in [Vector3(-0.4, 0, 0.0), Vector3(0.4, 0, 0.0)]:
-				_soldier(n, o, bc, tc, true)
-		"tank_ru", "tank_ru2", "tank_leo", "tank_merkava":
-			_vehicle(n, id, bc, tc)
-		"ifv_low":
-			# BMP sınıfı: alçak, sivri burun, küçük kule
-			_tracks(n, 2.1, 3.5)
-			box(n, Vector3(1.9, 0.6, 3.0), Vector3(0, 0.6, -0.2), bc)
-			prism(n, Vector3(1.9, 0.9, 0.6), Vector3(0, 0.6, 1.7), bc, Vector3(90, 0, 0))
-			var t := _turret(n)
-			cyl(t, 0.5, 0.6, 0.35, Vector3(0, 1.08, -0.1), bc)
-			box(t, Vector3(0.6, 0.06, 0.5), Vector3(0, 1.28, -0.1), tc)
-			cyl(t, 0.06, 0.06, 1.6, Vector3(0, 1.08, 0.9), DARK, Vector3(90, 0, 0))
-		"ifv_tall":
-			# Bradley / Namer: yüksek kutu gövde
-			_tracks(n, 2.3, 3.6)
-			box(n, Vector3(2.1, 0.95, 3.4), Vector3(0, 0.8, 0), bc)
-			box(n, Vector3(2.1, 0.4, 0.5), Vector3(0, 0.7, 1.75), bc, Vector3(-35, 0, 0))
-			var t := _turret(n)
-			box(t, Vector3(1.0, 0.45, 1.1), Vector3(0, 1.5, 0.1), bc)
-			box(t, Vector3(0.7, 0.06, 0.6), Vector3(0, 1.75, 0.1), tc)
-			cyl(t, 0.06, 0.06, 1.5, Vector3(0, 1.5, 1.2), DARK, Vector3(90, 0, 0))
-			box(t, Vector3(0.3, 0.3, 0.7), Vector3(-0.65, 1.5, 0.1), DARK)
-		"gepard":
-			_tracks(n, 2.2, 3.6)
-			box(n, Vector3(2.0, 0.6, 3.4), Vector3(0, 0.6, 0), bc)
-			var t := _turret(n)
-			box(t, Vector3(1.3, 0.7, 1.5), Vector3(0, 1.25, 0), bc)
-			box(t, Vector3(0.9, 0.06, 0.6), Vector3(0, 1.62, -0.2), tc)
-			for x in [-0.8, 0.8]:
-				cyl(t, 0.07, 0.07, 2.0, Vector3(x, 1.45, 0.8), DARK, Vector3(60, 0, 0))
-			box(t, Vector3(0.9, 0.5, 0.1), Vector3(0, 2.0, -0.7), GREY, Vector3(-15, 0, 0))
-		"pantsir":
-			_truck(n, bc, 4.2)
-			var t := _turret(n)
-			box(t, Vector3(1.5, 0.7, 1.6), Vector3(0, 1.75, -0.7), bc)
-			box(t, Vector3(1.0, 0.06, 0.8), Vector3(0, 2.12, -0.7), tc)
-			for x in [-0.95, 0.95]:
-				for i in 3:
-					cyl(t, 0.1, 0.1, 1.5, Vector3(x, 1.6 + i * 0.22, -0.4), GREY, Vector3(65, 0, 0))
-				cyl(t, 0.05, 0.05, 1.6, Vector3(x * 0.8, 1.5, 0.3), DARK, Vector3(80, 0, 0))
-			box(t, Vector3(0.9, 0.5, 0.1), Vector3(0, 2.5, -1.2), GREY)
-		"tor":
-			_tracks(n, 2.2, 3.6)
-			box(n, Vector3(2.0, 0.6, 3.4), Vector3(0, 0.6, 0), bc)
-			var t := _turret(n)
-			box(t, Vector3(1.5, 1.2, 1.5), Vector3(0, 1.5, -0.1), bc)
-			box(t, Vector3(1.0, 0.06, 0.8), Vector3(0, 2.13, -0.1), tc)
-			box(t, Vector3(1.2, 0.7, 0.1), Vector3(0, 2.5, -0.8), GREY, Vector3(-10, 0, 0))
-			box(t, Vector3(0.8, 0.6, 0.1), Vector3(0, 1.7, 0.7), GREY)
-		"irondome":
-			_truck(n, bc, 3.6)
-			box(n, Vector3(1.7, 1.5, 1.7), Vector3(0, 2.0, -0.8), bc, Vector3(-35, 0, 0))
-			box(n, Vector3(1.75, 0.3, 1.75), Vector3(0, 2.0, -0.8), tc, Vector3(-35, 0, 0))
-			for x in [-0.5, 0.0, 0.5]:
-				for y in [-0.4, 0.2]:
-					cyl(n, 0.16, 0.16, 0.2, Vector3(x, 2.5 + y * 0.8, -0.2 + y * 0.6), DARK, Vector3(55, 0, 0))
-		"sph":
-			# Paletli kundağı motorlu obüs (Msta-S, K9, Raad-2)
-			_tracks(n, 2.4, 4.0)
-			box(n, Vector3(2.2, 0.7, 3.8), Vector3(0, 0.65, 0), bc)
-			var t := _turret(n)
-			box(t, Vector3(2.0, 0.95, 2.5), Vector3(0, 1.48, -0.5), bc)
-			box(t, Vector3(1.2, 0.07, 0.9), Vector3(0, 1.98, -0.5), tc)
-			cyl(t, 0.12, 0.14, 3.9, Vector3(0, 2.15, 2.3), DARK, Vector3(70, 0, 0))
-		"truck_gun":
-			# Kamyona monte obüs (Bohdana, CAESAR, ATMOS, SH-15)
-			_truck(n, bc, 4.6)
-			box(n, Vector3(0.9, 0.06, 0.7), Vector3(0, 2.02, 1.5), tc)
-			box(n, Vector3(1.2, 0.6, 1.3), Vector3(0, 1.5, -1.1), bc)
-			cyl(n, 0.11, 0.13, 4.2, Vector3(0, 2.4, 0.6), DARK, Vector3(68, 0, 0))
-			box(n, Vector3(1.9, 0.15, 0.3), Vector3(0, 0.5, -2.4), DARK)
-		"himars":
-			_truck(n, bc, 4.2)
-			box(n, Vector3(0.9, 0.06, 0.7), Vector3(0, 2.02, 1.3), tc)
-			box(n, Vector3(1.6, 0.8, 2.2), Vector3(0, 1.75, -0.9), bc, Vector3(-28, 0, 0))
-			for x in [-0.45, 0.0, 0.45]:
-				for y in [-0.2, 0.2]:
-					cyl(n, 0.17, 0.17, 0.15, Vector3(x, 2.25 + y, 0.2 + y * 0.5), DARK, Vector3(62, 0, 0))
-		"mlrs_truck":
-			_truck(n, bc, 5.0)
-			box(n, Vector3(0.9, 0.06, 0.7), Vector3(0, 2.02, 1.7), tc)
-			for x in [-0.55, -0.18, 0.18, 0.55]:
-				for y in [0.0, 0.36, 0.72]:
-					cyl(n, 0.16, 0.16, 3.0, Vector3(x, 1.75 + y * 0.9, -0.9 + y * 0.45), GREY, Vector3(64, 0, 0))
-		"tos":
-			_tracks(n, 2.3, 3.8)
-			box(n, Vector3(2.1, 0.6, 3.6), Vector3(0, 0.6, 0), bc)
-			box(n, Vector3(2.0, 1.0, 2.6), Vector3(0, 1.75, -0.2), bc, Vector3(-22, 0, 0))
-			box(n, Vector3(2.05, 0.2, 2.65), Vector3(0, 1.75, -0.2), tc, Vector3(-22, 0, 0))
-			for x in [-0.6, -0.2, 0.2, 0.6]:
-				for y in [-0.25, 0.25]:
-					cyl(n, 0.17, 0.17, 0.12, Vector3(x, 2.3 + y, 0.95 + y * 0.4), DARK, Vector3(68, 0, 0))
-		"laser_truck":
-			_truck(n, bc, 4.0)
-			box(n, Vector3(1.8, 1.1, 2.2), Vector3(0, 1.7, -0.8), GREY)
-			box(n, Vector3(1.85, 0.25, 2.25), Vector3(0, 1.5, -0.8), tc)
-			cyl(n, 0.35, 0.35, 0.5, Vector3(0, 2.5, -0.8), DARK)
-			cyl(n, 0.28, 0.2, 0.8, Vector3(0, 2.75, -0.5), Color(0.2, 0.75, 0.9), Vector3(70, 0, 0))
+			_soldiers(n, [Vector3(-0.4, 0, 0.0), Vector3(0.4, 0, 0.0)], bc, tc, true)
 		"hq":
 			box(n, Vector3(8.0, 2.2, 8.0), Vector3(0, 1.1, 0), CONCRETE)
 			box(n, Vector3(8.15, 0.45, 8.15), Vector3(0, 1.9, 0), tc)
@@ -344,27 +248,28 @@ static func _aircraft(n: Node3D, d: Dictionary, id: String, ac: Color, tc: Color
 		hub.add_child(pm)
 
 
-## Ayrıntılı araç modeli (şimdilik tanklar, tanks.gd): gövde ve kule iki mesh olarak eklenir.
+## Ayrıntılı kara aracı (tanks.gd, vehicles.gd): gövde ve varsa kule iki mesh olarak eklenir.
 ## Kule mesh'i, yatak merkezindeki "turret" düğümünün altındadır; Unit onu hedefe döndürür.
 ## Toz rengi haritanın toprağından türetilir; mesh model, renk ve toz başına bir kez üretilip paylaşılır.
 static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
-	var ground: Color = Defs.MAP.get("ground", Color(0.55, 0.5, 0.38))
-	var dust := ground.lerp(Color(0.66, 0.6, 0.48), 0.55)
+	var dust := _dust()
 	var key := "%s|%s|%s|%s" % [id, bc.to_html(), tc.to_html(), dust.to_html()]
 	if not _vehicles.has(key):
 		var h := Kit.new()
 		var t := Kit.new()
 		h.dust = dust
 		t.dust = dust
-		Tanks.slots(h, bc, tc)
-		Tanks.slots(t, bc, tc)
-		var tz := Tanks.design(id, h, t)
-		_vehicles[key] = [h.mesh(), t.mesh(), tz]
+		Vehicles.slots(h, bc, tc)
+		Vehicles.slots(t, bc, tc)
+		var tz := Vehicles.design(id, h, t) if Vehicles.has(id) else Tanks.design(id, h, t)
+		_vehicles[key] = [h.mesh(), null if t.is_empty() else t.mesh(), tz]
 	var c: Array = _vehicles[key]
 	var hull := MeshInstance3D.new()
 	hull.name = "Hull"
 	hull.mesh = c[0]
 	n.add_child(hull)
+	if c[1] == null:
+		return
 	# Unit, "turret" düğümünü bulup hedefe döndürür; düğüm kule yatağının merkezindedir.
 	var t := _turret(n)
 	t.position.z = c[2]
@@ -373,15 +278,26 @@ static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 	t.add_child(tur)
 
 
-static func _truck(n: Node3D, bc: Color, l: float) -> void:
-	box(n, Vector3(1.9, 0.5, l), Vector3(0, 0.85, 0), bc)
-	box(n, Vector3(1.9, 0.95, 1.2), Vector3(0, 1.5, l * 0.5 - 0.6), bc)
-	box(n, Vector3(1.7, 0.4, 0.05), Vector3(0, 1.65, l * 0.5 + 0.01), GLASS)
-	var k := int(l / 1.5)
-	for i in k:
-		var z := -l * 0.5 + 0.6 + i * (l - 1.2) / maxf(1.0, k - 1)
-		for x in [-0.95, 0.95]:
-			cyl(n, 0.45, 0.45, 0.3, Vector3(x, 0.45, z), DARK, Vector3(0, 0, 90))
+## Piyade: her asker ayrı düğümdür (Unit adım, çömelme ve kayıp animasyonlarını bunlarla yapar), mesh ortaktır.
+static func _soldiers(n: Node3D, spots: Array, bc: Color, tc: Color, launcher: bool) -> void:
+	var key := "sol|%s|%s|%s|%s" % [launcher, bc.to_html(), tc.to_html(), _dust().to_html()]
+	if not _vehicles.has(key):
+		var k := Kit.new()
+		k.dust = _dust()
+		Vehicles.slots(k, bc, tc)
+		Vehicles.soldier(k, launcher)
+		_vehicles[key] = [k.mesh()]
+	for o in spots:
+		var m := MeshInstance3D.new()
+		m.mesh = _vehicles[key][0]
+		m.position = o
+		n.add_child(m)
+
+
+## Araçların üstündeki toz ve çamurun rengi: haritanın toprağından.
+static func _dust() -> Color:
+	var ground: Color = Defs.MAP.get("ground", Color(0.55, 0.5, 0.38))
+	return ground.lerp(Color(0.66, 0.6, 0.48), 0.55)
 
 
 ## Hedefe dönen parçaların (kule, namlu) toplandığı düğüm. Unit bunu adıyla bulur.
@@ -390,24 +306,6 @@ static func _turret(n: Node3D) -> Node3D:
 	t.name = "turret"
 	n.add_child(t)
 	return t
-
-
-static func _soldier(n: Node3D, o: Vector3, bc: Color, tc: Color, launcher: bool) -> void:
-	var s := Node3D.new()
-	s.position = o
-	n.add_child(s)
-	box(s, Vector3(0.34, 0.6, 0.24), Vector3(0, 0.55, 0), bc)
-	box(s, Vector3(0.3, 0.3, 0.22), Vector3(0, 0.15, 0), DARK)
-	ball(s, 0.17, Vector3(0, 1.0, 0), tc)
-	if launcher:
-		cyl(s, 0.09, 0.09, 1.0, Vector3(0.24, 0.95, 0.1), DARK, Vector3(90, 0, 0))
-	else:
-		box(s, Vector3(0.06, 0.06, 0.6), Vector3(0.2, 0.65, 0.25), DARK)
-
-
-static func _tracks(n: Node3D, w: float, l: float) -> void:
-	box(n, Vector3(0.5, 0.5, l), Vector3(-w * 0.5 + 0.1, 0.27, 0), DARK)
-	box(n, Vector3(0.5, 0.5, l), Vector3(w * 0.5 - 0.1, 0.27, 0), DARK)
 
 
 static func crane() -> Node3D:
