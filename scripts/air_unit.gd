@@ -16,6 +16,7 @@ var state := "patrol"   # patrol / rearm
 var rearm_t := 0.0
 var life := -1.0
 var bob_t := randf() * 6.0
+var rotors: Node3D = null   # varsa pervaneler döner
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -30,6 +31,7 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 	yaw = PI * 0.5 if position.x < 0.0 else -PI * 0.5
 	position.y = alt
 	patrol = position
+	rotors = model.get_node_or_null("rotors")
 	ring.position.y = 0.0
 
 
@@ -57,6 +59,9 @@ func _process(dt: float) -> void:
 		return
 	cd_timer -= dt
 	scan_timer -= dt
+	if rotors != null and visible:
+		for r in rotors.get_children():
+			r.rotate_object_local(Vector3.UP, dt * 38.0)
 	if life > 0.0:
 		life -= dt
 		if life <= 0.0:

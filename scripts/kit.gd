@@ -12,12 +12,14 @@ const MATS := {
 	"steel": ["steel", 1.2, 0.6, 0.2],
 	"track": ["track", 1.0, 0.7, 0.25],
 	"fabric": ["fabric", 0.9, 0.95, 0.0],
+	"paint": ["skin", 1.6, 0.42, 0.15],
 	"optic": ["", 1.0, 0.12, 0.3],
 }
 
 static var _mats := {}
 
 var dust := Color(0.55, 0.5, 0.4)
+var grounded := true   # yer aracı: alt kısım çamurlanır ve gölgelenir. Hava araçlarında kapalı.
 var _slots := {}      # yuva adı -> [malzeme türü, renk, toz oranı]
 var _surf := {}       # malzeme türü -> [köşeler, normaller, renkler, uv]
 var _xf := Transform3D.IDENTITY
@@ -258,8 +260,11 @@ func _emit(s: String, p: Array, n: Array, uv: Array) -> void:
 func _shade(sl: Array, q: Vector3, n: Vector3) -> Color:
 	var c: Color = sl[1]
 	var k: float = sl[2]
-	var low := 1.0 - smoothstep(0.0, 0.62, q.y)
 	var top := clampf(n.y, 0.0, 1.0)
+	if not grounded:
+		var lit := (0.88 + 0.12 * top - 0.3 * clampf(-n.y, 0.0, 1.0)) * _tint
+		return Color(c.r * lit, c.g * lit, c.b * lit)
+	var low := 1.0 - smoothstep(0.0, 0.62, q.y)
 	var mud := Color(dust.r * 0.5, dust.g * 0.43, dust.b * 0.34)
 	c = Color(c.r * _tint, c.g * _tint, c.b * _tint)
 	c = c.lerp(mud, clampf(k * low * 1.25, 0.0, 1.0))

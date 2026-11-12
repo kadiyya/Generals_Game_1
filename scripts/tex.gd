@@ -38,6 +38,17 @@ static func texture(kind: String) -> ImageTexture:
 			img = _range(n, 0.6, 1.0, 0.06)
 		"track":
 			img = _track(n)
+		"skin":
+			# uçak boyası: hafif lekeler, panel çizgileri ve perçin sıraları
+			n.frequency = 0.04
+			img = _range(n, 0.86, 1.0, 0.025)
+			for y in SIZE:
+				for x in SIZE:
+					var line := x % 32 == 0 or y % 32 == 0 or (y % 64 < 32 and x % 32 == 16 and y % 32 > 12)
+					if line:
+						img.set_pixel(x, y, img.get_pixel(x, y) * 0.76)
+					elif (x % 32 == 3 or y % 32 == 3) and (x + y) % 4 == 0:
+						img.set_pixel(x, y, img.get_pixel(x, y) * 0.9)
 		"fabric":
 			# branda ve tanıma örtüsü: hafif leke ve ince dokuma
 			n.frequency = 0.09
