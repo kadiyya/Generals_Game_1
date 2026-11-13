@@ -27,6 +27,7 @@ static var _mats := {}
 
 var dust := Color(0.55, 0.5, 0.4)
 var grounded := true   # yer aracı: alt kısım çamurlanır ve gölgelenir. Hava araçlarında kapalı.
+var soot := Vector3.ZERO   # hava aracı egzoz isi: z, soot.x'ten geriye soot.y'ye doğru kararır; |x| < soot.z şeridinde (z 0 ise yok)
 var _slots := {}      # yuva adı -> [malzeme türü, renk, toz oranı]
 var _surf := {}       # malzeme türü -> [köşeler, normaller, renkler, uv]
 var _xf := Transform3D.IDENTITY
@@ -337,6 +338,10 @@ func _shade(sl: Array, q: Vector3, n: Vector3) -> Color:
 		return c
 	if not grounded:
 		var lit := (0.88 + 0.12 * top - 0.3 * clampf(-n.y, 0.0, 1.0)) * _tint
+		if soot.z > 0.0:
+			var sk := clampf((soot.x - q.z) / (soot.x - soot.y), 0.0, 1.0)
+			sk *= 1.0 - smoothstep(soot.z * 0.6, soot.z, absf(q.x))
+			lit *= 1.0 - 0.55 * sk * sk
 		return Color(c.r * lit, c.g * lit, c.b * lit)
 	var low := 1.0 - smoothstep(0.0, 0.62, q.y)
 	var mud := Color(dust.r * 0.5, dust.g * 0.43, dust.b * 0.34)

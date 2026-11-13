@@ -8,6 +8,7 @@ const SIZE := 128
 
 static var _tex := {}
 static var _mats := {}
+static var _wear_img: Image = null
 
 
 static func texture(kind: String) -> ImageTexture:
@@ -64,12 +65,12 @@ static func texture(kind: String) -> ImageTexture:
 					var wave := 0.8 + 0.2 * absf(sin(x * PI / 8.0))
 					img.set_pixel(x, y, img.get_pixel(x, y) * wave)
 		"skin":
-			# uçak boyası: hafif lekeler, tonu biraz farklı sac paneller, panel çizgileri ve perçin sıraları
+			# uçak boyası: hafif lekeler ve eskitme (kir, akıntı izi, boya sıyrığı)
 			n.frequency = 0.04
 			img = _range(n, 0.88, 1.0, 0.02)
 			for y in SIZE:
 				for x in SIZE:
-					img.set_pixel(x, y, img.get_pixel(x, y) * _panel(x, y))
+					img.set_pixel(x, y, img.get_pixel(x, y) * _wear().get_pixel(x, y).r)
 		"fabric":
 			# branda ve tanıma örtüsü: hafif leke ve ince dokuma
 			n.frequency = 0.09
@@ -191,6 +192,7 @@ static func _air_camo(n: FastNoiseLite, cols: Array, freq: float, sharp: bool) -
 	g.seed = 31
 	g.frequency = freq * 1.3
 	var b := _noise(g)
+	var w := _wear()
 	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
 	var e := 0.005 if sharp else 0.035
 	for y in SIZE:
@@ -200,23 +202,51 @@ static func _air_camo(n: FastNoiseLite, cols: Array, freq: float, sharp: bool) -
 			var c: Color = cols[0]
 			c = c.lerp(cols[1], smoothstep(0.55 - e, 0.55 + e, va))
 			c = c.lerp(cols[2], smoothstep(0.6 - e, 0.6 + e, vb) * (1.0 - smoothstep(0.5, 0.56, va)))
-			var k := (0.95 + 0.05 * vb) * _panel(x, y)
+			var k := (0.95 + 0.05 * vb) * w.get_pixel(x, y).r
 			img.set_pixel(x, y, Color(c.r * k, c.g * k, c.b * k))
 	return img
 
 
-## Uçak sacı çarpanı: her panel biraz farklı tonda (yamalı sac görünümü), aralarında koyu çizgi, kenarlarında perçin.
-## Paneller 32 piksel; her iki sıradan birinde ortadan ikiye bölünür.
-static func _panel(x: int, y: int) -> float:
-	var split := y % 64 < 32
-	if x % 32 == 0 or y % 32 == 0 or (split and x % 32 == 16):
-		return 0.74
-	var cx := x / 16 if split else (x / 32) * 2 + 101
-	var h := fposmod(sin(cx * 12.9898 + (y / 32) * 78.233) * 43758.5453, 1.0)
-	var k := 0.88 + 0.16 * h
-	if (x % 16 == 3 or y % 32 == 3) and (x + y) % 4 == 0:
-		k *= 0.86
-	return k
+## Uçak sacı eskitmesi (çarpan): ince kir, büyük lekeler, akış yönünde (u = gövde boyu) akıntı izleri ve boya
+## sıyrıkları. Panel çizgisi yok. Bir kez üretilir, gri boya ve kamuflaj dokuları bununla çarpılır.
+static func _wear() -> Image:
+	if _wear_img != null:
+		return _wear_img
+	var g := FastNoiseLite.new()
+	g.seed = 91
+	g.frequency = 0.09
+	g.fractal_octaves = 3
+	var grime := _noise(g)
+	var b := FastNoiseLite.new()
+	b.seed = 92
+	b.frequency = 0.025
+	var blot := _noise(b)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 17
+	var row: Array = []
+	for y in SIZE:
+		row.append(rng.randf())
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
+	for y in SIZE:
+		var r: float = (row[(y - 1 + SIZE) % SIZE] + row[y] * 2.0 + row[(y + 1) % SIZE]) * 0.25
+		var streak := maxf(0.0, r - 0.5) * 0.5
+		for x in SIZE:
+			var gr := grime.get_pixel(x, y).r
+			var bl := blot.get_pixel(x, y).r
+			var v := lerpf(0.86, 1.03, gr)
+			v *= 1.0 - 0.14 * smoothstep(0.55, 0.75, bl)
+			v -= streak * (0.3 + 0.7 * gr)
+			img.set_pixel(x, y, Color(v, v, v))
+	# boya sıyrıkları: küçük açık (çıplak metal) ve koyu lekeler
+	for i in 260:
+		var x := rng.randi_range(0, SIZE - 1)
+		var y := rng.randi_range(0, SIZE - 1)
+		var v := img.get_pixel(x, y).r * (1.2 if i % 3 == 0 else 0.6)
+		var c := Color(minf(v, 1.0), minf(v, 1.0), minf(v, 1.0))
+		img.set_pixel(x, y, c)
+		img.set_pixel((x + 1) % SIZE, y, c)
+	_wear_img = img
+	return img
 
 
 ## Gürültüyü eşiklere göre düz tonlara ayırır: [[eşik, ton], ...]

@@ -150,10 +150,10 @@ const AIRFRAMES := {
 const DRONES := ["quad", "hexa", "small_plane", "xwing", "shahed", "shahed_s", "harop", "tb2", "twinboom", "mohajer6",
 	"liutyi", "vtail", "akinci", "flyingwing"]
 
-# Oyun stili (RTS kamerasından okunurluk için abartılmış oranlar): jetler biraz büyütülür, gövde ve kanat açıklığı
-# yanlara ve yukarı genişletilir, kanat ve kuyruk yüzeyleri gerçekteki inceliklerinden kalın çizilir.
-const BIG := 1.1
-const STY := Vector3(1.16, 1.14, 1.0)
+# Oyun stili (RTS kamerasından okunurluk için): boy aynı kalır (BIG), gövde ve kanat açıklığı biraz genişletilir (STY),
+# kanat ve kuyruk yüzeyleri gerçekteki inceliklerinden kalın çizilir (TK).
+const BIG := 1.0
+const STY := Vector3(1.06, 1.06, 1.0)
 const TK := 1.7
 const FIN_T := 0.07
 # Takım rengi: kanat uçlarında şerit (açıklığın son BAND kadarı), dikey kuyrukların üst kısmı.
@@ -601,6 +601,9 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 	var flat: bool = p.get("flat", false)
 	var facet: bool = p.get("facet", false)
 	var n := 12 if facet else 16
+	# egzoz isi: lülenin 3,5 m önünden başlayıp ağzında en koyu
+	var nzs: Array = p["noz"]
+	k.soot = Vector3((nzs[3] + 3.5) * S, (nzs[3] - 0.3) * S, (nzs[0] + nzs[2] * 2.4) * S * STY.x)
 	k.push(Vector3.ZERO, Vector3.ZERO, S)
 	k.push_scale(STY)
 	# gövde: burun (radom) ve geri kalanı
