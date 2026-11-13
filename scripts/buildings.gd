@@ -12,12 +12,43 @@ static func has(id: String) -> bool:
 	return id in IDS
 
 
-## Araç yuvalarına ek olarak beton, sac, asfalt ve boya renkleri.
-static func slots(k: Kit, bc: Color, tc: Color) -> void:
+# Ulusal mimari: her ülkenin duvar, süsleme ve çatı renkleri, çatı tipi (düz ya da beşik) ve kubbe biçimi.
+#   ua: badanalı beyaz duvar, yeşil çatı, altın armut kubbe (Kazak barok), mavi-sarı şerit
+#   ru: kırmızı tuğla, beyaz taş süsleme, koyu yeşil çatı, çadır çatılı kule, kızıl yıldız, soğan kubbe
+#   il: Kudüs taşı (krem kireçtaşı), düz çatı, güneş enerjili su ısıtıcıları, kemerli pencereler, mavi şerit
+#   ir: kerpiç-tuğla, turkuaz kubbe, rüzgâr kuleleri (badgir), çini kemerli eyvan
+#   pk: kırmızı kumtaşı, beyaz mermer Babür kubbesi ve çhatriler, yeşil şerit
+#   in: pembe kumtaşı (Racput), çhatriler, cumbalı pencere (jharokha), safran şerit
+const STYLES := {
+	"ua": {wall = Color(0.86, 0.85, 0.8), trim = Color(0.66, 0.64, 0.58), roof = Color(0.24, 0.45, 0.32), dome = Color(0.86, 0.68, 0.24), accent = Color(0.12, 0.36, 0.72), accent2 = Color(0.98, 0.8, 0.1), flat = false},
+	"ru": {wall = Color(0.6, 0.27, 0.21), trim = Color(0.84, 0.82, 0.76), roof = Color(0.17, 0.32, 0.23), dome = Color(0.86, 0.68, 0.24), accent = Color(0.8, 0.1, 0.08), accent2 = Color(0.86, 0.68, 0.24), flat = false},
+	"il": {wall = Color(0.87, 0.81, 0.66), trim = Color(0.76, 0.7, 0.56), roof = Color(0.74, 0.69, 0.58), dome = Color(0.9, 0.9, 0.86), accent = Color(0.1, 0.3, 0.72), accent2 = Color(0.94, 0.94, 0.92), flat = true},
+	"ir": {wall = Color(0.75, 0.61, 0.43), trim = Color(0.62, 0.5, 0.34), roof = Color(0.68, 0.56, 0.4), dome = Color(0.13, 0.6, 0.65), accent = Color(0.08, 0.35, 0.62), accent2 = Color(0.86, 0.68, 0.24), flat = true},
+	"pk": {wall = Color(0.62, 0.31, 0.23), trim = Color(0.9, 0.88, 0.84), roof = Color(0.56, 0.31, 0.23), dome = Color(0.93, 0.92, 0.88), accent = Color(0.04, 0.44, 0.2), accent2 = Color(0.9, 0.88, 0.84), flat = true},
+	"in": {wall = Color(0.8, 0.53, 0.43), trim = Color(0.88, 0.8, 0.66), roof = Color(0.7, 0.46, 0.37), dome = Color(0.86, 0.62, 0.5), accent = Color(0.95, 0.55, 0.15), accent2 = Color(0.07, 0.45, 0.1), flat = true},
+}
+
+static var _st := ""   # tasarlanan binanın mimari üslubu (ülke kodu ya da haritanın üslubu)
+
+
+static func _style() -> Dictionary:
+	return STYLES.get(_st, {})
+
+
+## Araç yuvalarına ek olarak beton, sac, asfalt ve boya renkleri. Üslup verilirse duvar, süsleme ve çatı
+## renkleri ülkenin mimarisine göre değişir.
+static func slots(k: Kit, bc: Color, tc: Color, style := "") -> void:
+	_st = style
+	var st := _style()
 	Vehicles.slots(k, bc, tc)
-	k.slot("conc", "concrete", Color(0.62, 0.61, 0.57), 0.5)
-	k.slot("conc2", "concrete", Color(0.46, 0.46, 0.44), 0.5)
-	k.slot("roof", "corrug", Color(0.42, 0.45, 0.47), 0.35)
+	k.slot("conc", "concrete", st.get("wall", Color(0.62, 0.61, 0.57)), 0.5)
+	k.slot("conc2", "concrete", st.get("trim", Color(0.46, 0.46, 0.44)), 0.5)
+	k.slot("roof", "corrug" if not st.get("flat", false) else "concrete", st.get("roof", Color(0.42, 0.45, 0.47)), 0.35)
+	k.slot("dome", "paint", st.get("dome", Color(0.8, 0.8, 0.8)), 0.1)
+	k.slot("accent", "paint", st.get("accent", Color(0.3, 0.3, 0.3)), 0.1)
+	k.slot("accent2", "paint", st.get("accent2", Color(0.6, 0.6, 0.6)), 0.1)
+	k.slot("gold", "steel", Color(0.92, 0.74, 0.28), 0.0)
+	k.slot("solar", "optic", Color(0.08, 0.14, 0.3), 0.0)
 	k.slot("sheet", "corrug", Color(0.6, 0.62, 0.6), 0.45)
 	k.slot("asphalt", "concrete", Color(0.2, 0.2, 0.21), 0.3)
 	k.slot("white", "fabric", Color(0.86, 0.86, 0.82), 0.15)
@@ -28,7 +59,14 @@ static func slots(k: Kit, bc: Color, tc: Color) -> void:
 	k.slot("teamroof", "corrug", tc.darkened(0.1), 0.15)
 
 
-static func design(id: String, k: Kit) -> void:
+static func design(id: String, k: Kit, style := "") -> void:
+	_st = style
+	_design(id, k)
+	if STYLES.has(style):
+		_ornament(k, id)
+
+
+static func _design(id: String, k: Kit) -> void:
 	if id == "hq":
 		_hq(k)
 	elif id == "santral":
@@ -92,6 +130,13 @@ static func _block(k: Kit, s: String, size: Vector3, c: Vector3) -> void:
 
 ## Beşik çatı: sırtı z boyunca. w genişlik, l boy, hgt sırt yüksekliği; c saçak hizasında merkez.
 static func _gable(k: Kit, s: String, w: float, l: float, hgt: float, c: Vector3) -> void:
+	if s == "roof" and _style().get("flat", false):
+		# Düz çatılı üsluplar: beton döşeme ve korkuluk duvarı.
+		k.box("conc2", Vector3(w, 0.14, l), c + Vector3(0, 0.07, 0))
+		for sx in [-1.0, 1.0]:
+			k.box("conc", Vector3(0.14, 0.32, l), c + Vector3(sx * (w * 0.5 - 0.07), 0.3, 0))
+			k.box("conc", Vector3(w, 0.32, 0.14), c + Vector3(0, 0.3, sx * (l * 0.5 - 0.07)))
+		return
 	var a := [Vector3(c.x - w * 0.5, c.y, c.z - l * 0.5), Vector3(c.x + w * 0.5, c.y, c.z - l * 0.5), Vector3(c.x, c.y + hgt, c.z - l * 0.5)]
 	var b := [Vector3(c.x - w * 0.5, c.y, c.z + l * 0.5), Vector3(c.x + w * 0.5, c.y, c.z + l * 0.5), Vector3(c.x, c.y + hgt, c.z + l * 0.5)]
 	k.loft(s, [a, b])
@@ -704,3 +749,249 @@ static func _fob(k: Kit) -> void:
 	for i in 3:
 		k.box("sand", Vector3(0.8, 0.9, 0.8), Vector3(-2.6 + i * 0.85, 0.5, -2.6))
 	k.box("team", Vector3(1.2, 0.03, 0.8), Vector3(-1.2, 1.08, -0.8))
+
+
+
+# ---------------------------------------------------------------- ulusal süslemeler
+
+## Binanın üstüne ülkenin mimarisine özgü öğeleri ekler. Konumlar her binanın kendi tasarımına göredir.
+static func _ornament(k: Kit, id: String) -> void:
+	var st := _st
+	match id:
+		"hq":
+			match st:
+				"ua":
+					_dome_pear(k, Vector3(-0.8, 4.36, -1.0), 0.9)
+					_band(k, Vector3(0, 2.62, -0.6), 7.5, 6.5)
+				"ru":
+					_shatyor(k, Vector3(2.9, 2.72, -2.9), 0.65)
+					_star(k, Vector3(-0.8, 2.95, 0.73), 0.34)
+					_dome_onion(k, Vector3(-0.8, 4.36, -1.2), 0.55)
+				"il":
+					_arcade(k, Vector3(-2.2, 0.12, 2.66), 5, 0.72, 1.35)
+					_solar(k, Vector3(2.4, 2.72, -2.6))
+					_solar(k, Vector3(2.4, 2.72, -1.4))
+					_band(k, Vector3(0, 2.62, -0.6), 7.5, 6.5)
+				"ir":
+					_dome_persian(k, Vector3(-0.8, 4.36, -1.2), 1.0)
+					_iwan(k, Vector3(0, 0.12, 2.66), 1.7, 2.3)
+					_badgir(k, Vector3(3.0, 2.72, -3.0), 1.6)
+				"pk":
+					_dome_mughal(k, Vector3(-0.8, 4.36, -1.2), 0.95)
+					_chhatri(k, Vector3(3.1, 2.72, 1.9), 0.5)
+					_chhatri(k, Vector3(-3.1, 2.72, 1.9), 0.5)
+					_band(k, Vector3(0, 2.62, -0.6), 7.5, 6.5)
+				"in":
+					_chhatri(k, Vector3(-0.8, 4.36, -1.2), 0.8)
+					_chhatri(k, Vector3(3.1, 2.72, 1.9), 0.5)
+					_chhatri(k, Vector3(-3.1, 2.72, 1.9), 0.5)
+					_jharokha(k, Vector3(-2.2, 1.5, 2.62))
+					_jharokha(k, Vector3(2.2, 1.5, 2.62))
+		"kisla":
+			match st:
+				"ua":
+					_dome_pear(k, Vector3(0, 2.4, -0.4), 0.38)
+				"ru":
+					_star(k, Vector3(0, 1.48, 1.24), 0.2)
+					_shatyor(k, Vector3(2.4, 1.64, -1.6), 0.35)
+				"il":
+					_solar(k, Vector3(1.4, 1.8, -0.6))
+					_band(k, Vector3(0, 1.5, -0.4), 5.5, 3.3)
+				"ir":
+					_badgir(k, Vector3(-2.2, 1.64, -1.5), 1.4)
+					_badgir(k, Vector3(2.2, 1.64, -1.5), 1.4)
+				"pk", "in":
+					_chhatri(k, Vector3(-2.2, 1.95, -0.4), 0.42)
+					_chhatri(k, Vector3(2.2, 1.95, -0.4), 0.42)
+		"santral":
+			match st:
+				"ru":
+					_star(k, Vector3(0, 1.45, -0.17), 0.2)
+				"ir":
+					_badgir(k, Vector3(1.8, 1.8, -2.2), 1.3)
+				"il":
+					_solar(k, Vector3(0.9, 1.95, -1.4))
+				"pk", "in":
+					_band(k, Vector3(0, 1.6, -1.4), 4.5, 2.5)
+		"fabrika":
+			match st:
+				"ru":
+					_star(k, Vector3(1.1, 1.3, 2.14), 0.3)
+				"ua":
+					_band(k, Vector3(0, 2.06, -0.5), 5.9, 5.3)
+				"ir":
+					_badgir(k, Vector3(-2.5, 2.3, -2.7), 1.6)
+				"il":
+					_solar(k, Vector3(-2.0, 3.05, 1.2))
+				"pk", "in":
+					_chhatri(k, Vector3(2.4, 2.3, 1.7), 0.45)
+		"teknoloji":
+			match st:
+				"ua":
+					_dome_pear(k, Vector3(1.2, 2.98, -0.8), 0.5)
+				"ru":
+					_star(k, Vector3(0.7, 1.9, 1.44), 0.25)
+				"il":
+					_solar(k, Vector3(-1.6, 2.0, 1.0))
+					_solar(k, Vector3(-0.4, 2.0, 1.0))
+				"ir":
+					_dome_persian(k, Vector3(1.2, 2.98, -0.8), 0.6)
+				"pk":
+					_dome_mughal(k, Vector3(1.2, 2.98, -0.8), 0.6)
+				"in":
+					_chhatri(k, Vector3(1.2, 2.98, -0.8), 0.55)
+		"havaalani":
+			match st:
+				"ru":
+					_star(k, Vector3(0, 3.0, 0.42), 0.22)
+				"ir":
+					_dome_persian(k, Vector3(0, 4.34, 0), 0.45)
+				"pk":
+					_dome_mughal(k, Vector3(0, 4.34, 0), 0.45)
+				"in":
+					_chhatri(k, Vector3(0, 4.34, 0), 0.45)
+				"ua":
+					_dome_pear(k, Vector3(0, 4.34, 0), 0.32)
+		"house", "block":
+			match st:
+				"ir":
+					_badgir(k, Vector3(1.3, 2.2, -1.1), 1.0)
+				"il":
+					_solar(k, Vector3(0.8, 2.4, -0.6))
+				"pk", "in":
+					_chhatri(k, Vector3(-1.3, 2.4, -1.0), 0.35)
+
+
+## Çatı kenarında renkli şerit (ulusal renkler).
+static func _band(k: Kit, c: Vector3, w: float, d: float) -> void:
+	for sx in [-1.0, 1.0]:
+		k.box("accent", Vector3(w + 0.04, 0.14, 0.05), c + Vector3(0, -0.2, sx * d * 0.5))
+		k.box("accent", Vector3(0.05, 0.14, d + 0.04), c + Vector3(sx * w * 0.5, -0.2, 0))
+		k.box("accent2", Vector3(w + 0.04, 0.07, 0.05), c + Vector3(0, -0.32, sx * d * 0.5))
+
+
+## Ukrayna barok armut kubbesi: kasnak, iki kademeli altın armut, fener ve haç.
+static func _dome_pear(k: Kit, p: Vector3, r: float) -> void:
+	k.lathe("conc", [Vector2(r * 0.9, 0), Vector2(r * 0.9, r * 0.6), Vector2(r * 0.95, r * 0.62)], p, Vector3.ZERO, 12)
+	k.lathe("roof", [Vector2(r * 0.95, r * 0.62), Vector2(r * 1.05, r * 0.95), Vector2(r * 0.8, r * 1.35), Vector2(r * 0.25, r * 1.6), Vector2(r * 0.2, r * 1.7)], p, Vector3.ZERO, 12)
+	k.lathe("dome", [Vector2(r * 0.2, r * 1.7), Vector2(r * 0.38, r * 1.9), Vector2(r * 0.3, r * 2.15), Vector2(r * 0.06, r * 2.35), Vector2(0, r * 2.4)], p, Vector3.ZERO, 10)
+	k.box("gold", Vector3(0.04, r * 0.6, 0.04), p + Vector3(0, r * 2.65, 0))
+	k.box("gold", Vector3(r * 0.3, 0.04, 0.04), p + Vector3(0, r * 2.75, 0))
+
+
+## Rus soğan kubbesi: ince boyun, şişkin altın soğan, sivri tepe.
+static func _dome_onion(k: Kit, p: Vector3, r: float) -> void:
+	k.lathe("conc2", [Vector2(r * 0.7, 0), Vector2(r * 0.7, r * 0.7), Vector2(r * 0.55, r * 0.75)], p, Vector3.ZERO, 12)
+	k.lathe("dome", [Vector2(r * 0.55, r * 0.75), Vector2(r * 1.0, r * 1.05), Vector2(r * 0.95, r * 1.35), Vector2(r * 0.5, r * 1.7), Vector2(r * 0.08, r * 2.05), Vector2(0, r * 2.15)], p, Vector3.ZERO, 14)
+	k.box("gold", Vector3(0.04, r * 0.5, 0.04), p + Vector3(0, r * 2.35, 0))
+
+
+## Rus çadır çatılı kule (şatyor): kare gövde, piramit yeşil çatı, tepede kızıl yıldız.
+static func _shatyor(k: Kit, p: Vector3, r: float) -> void:
+	k.box("conc", Vector3(r * 2.0, r * 2.4, r * 2.0), p + Vector3(0, r * 1.2, 0))
+	k.box("conc2", Vector3(r * 2.1, r * 0.14, r * 2.1), p + Vector3(0, r * 2.4, 0))
+	for sx in [-1.0, 1.0]:
+		k.box("glass", Vector3(r * 0.5, r * 0.8, 0.04), p + Vector3(sx * r * 0.45, r * 1.5, r * 1.01))
+	k.loft("roof", [Tanks._plan(r * 2.45, [Vector2(r, r), Vector2(r, -r)]).map(func(v): return v + p),
+		Tanks._plan(r * 4.4, [Vector2(0.02, 0.02), Vector2(0.02, -0.02)]).map(func(v): return v + p)])
+	_star(k, p + Vector3(0, r * 4.7, 0), r * 0.35)
+
+
+## Beş köşeli kızıl yıldız (cephede, +Z'ye bakar).
+static func _star(k: Kit, p: Vector3, r: float) -> void:
+	var outer: Array = []
+	var inner: Array = []
+	for i in 5:
+		var a := PI * 0.5 + i * TAU / 5.0
+		outer.append(Vector2(cos(a), sin(a)) * r)
+		var b := a + TAU / 10.0
+		inner.append(Vector2(cos(b), sin(b)) * r * 0.42)
+	var pent0: Array = []
+	var pent1: Array = []
+	for v in inner:
+		pent0.append(p + Vector3(v.x, v.y, 0.0))
+		pent1.append(p + Vector3(v.x, v.y, 0.06))
+	k.loft("accent", [pent0, pent1])
+	for i in 5:
+		var a2: Vector2 = inner[(i + 4) % 5]
+		var b2: Vector2 = inner[i]
+		var c2: Vector2 = outer[i]
+		k.loft("accent", [[p + Vector3(a2.x, a2.y, 0), p + Vector3(c2.x, c2.y, 0), p + Vector3(b2.x, b2.y, 0)],
+			[p + Vector3(a2.x, a2.y, 0.06), p + Vector3(c2.x, c2.y, 0.06), p + Vector3(b2.x, b2.y, 0.06)]])
+
+
+## İran kubbesi: yüksek kasnak, hafif sivri turkuaz kubbe, altın alem; kasnakta koyu mavi çini şerit.
+static func _dome_persian(k: Kit, p: Vector3, r: float) -> void:
+	k.lathe("conc", [Vector2(r * 0.85, 0), Vector2(r * 0.85, r * 0.55)], p, Vector3.ZERO, 16)
+	k.lathe("accent", [Vector2(r * 0.86, r * 0.3), Vector2(r * 0.86, r * 0.5)], p, Vector3.ZERO, 16)
+	k.lathe("dome", [Vector2(r * 0.88, r * 0.55), Vector2(r * 0.95, r * 0.85), Vector2(r * 0.82, r * 1.2), Vector2(r * 0.5, r * 1.5), Vector2(r * 0.12, r * 1.72), Vector2(0, r * 1.78)], p, Vector3.ZERO, 16)
+	k.box("gold", Vector3(0.05, r * 0.5, 0.05), p + Vector3(0, r * 2.0, 0))
+	k.lathe("gold", [Vector2(0, 0), Vector2(r * 0.09, r * 0.08), Vector2(0, r * 0.16)], p + Vector3(0, r * 1.95, 0), Vector3.ZERO, 8)
+
+
+## Babür kubbesi: beyaz mermer, soğanımsı, lotus taçlı alem.
+static func _dome_mughal(k: Kit, p: Vector3, r: float) -> void:
+	k.lathe("conc2", [Vector2(r * 0.8, 0), Vector2(r * 0.8, r * 0.4)], p, Vector3.ZERO, 16)
+	k.lathe("dome", [Vector2(r * 0.75, r * 0.4), Vector2(r * 1.05, r * 0.8), Vector2(r * 1.0, r * 1.15), Vector2(r * 0.6, r * 1.55), Vector2(r * 0.15, r * 1.8), Vector2(0, r * 1.85)], p, Vector3.ZERO, 16)
+	k.lathe("gold", [Vector2(r * 0.18, 0), Vector2(r * 0.08, r * 0.2), Vector2(r * 0.1, r * 0.3), Vector2(0, r * 0.5)], p + Vector3(0, r * 1.8, 0), Vector3.ZERO, 8)
+
+
+## Çhatri: dört sütun üstünde küçük kubbeli köşk.
+static func _chhatri(k: Kit, p: Vector3, r: float) -> void:
+	k.box("conc2", Vector3(r * 2.0, r * 0.18, r * 2.0), p + Vector3(0, r * 0.09, 0))
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			k.box("conc", Vector3(r * 0.2, r * 1.1, r * 0.2), p + Vector3(sx * r * 0.75, r * 0.73, sz * r * 0.75))
+	k.box("conc2", Vector3(r * 2.2, r * 0.16, r * 2.2), p + Vector3(0, r * 1.36, 0))
+	k.lathe("dome", [Vector2(r * 0.9, 0), Vector2(r * 0.85, r * 0.4), Vector2(r * 0.5, r * 0.8), Vector2(r * 0.1, r * 1.0), Vector2(0, r * 1.05)], p + Vector3(0, r * 1.44, 0), Vector3.ZERO, 12)
+	k.lathe("gold", [Vector2(r * 0.08, 0), Vector2(0, r * 0.35)], p + Vector3(0, r * 2.48, 0), Vector3.ZERO, 6)
+
+
+## Rüzgâr kulesi (badgir): uzun kare kule, dört yüzünde dikey yarıklar, düz başlık.
+static func _badgir(k: Kit, p: Vector3, h: float) -> void:
+	var w := 0.62
+	k.box("conc", Vector3(w, h, w), p + Vector3(0, h * 0.5, 0))
+	k.box("conc2", Vector3(w + 0.1, 0.1, w + 0.1), p + Vector3(0, h + 0.05, 0))
+	for i in 3:
+		var off := -w * 0.3 + i * w * 0.3
+		k.box("dark", Vector3(0.07, h * 0.4, 0.02), p + Vector3(off, h * 0.72, w * 0.51))
+		k.box("dark", Vector3(0.07, h * 0.4, 0.02), p + Vector3(off, h * 0.72, -w * 0.51))
+		k.box("dark", Vector3(0.02, h * 0.4, 0.07), p + Vector3(w * 0.51, h * 0.72, off))
+		k.box("dark", Vector3(0.02, h * 0.4, 0.07), p + Vector3(-w * 0.51, h * 0.72, off))
+
+
+## Eyvan: cephede çini çerçeveli, sivri kemerli büyük giriş.
+static func _iwan(k: Kit, p: Vector3, w: float, h: float) -> void:
+	k.box("accent", Vector3(w + 0.5, h + 0.4, 0.08), p + Vector3(0, (h + 0.4) * 0.5, 0.0))
+	k.box("dome", Vector3(w + 0.3, h + 0.25, 0.1), p + Vector3(0, (h + 0.25) * 0.5, 0.02))
+	k.box("dark", Vector3(w, h * 0.65, 0.12), p + Vector3(0, h * 0.325, 0.03))
+	# sivri kemer: iki eğik kanat
+	for sx in [-1.0, 1.0]:
+		k.box("dark", Vector3(w * 0.58, h * 0.26, 0.12), p + Vector3(sx * w * 0.2, h * 0.75, 0.03), Vector3(0, 0, -sx * 28.0))
+	k.box("gold", Vector3(w + 0.5, 0.06, 0.1), p + Vector3(0, h + 0.42, 0.02))
+
+
+## Kemerli revak: sütunlar ve yarım daire kemerler (Kudüs taşı).
+static func _arcade(k: Kit, p: Vector3, n: int, span: float, h: float) -> void:
+	for i in n + 1:
+		k.box("conc2", Vector3(0.14, h, 0.16), p + Vector3(i * span, h * 0.5, 0.05))
+	for i in n:
+		var c := p + Vector3((i + 0.5) * span, h, 0.05)
+		k.lathe("conc2", [Vector2(span * 0.5, 0), Vector2(span * 0.5, 0.05), Vector2(span * 0.42, 0.05), Vector2(span * 0.42, 0.0)], c, Vector3(90, 0, 0), 12)
+	k.box("conc2", Vector3(n * span + 0.2, 0.12, 0.2), p + Vector3(n * span * 0.5, h + span * 0.5 + 0.06, 0.05))
+
+
+## Güneş enerjili su ısıtıcısı: eğik panel ve beyaz depo (İsrail çatılarının simgesi).
+static func _solar(k: Kit, p: Vector3) -> void:
+	k.box("steel", Vector3(0.05, 0.4, 0.05), p + Vector3(-0.4, 0.2, -0.3))
+	k.box("steel", Vector3(0.05, 0.4, 0.05), p + Vector3(0.4, 0.2, -0.3))
+	k.box("solar", Vector3(1.0, 0.05, 0.8), p + Vector3(0, 0.3, 0.05), Vector3(28, 0, 0))
+	Tanks._cyl(k, "white", 0.17, 1.0, p + Vector3(0, 0.55, -0.42), Vector3(0, 0, 90), 10)
+
+
+## Cumbalı pencere (jharokha): duvardan taşan, küçük kubbeli balkon.
+static func _jharokha(k: Kit, p: Vector3) -> void:
+	k.box("conc2", Vector3(0.9, 0.12, 0.45), p + Vector3(0, -0.35, 0.2))
+	k.box("conc", Vector3(0.8, 0.55, 0.38), p + Vector3(0, 0.0, 0.2))
+	k.box("dark", Vector3(0.5, 0.35, 0.02), p + Vector3(0, 0.0, 0.4))
+	k.lathe("dome", [Vector2(0.45, 0), Vector2(0.3, 0.2), Vector2(0, 0.32)], p + Vector3(0, 0.3, 0.2), Vector3.ZERO, 10)

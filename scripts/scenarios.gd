@@ -387,7 +387,7 @@ const COUNTRIES := {
 # points: [x, z, gelir $/sn, ele geçirme süresi, tür (supply / town / oil), ad]
 const MAPS := {
 	"harkiv": {
-		name = "Harkiv – Severski Donets", size = Vector2(720, 440),
+		name = "Harkiv – Severski Donets", size = Vector2(720, 440), style = "ua",
 		ground = Color(0.44, 0.47, 0.27), patch = Color(0.52, 0.5, 0.28), tree_col = Color(0.2, 0.36, 0.17),
 		fields = [Color(0.6, 0.55, 0.3), Color(0.38, 0.46, 0.23), Color(0.44, 0.37, 0.26), Color(0.5, 0.5, 0.27)],
 		windbreaks = {sp = 56.0},
@@ -438,7 +438,7 @@ const MAPS := {
 		],
 	},
 	"korfez": {
-		name = "Huzistan – Zagros Eteği", size = Vector2(720, 440),
+		name = "Huzistan – Zagros Eteği", size = Vector2(720, 440), style = "ir",
 		ground = Color(0.66, 0.58, 0.4), patch = Color(0.6, 0.5, 0.34), tree_col = Color(0.28, 0.38, 0.18),
 		fields = [Color(0.68, 0.6, 0.42), Color(0.62, 0.54, 0.38), Color(0.7, 0.62, 0.45)],
 		bases_a = [Vector3(-300, 0, -20), Vector3(-290, 0, 110)],
@@ -488,7 +488,7 @@ const MAPS := {
 		],
 	},
 	"kesmir": {
-		name = "Keşmir – Kontrol Hattı", size = Vector2(720, 440),
+		name = "Keşmir – Kontrol Hattı", size = Vector2(720, 440), style = "pk",
 		ground = Color(0.38, 0.44, 0.28), patch = Color(0.43, 0.46, 0.3), tree_col = Color(0.14, 0.3, 0.17),
 		fields = [Color(0.36, 0.48, 0.24), Color(0.5, 0.5, 0.28), Color(0.42, 0.44, 0.26), Color(0.33, 0.43, 0.22)],
 		windbreaks = {sp = 66.0},
