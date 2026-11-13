@@ -7,7 +7,7 @@ extends Node
 ## Zorluğa göre: düzenli keşif yapar, en zayıf savunulan hedefi seçer, hava savunmasını önce vurur,
 ## yaralı birlikleri ve çöken dalgaları geri çeker. Ülkesinin doktrinine uygun ordu kurar.
 
-const T := Defs.ENEMY
+var T := Defs.ENEMY
 const EXPAND_TIME := 420.0   # bu süreden önce oyuncunun yarısındaki noktalara gitmez
 const ARMY := ["tank", "at", "ifv", "spaag", "arty", "mlrs", "laser", "ew"]
 # Doktrine göre ordu yapısı: piyade sayısı, erken drone, İHA, avcı, bombacı, obüs ve roketatar sayıları.
@@ -83,7 +83,7 @@ func _blds(g: Game, kind: String) -> Array:
 func _player_air(g: Game) -> int:
 	var n := 0
 	for e in g.entities:
-		if e.team == Defs.PLAYER and e.is_air:
+		if Defs.foe(T, e.team) and e.is_air:
 			n += 1
 	return n
 
@@ -172,7 +172,7 @@ func _produce(g: Game, ts) -> void:
 		return
 	var p_small := 0
 	for e in g.entities:
-		if e.team == Defs.PLAYER and e.is_air and e.d.get("small", false):
+		if Defs.foe(T, e.team) and e.is_air and e.d.get("small", false):
 			p_small += 1
 	for f in _blds(g, "fabrika"):
 		if p_small >= 2 and _units(g, "ew").size() < 1:
@@ -211,7 +211,7 @@ func _capture(g: Game) -> void:
 		var best = null
 		var bd := 1e9
 		for p in g.points:
-			if p.owner_team == T or claims.has(p):
+			if Defs.ally(T, p.owner_team) or claims.has(p):
 				continue
 			# Oyuncunun yarısındaki noktalara erken gitme.
 			if g.time < EXPAND_TIME and (p.position.x - 0.0) * fwd > 5.0:
@@ -230,13 +230,13 @@ func _army(g: Game, ts) -> void:
 	var army: Array = []
 	for c in ARMY:
 		army += _units(g, c)
-	var p_hq = g.teams[Defs.PLAYER].hq
-	if p_hq == null or not is_instance_valid(p_hq):
+	var p_hq = _foe_hq(g)
+	if p_hq == null:
 		return
 	# Üs savunması
 	var threat = null
 	for e in g.entities:
-		if e.team == Defs.PLAYER and not e.is_air and not e.is_building and Entity.flat(e.position, home) < 42.0:
+		if Defs.foe(T, e.team) and not e.is_air and not e.is_building and Entity.flat(e.position, home) < 42.0:
 			threat = e
 			break
 	if threat != null:
@@ -257,7 +257,7 @@ func _army(g: Game, ts) -> void:
 			away_idle.append(u)
 	var goal: Vector3 = p_hq.position
 	var o := Scenarios.objective(T)
-	if o.get("type", "") == "hold" and g.points[o.point].owner_team != T:
+	if o.get("type", "") == "hold" and not Defs.ally(T, g.points[o.point].owner_team):
 		goal = g.points[o.point].position
 	if P.smart and goal == p_hq.position:
 		goal = _weak_spot(g, p_hq.position)
@@ -312,7 +312,7 @@ func _nearest_aa(g: Game, pos: Vector3):
 	var best = null
 	var bd := 50.0
 	for e in g.entities:
-		if e.team != Defs.PLAYER or not e.alive or not g.fog.sees(T, e.global_position):
+		if not Defs.foe(T, e.team) or not e.alive or not g.fog.sees(T, e.global_position):
 			continue
 		var is_aa: bool = (e.is_building and e.kind == "sam") or e.cls in ["spaag", "laser"]
 		if is_aa:
@@ -330,15 +330,15 @@ func _weak_spot(g: Game, fallback: Vector3) -> Vector3:
 	var bs := 1e9
 	var cands: Array = []
 	for p in g.points:
-		if p.owner_team == Defs.PLAYER:
+		if Defs.foe(T, p.owner_team):
 			cands.append([p.position, 1.0 + p.income * 0.1])
 	for e in g.entities:
-		if e.team == Defs.PLAYER and e.is_building and e.discovered and e.kind != "engel":
+		if Defs.foe(T, e.team) and e.is_building and e.discovered and e.kind != "engel":
 			cands.append([e.global_position, 2.0 if e.kind in ["fabrika", "havaalani", "fuze", "santral"] else 1.2])
 	for c in cands:
 		var def := 0.0
 		for e in g.entities:
-			if e.team == Defs.PLAYER and e.alive and not e.is_building and e.has_weapon() and Entity.flat(e.global_position, c[0]) < 22.0:
+			if Defs.foe(T, e.team) and e.alive and not e.is_building and e.has_weapon() and Entity.flat(e.global_position, c[0]) < 22.0:
 				def += float(e.d.get("cost", 200))
 		var score: float = (def + 300.0) / c[1] + Entity.flat(c[0], home) * 2.0
 		if score < bs:
@@ -366,7 +366,8 @@ func _scout(g: Game) -> void:
 	if scout_t > 0.0:
 		return
 	scout_t = float(P.scout)
-	var spots: Array = [g.teams[Defs.PLAYER].hq.position]
+	var fh = _foe_hq(g)
+	var spots: Array = [fh.position if fh != null else home]
 	for p in g.points:
 		if p.owner_team != T:
 			spots.append(p.position)
@@ -405,7 +406,7 @@ func _missiles(g: Game, ts) -> void:
 			var best = null
 			var bs := -1.0
 			for e in g.entities:
-				if e.team != Defs.PLAYER or not e.is_building or not g.fog.sees(T, e.position):
+				if not Defs.foe(T, e.team) or not e.is_building or not g.fog.sees(T, e.position):
 					continue
 				var s := 1.0
 				if e.kind == "sam" and P.smart and _air_count(g) > 0:
@@ -462,11 +463,11 @@ func _ability(g: Game, ts) -> void:
 	var best = null
 	var bn := 0
 	for e in g.entities:
-		if e.team != Defs.PLAYER or e.is_air or not g.fog.sees(T, e.global_position):
+		if not Defs.foe(T, e.team) or e.is_air or not g.fog.sees(T, e.global_position):
 			continue
 		var n := 0
 		for o in g.entities:
-			if o.team == Defs.PLAYER and not o.is_air and Entity.flat(o.global_position, e.global_position) < 10.0:
+			if Defs.foe(T, o.team) and not o.is_air and Entity.flat(o.global_position, e.global_position) < 10.0:
 				n += 1
 		if e.is_building:
 			n += 1
@@ -475,6 +476,20 @@ func _ability(g: Game, ts) -> void:
 			best = e
 	if best != null and bn >= 3:
 		g.use_ability(T, best.global_position)
+
+
+## En yakın ayakta düşman karargâhı.
+func _foe_hq(g: Game):
+	var best = null
+	var bd := 1e9
+	for t in Defs.N:
+		var h = g.teams[t].hq
+		if Defs.foe(T, t) and h != null and is_instance_valid(h) and h.alive:
+			var dd := Entity.flat(h.position, home)
+			if dd < bd:
+				bd = dd
+				best = h
+	return best
 
 
 func _air_count(g: Game) -> int:

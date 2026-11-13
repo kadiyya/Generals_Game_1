@@ -3,8 +3,8 @@ extends CanvasLayer
 ## Arayüz: üst bilgi çubuğu, görev satırı, hız düğmesi, küçük harita, grup düğmeleri, doktrin yeteneği,
 ## alt bağlam paneli (birim kartları arkaya çevrilip özellikleri görülebilir), ipucu satırı, can çubukları ve rütbeler.
 
-const MM_W := 220.0
-const MM_H := MM_W * Defs.MAP_H / Defs.MAP_W
+var MM_W := 260.0
+var MM_H := 160.0
 
 var root: Control
 var overlay: Control
@@ -34,6 +34,7 @@ var _last_ms := 0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
+	MM_H = MM_W * Defs.MAP_H / Defs.MAP_W
 	_last_ms = Time.get_ticks_msec()
 	root = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -86,13 +87,13 @@ func _ready() -> void:
 	for g in [["Kara", "kara"], ["Hava Sav.", "hs"], ["Hava", "hava"], ["Hepsi", ""]]:
 		var b := Button.new()
 		b.text = g[0]
-		b.custom_minimum_size = Vector2(108, 50)
+		b.custom_minimum_size = Vector2(128, 50)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(_on_group.bind(g[1]))
 		grid.add_child(b)
 	var build := Button.new()
 	build.text = "İnşa"
-	build.custom_minimum_size = Vector2(220, 56)
+	build.custom_minimum_size = Vector2(260, 56)
 	build.focus_mode = Control.FOCUS_NONE
 	build.pressed.connect(_on_build)
 	side.add_child(build)
@@ -102,7 +103,7 @@ func _ready() -> void:
 	for i in 3:
 		var gb := Button.new()
 		gb.text = "Grup %d" % (i + 1)
-		gb.custom_minimum_size = Vector2(70, 46)
+		gb.custom_minimum_size = Vector2(84, 46)
 		gb.focus_mode = Control.FOCUS_NONE
 		gb.add_theme_font_size_override("font_size", 15)
 		gb.tooltip_text = "Dokun: grubu seç (iki kez: kamerayı götür). Basılı tut: seçili birlikleri bu gruba kaydet."
@@ -110,7 +111,7 @@ func _ready() -> void:
 		gb.button_up.connect(_group_up.bind(i))
 		grp.add_child(gb)
 	ab_btn = Button.new()
-	ab_btn.custom_minimum_size = Vector2(220, 62)
+	ab_btn.custom_minimum_size = Vector2(260, 62)
 	ab_btn.focus_mode = Control.FOCUS_NONE
 	ab_btn.add_theme_font_size_override("font_size", 16)
 	ab_btn.pressed.connect(func(): Game.I.begin_ability())
@@ -324,6 +325,10 @@ func _rebuild_now() -> void:
 		title.text = "Devriye: birliklerin gidip geleceği noktaya dokun"
 		_btn("İptal", g.cancel_modes)
 		return
+	if g.bridge_pick:
+		title.text = "Köprü yık: seçili birliklerin ateş edeceği köprüye dokun"
+		_btn("İptal", g.cancel_modes)
+		return
 	if g.targeting != null:
 		title.text = "%s: hedef için haritada görebildiğin bir yere dokun" % g.missile_info(0, g.targeting_i).name
 		_btn("İptal", g.cancel_targeting)
@@ -359,6 +364,7 @@ func _rebuild_now() -> void:
 		_btn("Dur", _stop)
 		_btn("Geri Çekil", _retreat)
 		_btn("Devriye", g.begin_patrol)
+		_btn("Köprü\nYık", g.begin_bridge_pick)
 		var foot := 0
 		for u in units:
 			if u.armor == "inf":
@@ -759,10 +765,18 @@ func _draw_overlay() -> void:
 		if cam.is_position_behind(wp2):
 			continue
 		var p2 := cam.unproject_position(wp2)
-		var label := "+$%d/sn" % int(pt.income)
+		var label := "+$%.1f/sn" % pt.income if pt.owner_team == Defs.NEUTRAL else "+$%.1f/sn" % pt.current_income()
+		if pt.pname != "":
+			label = pt.pname + "  " + label
 		var lc := Color(1, 1, 1, 0.95)
 		if pt.owner_team != Defs.NEUTRAL:
 			lc = Defs.TEAM_COLORS[pt.owner_team].lightened(0.45)
+		if pt.hp < pt.max_hp:
+			var fi: float = pt.integrity()
+			overlay.draw_rect(Rect2(p2.x - 31, p2.y - 30, 62, 7), Color(0, 0, 0, 0.7))
+			overlay.draw_rect(Rect2(p2.x - 30, p2.y - 29, 60 * fi, 5), Color(0.95, 0.55, 0.2) if fi < 0.6 else Color(0.4, 0.9, 0.4))
+			if pt.repairing:
+				overlay.draw_string(font, p2 + Vector2(36, -22), "onarılıyor", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 1.0, 0.6))
 		overlay.draw_string_outline(font, p2 + Vector2(-30, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5, Color(0, 0, 0, 0.8))
 		overlay.draw_string(font, p2 + Vector2(-30, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, lc)
 		if pt.cap_t > 0.0 and pt.cap_team != Defs.NEUTRAL:
@@ -773,6 +787,23 @@ func _draw_overlay() -> void:
 		var r: Rect2 = g.controls.box_rect()
 		overlay.draw_rect(r, Color(0.3, 1.0, 0.4, 0.15))
 		overlay.draw_rect(r, Color(0.3, 1.0, 0.4, 0.9), false, 2.0)
+
+
+var _mmt: ImageTexture = null
+
+
+## Küçük harita resmi: arazi resmi, su kenarları belirgin.
+func _mm_tex() -> ImageTexture:
+	if _mmt == null:
+		var img: Image = Game.I.terrain.ground_img.duplicate()
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				if c.a > 0.5:
+					c = Color(0.16, 0.34, 0.55)
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0))
+		_mmt = ImageTexture.create_from_image(img)
+	return _mmt
 
 
 func _mm(p: Vector3) -> Vector2:
@@ -788,17 +819,9 @@ func _mm_rect(r: Array) -> Rect2:
 func _draw_minimap() -> void:
 	var g := Game.I
 	minimap.draw_rect(Rect2(Vector2.ZERO, minimap.size), Color(0.16, 0.22, 0.14, 0.95))
-	var mp_def: Dictionary = Defs.MAP
-	for r in mp_def.water:
-		minimap.draw_rect(_mm_rect(r), Color(0.14, 0.3, 0.5))
-	for r in mp_def.bridges:
-		minimap.draw_rect(_mm_rect(r), Color(0.4, 0.4, 0.32))
-	for r in mp_def.rock:
-		minimap.draw_rect(_mm_rect(r), Color(0.42, 0.39, 0.35))
-	for r in mp_def.trees:
-		minimap.draw_rect(_mm_rect(r), Color(0.1, 0.3, 0.14))
-	for r in mp_def.ruins:
-		minimap.draw_rect(_mm_rect(r), Color(0.5, 0.47, 0.44))
+	minimap.draw_texture_rect(_mm_tex(), Rect2(Vector2.ZERO, minimap.size), false)
+	for br in g.bridges:
+		minimap.draw_line(_mm(br.a), _mm(br.b), Color(0.85, 0.82, 0.7) if br.alive else Color(0.9, 0.2, 0.15), 3.0)
 	for pt in g.points:
 		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:

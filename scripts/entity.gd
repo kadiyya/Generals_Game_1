@@ -23,6 +23,7 @@ var xp := 0.0            # verdiği hasar; rütbe buna göre artar
 var rank := 0
 var jammed_t := 0.0      # elektronik harp: kilitlenemez
 var reveal_t := 0.0      # ateş edince kısa süre gizlenemez
+var neutral_target := false   # tarafsız ama vurulabilir (köprü)
 var model: Node3D
 var ring: MeshInstance3D
 
@@ -43,7 +44,7 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 	ring = Models.ring(radius + 0.4)
 	ring.visible = false
 	add_child(ring)
-	seen = (t == Defs.PLAYER)
+	seen = Defs.friendly(t)
 	visible = seen
 	scan_timer = randf() * 0.3
 
@@ -80,9 +81,14 @@ func needs_los() -> bool:
 	return not is_air and not is_building and d.get("proj", "tracer") != "arc"
 
 
-## Ormanda gizlenen piyade: yalnızca yakından görülür ve hedef alınır.
+## Ormanda gizlenen birlik: yalnızca yakından görülür ve hedef alınır.
 func concealed() -> bool:
 	return false
+
+
+## Gizlenmiş birliğin fark edildiği uzaklık.
+func reveal_dist() -> float:
+	return 9.0 if armor == "inf" else 14.0
 
 
 func valid_target() -> bool:
@@ -95,7 +101,12 @@ func valid_target() -> bool:
 
 
 func can_hit(e) -> bool:
-	if not e.alive or e.team == team or not d.has("dmg"):
+	if not e.alive or not d.has("dmg"):
+		return false
+	if e.team < 0:
+		if not e.neutral_target:
+			return false
+	elif not Defs.foe(team, e.team):
 		return false
 	if float(d.mult.get(e.armor, 0.0)) <= 0.0:
 		return false
@@ -105,7 +116,7 @@ func can_hit(e) -> bool:
 			return false
 	elif not Game.I.fog.sees(team, e.global_position):
 		return false
-	elif e.concealed() and flat(global_position, e.global_position) > 9.0:
+	elif e.concealed() and flat(global_position, e.global_position) > e.reveal_dist():
 		return false
 	return true
 
@@ -128,11 +139,26 @@ func find_target(max_d: float, min_d := 0.0):
 		if s < best_s:
 			best_s = s
 			best = e
+	if best == null or (best.is_building and not best.has_weapon()):
+		# Düşmanın ele geçirdiği kaynaklar da hedeftir (silahsız binalar gibi, en son).
+		for p in Game.I.points:
+			if p.team < 0 or not can_hit(p):
+				continue
+			var dist: float = flat(global_position, p.global_position) - p.radius
+			if dist > max_d or dist < min_d:
+				continue
+			var s: float = (dist / (0.3 + float(d.mult.get("bld", 0.0)))) * 3.5 + 10.0
+			if s < best_s:
+				best_s = s
+				best = p
 	return best
 
 
 func damage_base() -> float:
-	return float(d.dmg) * Game.I.mod(team, "dmg_" + cls) * (1.0 + 0.12 * rank)
+	var m := float(d.dmg) * Game.I.mod(team, "dmg_" + cls) * (1.0 + 0.12 * rank)
+	if not is_air and not is_building and Game.I.terrain.kind_at(global_position) == Terrain.HILL:
+		m *= 1.15   # tepeden atış
+	return m
 
 
 ## Aldığı hasarın çarpanı: rütbe, siper, ev, geri çekilme.
@@ -188,7 +214,7 @@ func take_damage(amount: float, attacker = null, tag := "") -> void:
 	if tag == "drone" and (armor == "heavy" or armor == "light"):
 		amount *= Game.I.mod(team, "drone_resist")
 	amount *= damage_taken_mult()
-	if attacker != null and is_instance_valid(attacker) and attacker.alive and attacker.team != team:
+	if attacker != null and is_instance_valid(attacker) and attacker.alive and Defs.foe(attacker.team, team):
 		attacker.gain_xp(minf(amount, maxf(hp, 0.0)) + (float(d.get("cost", 0)) * 0.3 if amount >= hp else 0.0))
 	hp -= amount
 	_on_damaged(attacker)

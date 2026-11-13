@@ -63,17 +63,20 @@ func _on_fired() -> void:
 
 
 func wrange() -> float:
-	return super.wrange() + (3.0 if garrison != null else 0.0)
+	return super.wrange() + (garrison.range_bonus if garrison != null else 0.0)
 
 
+## Orman ve ağaç hattında gizlenir: piyade yürürken de, araç yalnızca dururken. Ateş edince bir süre görünür.
 func concealed() -> bool:
-	return armor == "inf" and reveal_t <= 0.0 and garrison == null and Game.I.terrain.kind_at(global_position) == Terrain.FOREST
+	if reveal_t > 0.0 or garrison != null or not Game.I.terrain.cover_at(global_position):
+		return false
+	return armor == "inf" or not moving
 
 
 func damage_taken_mult() -> float:
 	var m := super.damage_taken_mult()
 	if garrison != null:
-		m *= 0.4
+		m *= garrison.protect
 	elif entrenched:
 		m *= 0.5
 	if retreating:
@@ -263,7 +266,7 @@ func _waypoint(p: Vector3, dt: float) -> Vector3:
 		return nav_wp
 	nav_t = 0.25
 	var ter := Game.I.terrain
-	if ter.line_clear(position, p):
+	if flat(position, p) < 26.0 and ter.line_clear(position, p):
 		nav = PackedVector3Array()
 		nav_goal = p
 		nav_wp = p
@@ -277,7 +280,7 @@ func _waypoint(p: Vector3, dt: float) -> Vector3:
 		if not nav_ok:
 			nav_wp = position
 			return position
-	while nav_i < nav.size() - 1 and (flat(position, nav[nav_i]) < 1.6 or ter.line_clear(position, nav[nav_i + 1])):
+	while nav_i < nav.size() - 1 and (flat(position, nav[nav_i]) < 1.6 or (flat(position, nav[nav_i + 1]) < 10.0 and ter.line_clear(position, nav[nav_i + 1]))):
 		nav_i += 1
 	nav_wp = nav[nav_i]
 	return nav_wp

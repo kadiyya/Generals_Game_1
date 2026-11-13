@@ -119,6 +119,9 @@ func _tap(pos: Vector2) -> void:
 	if g.patrol_pick:
 		g.set_patrol(world)
 		return
+	if g.bridge_pick:
+		g.try_bridge(world)
+		return
 	var e = g.pick_entity(pos)
 	if e != null and e.team == Defs.PLAYER:
 		if dbl and not e.is_building:

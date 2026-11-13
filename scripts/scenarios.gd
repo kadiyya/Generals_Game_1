@@ -6,6 +6,7 @@ extends RefCounted
 static var chosen := 0     # seçilen senaryo
 static var side := 0       # oyuncunun tarafı: 0 = a ülkesi, 1 = b ülkesi
 static var difficulty := 0   # Defs.DIFFS içindeki sıra
+static var mode := 0         # Defs.MODES içindeki sıra (teke tek, iki düşman üssü, takım)
 static var tutorial := false
 static var load_data := {}  # boş değilse kayıtlı oyun yüklenir
 
@@ -365,84 +366,165 @@ const COUNTRIES := {
 }
 
 # ---------------------------------------------------------------- haritalar
-# Dikdörtgenler [x0, z0, x1, z1]. rock/trees/ruins/water geçilmez; bridges suyu geçilir yapar.
-# hills: tepe (görüş ve menzil artar, ağaç ve yıkıntının üstünden görür). forest: orman (piyade gizlenir, araç yavaşlar).
-# roads: yol (hız artar). houses: piyadenin girebildiği evler [x, z].
-# points: [x, z, gelir $/sn, ele geçirme süresi, petrol mü]
+# Her harita 720 x 440 birimdir (x: -360..360 batı-doğu, z: -220..220 kuzey-güney).
+# Şekiller: dikdörtgen [x0, z0, x1, z1], elips {e = [cx, cz, rx, rz]}, kalın çizgi {p = [[x, z], ...], w = genişlik},
+# çokgen {poly = [[x, z], ...]}. rivers/water: su; rock: dağ (geçilmez); hills: tepe (görüş, menzil, hasar);
+# forest: orman (gizlenme); trees: ağaç hattı; ruins: yıkıntı; roads: yol (nehri kestiği yerde köprü kurulur).
+# towns: [x, z, ev sayısı, yarıçap, ad, apartman oranı]. big: terk edilmiş büyük yapılar [x, z, "factory"].
+# windbreaks: tarla aralarına kendiliğinden ağaç hatları. bases_a/bases_b: iki tarafın üs yerleri (ilk üs ana üs).
+# points: [x, z, gelir $/sn, ele geçirme süresi, tür (supply / town / oil), ad]
 const MAPS := {
 	"harkiv": {
-		name = "Harkiv Açıkları", ground = Color(0.47, 0.5, 0.28), patch = Color(0.56, 0.52, 0.27),
-		bases = [Vector3(-90, 0, 0), Vector3(90, 0, 0)],
+		name = "Harkiv – Severski Donets", size = Vector2(720, 440),
+		ground = Color(0.44, 0.47, 0.27), patch = Color(0.52, 0.5, 0.28), tree_col = Color(0.2, 0.36, 0.17),
+		fields = [Color(0.6, 0.55, 0.3), Color(0.38, 0.46, 0.23), Color(0.44, 0.37, 0.26), Color(0.5, 0.5, 0.27)],
+		windbreaks = {sp = 56.0},
+		bases_a = [Vector3(-300, 0, -40), Vector3(-290, 0, 130)],
+		bases_b = [Vector3(300, 0, 30), Vector3(295, 0, -150)],
+		rivers = [
+			{p = [[38, -225], [50, -185], [35, -150], [48, -110], [22, -60], [40, -10], [12, 40], [30, 95], [8, 150], [25, 225]], w = 12.0},
+			{p = [[195, -225], [205, -160], [185, -100], [200, -40], [180, 30], [198, 100], [178, 160], [190, 225]], w = 8.0},
+			{p = [[-170, -225], [-155, -160], [-175, -100], [-140, -40], [-90, 10], [-40, 30], [12, 40]], w = 6.0},
+		],
+		water = [{e = [42, -150, 16, 40]}],
 		rock = [],
-		trees = [
-			[-52.0, -66.0, -48.0, -22.0], [-52.0, -8.0, -48.0, 30.0], [-52.0, 44.0, -48.0, 66.0],
-			[48.0, -66.0, 52.0, -30.0], [48.0, -16.0, 52.0, 22.0], [48.0, 36.0, 52.0, 66.0],
-			[-30.0, 20.0, 8.0, 24.0], [-8.0, -24.0, 30.0, -20.0],
+		hills = [
+			{e = [-40, -50, 18, 13]}, {e = [150, 40, 18, 14]}, {e = [-190, 30, 16, 12]}, {e = [200, -165, 16, 12]},
+			{e = [0, 200, 16, 11]}, {e = [-70, -150, 15, 11]}, {e = [150, -120, 14, 10]}, {e = [-60, 60, 13, 10]},
+			{e = [230, 200, 14, 10]}, {e = [-230, -200, 14, 10]},
 		],
-		ruins = [
-			[-10.0, -6.0, -4.0, 0.0], [4.0, 2.0, 10.0, 8.0], [-6.0, 8.0, 0.0, 12.0], [2.0, -12.0, 8.0, -6.0],
-			[-36.0, -44.0, -30.0, -38.0], [30.0, 40.0, 36.0, 46.0],
+		forest = [
+			{e = [-220, -120, 45, 30]}, {e = [-150, 95, 55, 32]}, {e = [85, -40, 28, 45]}, {e = [-30, 105, 30, 38]},
+			{e = [110, 120, 40, 28]}, {e = [240, -60, 35, 30]}, {e = [245, 110, 30, 40]}, {e = [-40, -180, 40, 25]},
+			{e = [150, -190, 30, 20]}, {e = [-250, 190, 40, 20]}, {e = [60, 60, 22, 20]},
 		],
-		water = [[-110.0, -70.0, 110.0, -64.0]],
-		bridges = [],
-		hills = [[-34.0, -34.0, -22.0, -24.0], [22.0, 24.0, 34.0, 34.0], [-62.0, 8.0, -54.0, 18.0], [54.0, -18.0, 62.0, -8.0]],
-		forest = [[-42.0, 26.0, -16.0, 38.0], [16.0, -38.0, 42.0, -26.0], [-72.0, -62.0, -56.0, -52.0], [56.0, 52.0, 72.0, 62.0]],
-		roads = [[-104.0, -1.5, 104.0, 1.5], [-1.5, -62.0, 1.5, 62.0]],
-		houses = [[-15.0, 5.0], [13.0, -4.0], [-4.0, -16.0], [4.0, 16.0], [-40.0, -4.0], [40.0, 4.0]],
+		trees = [], ruins = [],
+		roads = [
+			{p = [[-360, 0], [-260, -8], [-160, -5], [-60, 8], [90, -5], [150, -12], [260, -25], [360, -15]], w = 6.0, asphalt = true},
+			{p = [[-360, -140], [-250, -130], [-120, -110], [-20, -85], [110, -80], [250, -110], [360, -120]], w = 4.0},
+			{p = [[-360, 150], [-240, 140], [-120, 165], [-20, 150], [80, 160], [240, 175], [360, 160]], w = 4.0},
+			{p = [[-280, -225], [-270, -100], [-285, 40], [-275, 225]], w = 4.0},
+			{p = [[-100, -225], [-110, -110], [-115, -60], [-80, 40], [-110, 165], [-90, 225]], w = 4.0},
+			{p = [[110, -225], [120, -80], [100, 0], [120, 160], [110, 225]], w = 4.0},
+			{p = [[270, -225], [265, -100], [280, 30], [265, 225]], w = 4.0},
+		],
+		towns = [
+			[-20, 25, 12, 24, "Çuhuiv", 0.35], [80, -115, 7, 16, "Staryi Saltiv", 0.2], [150, -175, 9, 18, "Vovçansk", 0.2],
+			[225, 70, 10, 20, "Kupiansk", 0.3], [-130, 170, 8, 16, "Balakliia", 0.25], [60, 195, 9, 18, "İzyum", 0.3],
+			[-215, -50, 6, 14, "Ruska Lozova", 0.1], [-250, 40, 8, 18, "Harkiv Doğu", 0.5],
+		],
+		big = [[-60, -20, "factory"], [140, -45, "factory"], [95, 75, "factory"]],
 		points = [
-			[-70.0, -40.0, 5.0, 12.0, false], [-70.0, 40.0, 5.0, 12.0, false],
-			[-26.0, -44.0, 5.0, 12.0, false], [-26.0, 44.0, 5.0, 12.0, false],
-			[26.0, -44.0, 5.0, 12.0, false], [26.0, 44.0, 5.0, 12.0, false],
-			[70.0, -40.0, 5.0, 12.0, false], [70.0, 40.0, 5.0, 12.0, false],
-			[0.0, 0.0, 12.0, 25.0, false],
+			[-20, 25, 5.0, 25.0, "town", "Çuhuiv"],
+			[-230, -170, 2.0, 12.0, "supply", ""], [-200, 0, 2.0, 12.0, "supply", ""], [-220, 110, 2.0, 12.0, "supply", ""],
+			[-120, -75, 2.0, 12.0, "supply", ""], [-70, -110, 2.0, 12.0, "supply", ""], [-60, 180, 2.0, 12.0, "supply", ""],
+			[-130, 170, 3.0, 15.0, "town", "Balakliia"], [-75, 140, 4.0, 18.0, "oil", "Şebelinka gaz sahası"],
+			[80, -115, 3.0, 15.0, "town", "Staryi Saltiv"], [60, 195, 3.0, 15.0, "town", "İzyum"],
+			[150, -175, 3.0, 15.0, "town", "Vovçansk"], [225, 70, 3.0, 15.0, "town", "Kupiansk"],
+			[130, 10, 2.0, 12.0, "supply", ""], [95, -160, 2.0, 12.0, "supply", ""], [240, 15, 2.0, 12.0, "supply", ""],
+			[215, 150, 2.0, 12.0, "supply", ""],
 		],
 	},
 	"korfez": {
-		name = "Körfez", ground = Color(0.66, 0.58, 0.4), patch = Color(0.6, 0.5, 0.34),
-		bases = [Vector3(-92, 0, -20), Vector3(92, 0, -20)],
+		name = "Huzistan – Zagros Eteği", size = Vector2(720, 440),
+		ground = Color(0.66, 0.58, 0.4), patch = Color(0.6, 0.5, 0.34), tree_col = Color(0.28, 0.38, 0.18),
+		fields = [Color(0.68, 0.6, 0.42), Color(0.62, 0.54, 0.38), Color(0.7, 0.62, 0.45)],
+		bases_a = [Vector3(-300, 0, -20), Vector3(-290, 0, 110)],
+		bases_b = [Vector3(300, 0, -30), Vector3(295, 0, 100)],
+		water = [{poly = [[-360, 170], [-250, 160], [-150, 175], [-60, 190], [40, 170], [140, 160], [250, 150], [360, 140], [360, 225], [-360, 225]]}],
+		rivers = [
+			{p = [[60, -225], [40, -160], [0, -100], [-20, -40], [-5, 20], [-35, 80], [-20, 130], [-50, 200]], w = 12.0},
+			{p = [[-150, -225], [-170, -150], [-190, -60], [-215, 30], [-200, 100], [-230, 175]], w = 8.0},
+		],
 		rock = [
-			[-60.0, -70.0, -50.0, -30.0], [-60.0, -16.0, -50.0, 22.0],
-			[-20.0, -52.0, -10.0, -4.0], [10.0, -70.0, 20.0, -24.0], [10.0, -10.0, 20.0, 22.0],
-			[50.0, -52.0, 60.0, 4.0], [-30.0, 14.0, -22.0, 28.0], [24.0, 4.0, 34.0, 12.0],
+			{p = [[-120, -225], [-60, -170], [0, -140]], w = 26.0},
+			{p = [[80, -225], [140, -150], [210, -110], [280, -100]], w = 30.0},
+			{p = [[120, -60], [160, -37]], w = 22.0}, {p = [[198, -8], [230, 40]], w = 22.0},
+			{p = [[300, -225], [360, -170]], w = 40.0}, {p = [[-300, -225], [-250, -190]], w = 30.0},
+			{e = [-110, -30, 22, 16]}, {e = [110, 60, 18, 12]},
+		],
+		hills = [
+			{e = [-60, 40, 16, 12]}, {e = [70, -40, 18, 12]}, {e = [160, 90, 20, 13]}, {e = [-260, -80, 15, 10]},
+			{e = [260, 40, 16, 11]}, {e = [-150, 90, 14, 10]}, {e = [40, 120, 14, 10]},
+		],
+		forest = [
+			{e = [-40, 100, 22, 35]}, {e = [-180, -20, 20, 30]}, {e = [10, -40, 18, 25]}, {e = [-200, 140, 25, 18]},
+			{e = [90, 140, 30, 14]}, {e = [-100, 150, 25, 15]},
 		],
 		trees = [], ruins = [],
-		water = [[-110.0, 34.0, 110.0, 70.0], [-40.0, 22.0, 40.0, 34.0]],
-		bridges = [],
-		hills = [[-40.0, -64.0, -28.0, -54.0], [28.0, -64.0, 40.0, -54.0], [-6.0, -32.0, 6.0, -22.0]],
-		forest = [[-86.0, 2.0, -76.0, 12.0], [76.0, 2.0, 86.0, 12.0]],
-		roads = [[-104.0, -21.5, -62.0, -18.5], [62.0, -21.5, 104.0, -18.5], [-1.5, -20.0, 1.5, 4.0]],
-		houses = [[-10.0, 12.0], [-8.0, -2.0], [-42.0, -22.0], [42.0, -22.0]],
+		roads = [
+			{p = [[-360, 100], [-250, 125], [-150, 120], [-60, 135], [60, 125], [200, 120], [360, 100]], w = 6.0, asphalt = true},
+			{p = [[-360, -20], [-250, -15], [-150, 10], [-60, 20], [40, 30], [120, 10], [180, 60], [270, 70], [360, 60]], w = 5.0, asphalt = true},
+			{p = [[40, 30], [45, -60], [40, -95], [-60, -105], [-150, -80], [-250, -60], [-360, -70]], w = 4.0},
+			{p = [[120, 10], [220, -50], [300, -30], [360, -40]], w = 4.0},
+			{p = [[-60, 135], [-90, 165]], w = 4.0},
+		],
+		towns = [
+			[10, 30, 12, 24, "Ahvaz", 0.35], [40, -95, 7, 15, "Dezful", 0.2], [-90, 170, 8, 16, "Abadan", 0.3],
+			[-140, 140, 6, 14, "Hürremşehr", 0.2], [-150, -80, 6, 14, "Şuş", 0.1], [150, 25, 7, 15, "Mescid-i Süleyman", 0.15],
+			[150, 140, 7, 14, "Bender Mahşehr", 0.25],
+		],
+		big = [[-50, -75, "factory"], [100, 100, "factory"], [200, 120, "factory"]],
 		points = [
-			[-76.0, 16.0, 5.0, 12.0, false], [-74.0, -52.0, 5.0, 12.0, false],
-			[-36.0, -30.0, 5.0, 12.0, false], [36.0, -30.0, 5.0, 12.0, false],
-			[76.0, 16.0, 5.0, 12.0, false], [74.0, -52.0, 5.0, 12.0, false],
-			[0.0, -60.0, 8.0, 18.0, false], [0.0, 8.0, 14.0, 25.0, true],
+			[15, 40, 6.0, 25.0, "oil", "Ahvaz petrol terminali"],
+			[-230, -120, 2.0, 12.0, "supply", ""], [-260, 40, 2.0, 12.0, "supply", ""], [-150, 55, 2.0, 12.0, "supply", ""],
+			[-90, -140, 2.0, 12.0, "supply", ""], [-85, 160, 5.0, 18.0, "oil", "Abadan rafinerisi"],
+			[80, -75, 2.0, 12.0, "supply", ""], [-75, -35, 2.0, 12.0, "supply", ""], [60, 90, 2.0, 12.0, "supply", ""],
+			[150, 25, 3.0, 15.0, "town", "Mescid-i Süleyman"], [150, 140, 3.0, 15.0, "town", "Bender Mahşehr"],
+			[40, -90, 3.0, 15.0, "town", "Dezful"], [235, -65, 2.0, 12.0, "supply", ""], [230, 110, 2.0, 12.0, "supply", ""],
+			[255, 10, 2.0, 12.0, "supply", ""], [-220, -180, 2.0, 12.0, "supply", ""], [20, -200, 4.0, 18.0, "oil", "Mescid-i Süleyman petrol sahası"],
 		],
 	},
 	"kesmir": {
-		name = "Sınır Hattı", ground = Color(0.38, 0.44, 0.28), patch = Color(0.43, 0.46, 0.3),
-		bases = [Vector3(-90, 0, 10), Vector3(90, 0, 10)],
-		rock = [
-			[-49.0, -70.0, -41.0, -40.0], [-49.0, -26.0, -41.0, -6.0],
-			[41.0, -70.0, 49.0, -40.0], [41.0, -26.0, 49.0, -6.0],
-			[-26.0, -56.0, -16.0, -46.0], [16.0, -56.0, 26.0, -46.0],
-			[-30.0, -20.0, -22.0, -10.0], [22.0, -20.0, 30.0, -10.0],
-			[-80.0, -70.0, -60.0, -56.0], [60.0, -70.0, 80.0, -56.0],
+		name = "Keşmir – Kontrol Hattı", size = Vector2(720, 440),
+		ground = Color(0.38, 0.44, 0.28), patch = Color(0.43, 0.46, 0.3), tree_col = Color(0.14, 0.3, 0.17),
+		fields = [Color(0.36, 0.48, 0.24), Color(0.5, 0.5, 0.28), Color(0.42, 0.44, 0.26), Color(0.33, 0.43, 0.22)],
+		windbreaks = {sp = 66.0},
+		bases_a = [Vector3(-300, 0, 60), Vector3(-300, 0, -80)],
+		bases_b = [Vector3(300, 0, 40), Vector3(300, 0, -60)],
+		rivers = [
+			{p = [[10, -225], [-5, -160], [20, -110], [0, -50], [25, 10], [0, 80], [20, 150], [0, 225]], w = 14.0},
+			{p = [[-240, -225], [-220, -160], [-250, -100], [-230, -40], [-260, 20], [-240, 90], [-270, 160], [-250, 225]], w = 10.0},
+			{p = [[150, -225], [140, -120], [120, -60], [150, 0], [130, 80], [160, 150], [150, 225]], w = 7.0},
+			{p = [[-360, 175], [-150, 180], [0, 170], [200, 185], [360, 175]], w = 5.0},
 		],
-		trees = [[-70.0, 44.0, -40.0, 48.0], [40.0, 44.0, 70.0, 48.0]],
-		ruins = [],
-		water = [[-4.0, -70.0, 4.0, 70.0]],
-		bridges = [[-5.0, -64.0, 5.0, -56.0], [-5.0, -34.0, 5.0, -26.0], [-10.0, 0.0, 10.0, 20.0], [-5.0, 50.0, 5.0, 58.0]],
-		hills = [[-38.0, -40.0, -28.0, -30.0], [28.0, -40.0, 38.0, -30.0], [-66.0, 18.0, -56.0, 28.0], [56.0, 18.0, 66.0, 28.0]],
-		forest = [[-70.0, 30.0, -50.0, 42.0], [50.0, 30.0, 70.0, 42.0], [-20.0, -30.0, -8.0, -22.0], [8.0, -30.0, 20.0, -22.0]],
-		roads = [[-104.0, 8.5, 104.0, 11.5]],
-		houses = [[-14.0, 3.0], [14.0, 17.0], [-24.0, 40.0], [24.0, 48.0]],
+		water = [],
+		rock = [
+			{poly = [[-360, -225], [360, -225], [360, -170], [250, -150], [200, -175], [150, -140], [90, -160], [40, -175], [-10, -150],
+				[-60, -165], [-110, -140], [-160, -170], [-230, -150], [-300, -165], [-360, -150]]},
+			{p = [[-110, -140], [-90, -90], [-70, -60]], w = 22.0}, {p = [[150, -140], [130, -90], [150, -50]], w = 22.0},
+			{p = [[250, -150], [270, -110]], w = 26.0}, {e = [-20, -40, 16, 12]},
+		],
+		hills = [
+			{e = [-130, -30, 16, 12]}, {e = [90, -30, 18, 12]}, {e = [-50, 40, 14, 10]}, {e = [70, 40, 14, 10]},
+			{e = [200, -20, 16, 11]}, {e = [-200, 20, 14, 10]}, {e = [-180, 130, 14, 10]}, {e = [250, 130, 14, 10]},
+		],
+		forest = [
+			{e = [-180, -110, 45, 25]}, {e = [60, -115, 40, 25]}, {e = [220, -95, 35, 25]}, {e = [-40, -100, 25, 18]},
+			{e = [-120, 60, 28, 18]}, {e = [90, 100, 30, 18]}, {e = [-60, 140, 25, 15]}, {e = [210, 60, 22, 18]},
+		],
+		trees = [], ruins = [],
+		roads = [
+			{p = [[-360, 40], [-220, 60], [-170, 90], [-60, 100], [40, 110], [130, 105], [200, 110], [300, 90], [360, 80]], w = 6.0, asphalt = true},
+			{p = [[-360, -70], [-250, -60], [-150, -60], [-60, -20], [30, -10], [110, -10], [200, -30], [300, -60], [360, -60]], w = 4.0},
+			{p = [[-150, -140], [-150, -60], [-170, 90], [-160, 225]], w = 4.0},
+			{p = [[200, -140], [200, -30], [200, 110], [210, 225]], w = 4.0},
+			{p = [[45, 70], [40, 110]], w = 4.0},
+		],
+		towns = [
+			[-170, 90, 10, 20, "Siyalkot", 0.35], [200, 110, 10, 20, "Cammu", 0.35], [45, 70, 7, 14, "Akhnur", 0.2],
+			[-150, -60, 6, 12, "Kotli", 0.1], [100, -70, 6, 12, "Racuri", 0.1], [-90, 150, 6, 12, "Şakargarh", 0.15],
+			[260, 165, 6, 12, "Kathua", 0.15],
+		],
+		big = [[-20, 100, "factory"], [120, 140, "factory"], [-110, 20, "factory"]],
 		points = [
-			[-68.0, -36.0, 5.0, 12.0, false], [-68.0, 52.0, 5.0, 12.0, false],
-			[-24.0, -34.0, 5.0, 12.0, false], [-24.0, 44.0, 5.0, 12.0, false],
-			[24.0, -34.0, 5.0, 12.0, false], [24.0, 44.0, 5.0, 12.0, false],
-			[68.0, -36.0, 5.0, 12.0, false], [68.0, 52.0, 5.0, 12.0, false],
-			[0.0, 10.0, 12.0, 25.0, true],
+			[45, 70, 5.0, 25.0, "town", "Akhnur"],
+			[-200, -140, 2.0, 12.0, "supply", ""], [-190, -10, 2.0, 12.0, "supply", ""], [-210, 150, 2.0, 12.0, "supply", ""],
+			[-60, -120, 2.0, 12.0, "supply", ""], [-110, 120, 2.0, 12.0, "supply", ""], [-40, 200, 2.0, 12.0, "supply", ""],
+			[-170, 90, 3.0, 15.0, "town", "Siyalkot"], [-150, -60, 3.0, 15.0, "town", "Kotli"], [100, -70, 3.0, 15.0, "town", "Racuri"],
+			[200, 110, 3.0, 15.0, "town", "Cammu"], [260, 165, 3.0, 15.0, "town", "Kathua"], [-90, 150, 3.0, 15.0, "town", "Şakargarh"],
+			[110, -125, 2.0, 12.0, "supply", ""], [250, 0, 2.0, 12.0, "supply", ""], [100, 30, 2.0, 12.0, "supply", ""],
+			[-60, 10, 2.0, 12.0, "supply", ""],
 		],
 	},
 }
@@ -476,26 +558,26 @@ const TIPS := {
 const LIST := [
 	{
 		name = "Rusya – Ukrayna", map = "harkiv", a = "ua", b = "ru",
-		desc = "Harkiv açıkları. İki taraf da yoğun drone saldırıları yüzünden ilerleyemiyor. Ukrayna drone'lara, Rusya ağır zırh ve topçuya güvenir.",
+		desc = "Harkiv'in doğusu: Severski Donets ve Oskil nehirleri, köprüler, Peçenihi barajı, geniş ormanlar ve ağaç hatlarıyla bölünmüş tarlalar. Ukrayna'nın tankı yok; drone'larla Rus zırhını avlar. Rusya ağır zırh ve topçuya güvenir.",
 		obj = {
-			a = {type = "hold", point = 8, secs = 480.0, text = "Merkez köyü toplam 8 dakika elinde tut"},
-			b = {type = "hold", point = 8, secs = 480.0, text = "Merkez köyü toplam 8 dakika elinde tut"},
+			a = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
 		},
 	},
 	{
 		name = "İran – İsrail", map = "korfez", a = "il", b = "ir",
-		desc = "İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir. Dağlar yüzünden kara harekâtı uzun ve zordur.",
+		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir.",
 		obj = {
 			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, text = "4 stratejik hedefi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
-			b = {type = "hold", point = 7, secs = 480.0, text = "Petrol terminalini toplam 8 dakika elinde tut"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Ahvaz petrol terminalini toplam 10 dakika elinde tut"},
 		},
 	},
 	{
 		name = "Pakistan – Hindistan", map = "kesmir", a = "pk", b = "in",
-		desc = "Dağlık kuzey, nehirli ova. Pakistan balistik füzelere, Hindistan dengeli ordusuna ve insan gücüne güvenir.",
+		desc = "Kontrol Hattı: kuzeyde Himalaya eteklerinin çam ormanları ve hâkim tepeler, güneyde kanallarla bölünmüş Pencap ovası; Chenab, Jhelum ve Tawi nehirleri. Pakistan balistik füzelere, Hindistan insan gücüne güvenir.",
 		obj = {
 			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla", "fuze"], count = 3, text = "3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla, füze üssü)"},
-			b = {type = "hold", point = 8, secs = 480.0, text = "Orta geçidi toplam 8 dakika elinde tut"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Akhnur köprübaşını toplam 10 dakika elinde tut"},
 		},
 	},
 	{name = "Çin – ABD: Tayvan Çıkarması", locked = true, desc = "Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır. Deniz moduyla açılacak."},
@@ -504,15 +586,46 @@ const LIST := [
 ]
 
 
-## Seçilen senaryoya göre Defs tablolarını doldurur. Oyuncunun ülkesi her zaman takım 0 olur.
+## Seçilen senaryoya ve maç düzenine göre Defs tablolarını doldurur. Oyuncunun ülkesi her zaman takım 0,
+## ana düşman takım 1'dir; düzene göre bir düşman üssü ve bir müttefik daha eklenebilir.
 static func setup() -> void:
 	var scn: Dictionary = LIST[chosen]
+	var md: Dictionary = Defs.MODES[clampi(mode, 0, Defs.MODES.size() - 1)]
+	if tutorial:
+		md = Defs.MODES[0]
 	var codes: Array = [scn.a, scn.b] if side == 0 else [scn.b, scn.a]
 	var map: Dictionary = MAPS[scn.map].duplicate(true)
 	if side == 1:
-		map.bases = [map.bases[1], map.bases[0]]
+		var tmp = map.bases_a
+		map.bases_a = map.bases_b
+		map.bases_b = tmp
+	Defs.MAP_W = map.size.x
+	Defs.MAP_H = map.size.y
+	Defs.SIDE = md.sides.duplicate()
+	Defs.N = Defs.SIDE.size()
+	Defs.COUNTRY = []
+	Defs.TEAM_COLORS = []
+	Defs.TEAM_NAMES = []
+	map.team_bases = []
+	var used := [0, 0]
+	for t in Defs.N:
+		var s: int = Defs.SIDE[t]
+		var cc: String = codes[s]
+		Defs.COUNTRY.append(cc)
+		map.team_bases.append((map.bases_a if s == 0 else map.bases_b)[used[s]])
+		var nm: String = COUNTRIES[cc].name
+		if t == Defs.PLAYER:
+			Defs.TEAM_COLORS.append(Defs.COL_PLAYER)
+		elif s == 0:
+			Defs.TEAM_COLORS.append(Defs.COL_ALLY)
+			nm += " (müttefik)"
+		else:
+			Defs.TEAM_COLORS.append(Defs.COL_FOES[used[1] % Defs.COL_FOES.size()])
+			if Defs.N > 2:
+				nm += [" (1. ordu)", " (2. ordu)"][used[1] % 2]
+		Defs.TEAM_NAMES.append(nm)
+		used[s] += 1
 	Defs.SCN = scn
-	Defs.COUNTRY = codes
 	Defs.MAP = map
 	Defs.UNITS = {}
 	Defs.BUILDINGS = {}

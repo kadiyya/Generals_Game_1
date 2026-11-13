@@ -16,11 +16,13 @@ func _ready() -> void:
 			Scenarios.side = int(a.trim_prefix("--side="))
 		elif a.begins_with("--diff="):
 			Scenarios.difficulty = int(a.trim_prefix("--diff="))
+		elif a.begins_with("--mode="):
+			Scenarios.mode = int(a.trim_prefix("--mode="))
 	Scenarios.tutorial = args.has("--tutorial")
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--maptest"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:
@@ -223,6 +225,7 @@ func _continue() -> void:
 	Scenarios.chosen = int(info.scn)
 	Scenarios.side = int(info.side)
 	Scenarios.difficulty = int(info.diff)
+	Scenarios.mode = int(info.get("mode", 0))
 	Scenarios.tutorial = false
 	Scenarios.load_data = info
 	_start()

@@ -5,7 +5,7 @@ extends RefCounted
 ## Not: bu dosya yalnızca Kit çağrıları ve düz hesap içerir; geliştirme önizleme aracı da aynı kodu okur.
 
 const IDS := ["hq", "santral", "maden", "kisla", "fabrika", "havaalani", "teknoloji", "fuze", "sam_box", "sam_tube",
-	"crane", "supply_oil", "supply_crates", "obstacle", "house", "trench", "mine"]
+	"crane", "supply_oil", "supply_crates", "obstacle", "house", "trench", "mine", "block", "ruin_factory"]
 
 
 static func has(id: String) -> bool:
@@ -57,6 +57,10 @@ static func design(id: String, k: Kit) -> void:
 		_obstacle(k)
 	elif id == "house":
 		_house(k)
+	elif id == "block":
+		_apartment(k)
+	elif id == "ruin_factory":
+		_ruin_factory(k)
 	elif id == "trench":
 		_trench(k)
 	elif id == "mine":
@@ -607,3 +611,51 @@ static func _trench(k: Kit) -> void:
 static func _mine(k: Kit) -> void:
 	k.lathe("hull2", [Vector2(0, 0), Vector2(0.45, 0), Vector2(0.45, 0.1), Vector2(0.2, 0.16), Vector2(0, 0.17)], Vector3.ZERO, Vector3.ZERO, 10)
 	k.lathe("team", [Vector2(0, 0.17), Vector2(0.12, 0.17), Vector2(0.12, 0.2), Vector2(0, 0.2)], Vector3.ZERO, Vector3.ZERO, 8)
+
+
+## Yıkık apartman: dört katlı panel blok, balkonlar, bir köşesi çökmüş; dibinde moloz.
+static func _apartment(k: Kit) -> void:
+	_block(k, "conc", Vector3(5.4, 5.2, 3.6), Vector3(0, 0, 0))
+	for f in 4:
+		var y := 0.75 + f * 1.25
+		_win_z(k, -2.4, 2.4, y, 1.82, 5, 0.55)
+		_win_z(k, -2.4, 2.4, y, -1.82, 5, 0.55)
+		_win_x(k, -1.3, 1.3, y, 2.72, 2, 0.55)
+		_win_x(k, -1.3, 1.3, y, -2.72, 2, 0.55)
+		if f > 0:
+			for i in 3:
+				k.box("conc2", Vector3(1.0, 0.08, 0.5), Vector3(-1.6 + i * 1.6, y - 0.4, 2.05))
+				k.box("conc2", Vector3(1.0, 0.4, 0.05), Vector3(-1.6 + i * 1.6, y - 0.2, 2.3))
+	k.box("conc2", Vector3(0.12, 5.2, 3.7), Vector3(0, 2.6, 0))
+	# çökmüş köşe: kararmış boşluklar ve sarkan döşeme
+	k.box("dark", Vector3(1.7, 2.3, 0.1), Vector3(1.75, 4.1, 1.84))
+	k.box("dark", Vector3(0.1, 2.3, 1.6), Vector3(2.74, 4.1, 1.0))
+	k.box("conc2", Vector3(1.6, 0.12, 1.4), Vector3(1.9, 3.1, 1.3), Vector3(0, 0, -16))
+	for i in 7:
+		k.box("conc2", Vector3(0.5 + (i % 3) * 0.2, 0.3, 0.45), Vector3(2.2 + (i % 4) * 0.35, 0.15 + (i / 4) * 0.25, 1.4 + (i % 3) * 0.5), Vector3(0, i * 37.0, i * 7.0))
+	_door(k, Vector3(-1.6, 0, 1.82), 0.9, 1.3, false)
+	_sandbags(k, Vector3(-2.6, 0, 2.3), 0.0, 3)
+
+
+## Terk edilmiş fabrika: yarısı çökmüş çatı, çıplak çelik makaslar, delik duvarlar, devrik baca.
+static func _ruin_factory(k: Kit) -> void:
+	_slab(k, "conc2", 9.6, 7.6, Vector3(0, 0.08, 0))
+	k.box("conc", Vector3(8.8, 3.0, 0.35), Vector3(0, 1.58, -3.4))
+	k.box("conc", Vector3(3.4, 3.0, 0.35), Vector3(-2.7, 1.58, 3.4))
+	k.box("conc", Vector3(2.6, 1.6, 0.35), Vector3(3.1, 0.88, 3.4))
+	k.box("conc", Vector3(0.35, 3.0, 6.8), Vector3(-4.4, 1.58, 0))
+	k.box("conc", Vector3(0.35, 2.2, 3.6), Vector3(4.4, 1.18, -1.6))
+	_win_z(k, -4.0, -1.2, 2.0, 3.6, 3, 0.7)
+	_win_z(k, -4.0, 4.0, 2.0, -3.6, 6, 0.7)
+	# çatı: sol yarısı sağlam, sağda yalnız makaslar
+	k.box("roof", Vector3(4.6, 0.12, 7.0), Vector3(-2.2, 3.15, 0))
+	for i in 5:
+		var z := -3.0 + i * 1.5
+		k.box("steel", Vector3(8.6, 0.14, 0.14), Vector3(0, 3.1, z))
+		k.box("steel", Vector3(0.1, 0.9, 0.1), Vector3(2.2, 3.5, z), Vector3(0, 0, 50))
+	k.box("roof", Vector3(2.4, 0.1, 2.0), Vector3(2.4, 1.6, 1.4), Vector3(30, 20, 18))
+	_stack(k, Vector3(3.4, 0.08, -2.6), 0.32, 6.5)
+	k.box("conc", Vector3(0.6, 0.6, 3.0), Vector3(5.6, 0.35, 1.6), Vector3(0, 30, 90))
+	for i in 9:
+		k.box("conc2", Vector3(0.6, 0.35, 0.5), Vector3(1.0 + (i % 3) * 0.9, 0.2 + (i / 3) * 0.2, 1.0 + (i % 4) * 0.6), Vector3(0, i * 41.0, i * 9.0))
+	_crates(k, Vector3(-3.0, 0.08, 1.0))

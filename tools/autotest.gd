@@ -126,7 +126,7 @@ func _act() -> void:
 		var pos := Vector3.INF
 		if a.target:
 			for t in g.entities:
-				if t.team == 1 and g.fog.sees(0, t.global_position):
+				if Defs.foe(0, t.team) and g.fog.sees(0, t.global_position):
 					pos = t.global_position
 					break
 		if not a.target or pos != Vector3.INF:
@@ -155,24 +155,34 @@ func _process(dt: float) -> void:
 	log_t -= dt
 	if log_t <= 0.0:
 		log_t = 60.0
-		var c := [0, 0]
+		var c: Array = []
+		var own: Array = []
+		var money: Array = []
+		var tiers: Array = []
+		for t in Defs.N:
+			c.append(0)
+			own.append(0)
+			money.append(int(g.teams[t].money))
+			tiers.append(g.teams[t].tier)
 		for e in g.entities:
 			c[e.team] += 1
-		var own := [0, 0]
 		for p in g.points:
 			if p.owner_team >= 0:
 				own[p.owner_team] += 1
-		print("t=%d  varlik=%s  nokta=%s  para=[%d,%d]  kademe=[%d,%d]  fuze=%d" % [
-			int(g.time), c, own, int(g.teams[0].money), int(g.teams[1].money),
-			g.teams[0].tier, g.teams[1].tier, launched])
+		print("t=%d  varlik=%s  nokta=%s  para=%s  kademe=%s  fuze=%d  fps=%d" % [
+			int(g.time), c, own, money, tiers, launched, Engine.get_frames_per_second()])
 	if g.time > end_time or g.over:
 		_shot("08_son")
 		var kinds := {}
 		for id in made:
 			kinds[Defs.UNITS[id].cls] = true
-		var ranks := [0, 0]
-		var garr := [0, 0]
-		var dug := [0, 0]
+		var ranks: Array = []
+		var garr: Array = []
+		var dug: Array = []
+		for t in Defs.N:
+			ranks.append(0)
+			garr.append(0)
+			dug.append(0)
 		for e in g.entities:
 			ranks[e.team] = maxi(ranks[e.team], e.rank)
 			if e is Unit:

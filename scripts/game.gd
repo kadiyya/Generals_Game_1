@@ -31,6 +31,8 @@ const MISSILE_MULT := {inf = 1.0, light = 1.0, heavy = 0.8, bld = 1.3}
 var teams: Array = []
 var entities: Array = []
 var points: Array = []
+var bridges: Array = []
+var ais: Array = []
 var selection: Array = []
 var menu := ""                   # "build" ise inşa menüsü açık
 var placing := ""                # yerleştirilen bina türü
@@ -56,11 +58,13 @@ var mines: Array = []            # {team, pos, node}
 var ab_targeting := false        # doktrin yeteneği için hedef seçiliyor
 var rally_for: Building = null   # toplanma noktası seçiliyor
 var patrol_pick := false         # devriye noktası seçiliyor
+var bridge_pick := false         # yıkılacak köprü seçiliyor
 var rally_flag: Node3D = null
 var groups: Array = [[], [], []] # kayıtlı birlik grupları
 var tutorial_on := false
 var _save_t := 60.0
 const SAVE_PATH := "user://kayit.json"
+const SAVE_V := 2
 var _tick_t := 0.0
 var _puff: SphereMesh = null
 
@@ -70,8 +74,9 @@ func _ready() -> void:
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	Scenarios.setup()
-	teams = [TeamState.new(), TeamState.new()]
-	for t in 2:
+	teams = []
+	for t in Defs.N:
+		teams.append(TeamState.new())
 		apply_mods(t, Scenarios.doctrine(t).mods)
 	_build_world()
 	terrain = Terrain.new()
@@ -85,25 +90,35 @@ func _ready() -> void:
 	for p in Defs.MAP.points:
 		var sp := SupplyPoint.new()
 		add_child(sp)
-		sp.setup(Vector3(p[0], 0, p[1]), p[2], p[3], p[4])
+		sp.setup_point(Vector3(p[0], 0, p[1]), p[2], p[3], p[4], p[5])
 		points.append(sp)
+	for bd in terrain.bridge_data:
+		var br := Bridge.new()
+		add_child(br)
+		br.setup_bridge(bd)
+		bridges.append(br)
 	var loading := not Scenarios.load_data.is_empty()
 	if not loading:
-		for t in 2:
-			_setup_base(t, Defs.MAP.bases[t])
-	for h in Defs.MAP.get("houses", []):
+		for t in Defs.N:
+			_setup_base(t, Defs.MAP.team_bases[t])
+	for h in terrain.house_data:
 		var g := Garrison.new()
 		add_child(g)
-		g.setup(Vector3(h[0], 0, h[1]))
+		g.setup(Vector3(h[0], 0, h[1]), h[2])
 		houses.append(g)
 	var marked := {}
-	for t in 2:
+	for t in [Defs.leader(0), Defs.leader(1)]:
 		var o := Scenarios.objective(t)
 		if o.get("type", "") == "hold" and not marked.has(o.point):
 			marked[o.point] = true
 			var r := Models.ring(SupplyPoint.RADIUS + 1.2, Color(1.0, 0.8, 0.2))
 			r.position = points[o.point].position + Vector3(0, 0.1, 0)
 			add_child(r)
+	for t in range(1, Defs.N):
+		var ai := EnemyAI.new()
+		ai.T = t
+		ais.append(ai)
+		add_child(ai)
 	if loading:
 		_restore(Scenarios.load_data)
 		Scenarios.load_data = {}
@@ -115,7 +130,6 @@ func _ready() -> void:
 	add_child(hud)
 	controls = Controls.new()
 	add_child(controls)
-	add_child(EnemyAI.new())
 	if Scenarios.tutorial:
 		tutorial_on = true
 		add_child(load("res://scripts/tutorial.gd").new())
@@ -141,6 +155,10 @@ func _ready() -> void:
 		add_child(load("res://tools/loadtest.gd").new())
 	elif args.has("--tuttest"):
 		add_child(load("res://tools/tuttest.gd").new())
+	elif args.has("--maptest"):
+		add_child(load("res://tools/maptest.gd").new())
+	elif args.has("--mapshot"):
+		add_child(load("res://tools/mapshot.gd").new())
 	elif args.has("--duel"):
 		add_child(load("res://tools/duel.gd").new())
 
@@ -196,27 +214,10 @@ func _build_world() -> void:
 	sun.rotation_degrees = Vector3(-52, 35, 0)
 	sun.light_energy = 0.8
 	sun.shadow_enabled = Settings.get_v("shadows")
-	sun.directional_shadow_max_distance = 140.0
+	sun.directional_shadow_max_distance = 130.0
 	add_child(sun)
 
-	var deco := Node3D.new()
-	add_child(deco)
-	var w := Defs.MAP_W
-	var h := Defs.MAP_H
-	var ground: Color = Defs.MAP.ground
-	dust_color = ground.lerp(Color(0.75, 0.7, 0.6), 0.55)
-	var outer := Models.box(deco, Vector3(w + 80, 0.2, h + 80), Vector3(0, -0.2, 0), ground)
-	outer.material_override = Tex.mat("ground", ground.darkened(0.45), 0.05, true)
-	var land := Models.box(deco, Vector3(w, 0.2, h), Vector3(0, -0.1, 0), ground)
-	land.material_override = Tex.mat("ground", ground, 0.07, true)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for i in 46:
-		var r := rng.randf_range(4.0, 10.0)
-		var c: Color = Defs.MAP.patch if i % 2 == 0 else ground.darkened(0.1)
-		var m := Models.cyl(deco, r, r, 0.03, Vector3(rng.randf_range(-w * 0.47, w * 0.47), -0.005, rng.randf_range(-h * 0.45, h * 0.45)), c, Vector3.ZERO, 10)
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.material_override = Tex.mat("ground", c, 0.11, true)
+	dust_color = (Defs.MAP.ground as Color).lerp(Color(0.75, 0.7, 0.6), 0.55)
 
 
 func _setup_base(team: int, pos: Vector3) -> void:
@@ -260,7 +261,7 @@ func _process(dt: float) -> void:
 		return
 	_rebuild_buckets()
 	time += dt
-	for t in 2:
+	for t in Defs.N:
 		var ts: TeamState = teams[t]
 		var inc := 0.0
 		if ts.hq != null and is_instance_valid(ts.hq) and ts.hq.alive:
@@ -271,7 +272,7 @@ func _process(dt: float) -> void:
 		for e in entities:
 			if e.is_building and e.team == t and e.built and e.d.has("income"):
 				inc += float(e.d.income)
-		if t == Defs.ENEMY:
+		if Defs.foe(Defs.PLAYER, t):
 			inc *= float(Defs.DIFFS[Scenarios.difficulty].income)
 		ts.income = inc
 		ts.money += inc * dt
@@ -283,9 +284,10 @@ func _process(dt: float) -> void:
 				_msg(t, "Kademe %d hazır: yeni birim ve binalar açıldı." % ts.tier)
 				if t == Defs.PLAYER:
 					hud.rebuild()
-	for t in 2:
+	for t in Defs.N:
 		teams[t].ab_cd = maxf(0.0, teams[t].ab_cd - dt)
-		_objective(t, dt)
+	for sd in 2:
+		_objective(Defs.leader(sd), dt)
 	_recalc_t -= dt
 	if _recalc_t <= 0.0:
 		_recalc_t = 0.3
@@ -305,8 +307,10 @@ func _process(dt: float) -> void:
 
 
 func recalc() -> void:
-	var building := [0, 0]
-	for t in 2:
+	var building: Array = []
+	building.resize(Defs.N)
+	building.fill(0)
+	for t in Defs.N:
 		teams[t].power_prod = 0
 		teams[t].power_used = 0
 		teams[t].pop = 0
@@ -427,11 +431,15 @@ func on_entity_died(e: Entity) -> void:
 		if targeting == e:
 			cancel_targeting()
 		if e.kind == "hq":
-			_end(1 - e.team)
-		var o := Scenarios.objective(1 - e.team)
-		if o.get("type", "") == "destroy" and e.kind in o.kinds and e.built:
-			teams[1 - e.team].obj_prog += 1.0
-			_objective(1 - e.team, 0.0)
+			_hq_lost(e.team)
+		for sd in 2:
+			if sd == Defs.SIDE[e.team]:
+				continue
+			var lt := Defs.leader(sd)
+			var o := Scenarios.objective(lt)
+			if o.get("type", "") == "destroy" and e.kind in o.kinds and e.built:
+				teams[lt].obj_prog += 1.0
+				_objective(lt, 0.0)
 	recalc()
 
 
@@ -461,12 +469,29 @@ func alert_base() -> void:
 		hud.toast("Üssün saldırı altında!")
 
 
+## Bir takımın karargâhı yıkıldı: oyuncununki ise yenilgi; düşman tarafında karargâhı kalmazsa zafer.
+func _hq_lost(t: int) -> void:
+	if t == Defs.PLAYER:
+		_end(1 - Defs.SIDE[Defs.PLAYER])
+		return
+	if Defs.friendly(t):
+		hud.toast("Müttefik karargâhı yıkıldı!", 6.0)
+		return
+	for o in Defs.N:
+		var h: Building = teams[o].hq
+		if Defs.foe(Defs.PLAYER, o) and h != null and is_instance_valid(h) and h.alive:
+			hud.toast("%s karargâhı yıkıldı! Bir düşman üssü daha var." % Defs.TEAM_NAMES[t], 6.0)
+			return
+	_end(Defs.SIDE[Defs.PLAYER])
+
+
+## w: kazanan taraf.
 func _end(w: int) -> void:
 	if FileAccess.file_exists(SAVE_PATH):
 		DirAccess.remove_absolute(SAVE_PATH)
 	over = true
 	winner = w
-	hud.show_end(w == Defs.PLAYER)
+	hud.show_end(w == Defs.SIDE[Defs.PLAYER])
 
 
 func _msg(team: int, text: String) -> void:
@@ -577,7 +602,7 @@ func buy_crane(team: int) -> bool:
 
 func can_place(team: int, kind: String, pos: Vector3) -> bool:
 	var hq: Building = teams[team].hq
-	if Entity.flat(pos, hq.position) > Defs.BUILD_ZONE:
+	if hq == null or not is_instance_valid(hq) or Entity.flat(pos, hq.position) > Defs.BUILD_ZONE:
 		return false
 	var r: float = float(Defs.BUILDINGS[Defs.bid(team, kind)].radius)
 	# Binanın oturacağı alan düz kara olmalı.
@@ -644,6 +669,7 @@ func cancel_modes() -> void:
 	ab_targeting = false
 	rally_for = null
 	patrol_pick = false
+	bridge_pick = false
 
 
 # ---------------------------------------------------------------- toplanma noktası, devriye, gruplar
@@ -679,6 +705,40 @@ func set_patrol(world: Vector3) -> void:
 		elif u is AirUnit:
 			u.set_patrol(world)
 	fx_marker(world, Color(0.4, 0.8, 1.0))
+	hud.rebuild()
+
+
+## Köprü yıkma: seçili birlikler dokunulan köprüye ateş eder.
+func begin_bridge_pick() -> void:
+	cancel_modes()
+	bridge_pick = true
+	hud.toast("Yıkılacak köprüye dokun. Topçu, füze ve uçaklar da köprüleri yıkabilir.", 5.0)
+	hud.rebuild()
+
+
+func bridge_at(world: Vector3):
+	var best = null
+	var bd := 4.0
+	for br in bridges:
+		var dd: float = br.dist_to(world)
+		if br.alive and dd < bd:
+			bd = dd
+			best = br
+	return best
+
+
+func try_bridge(world: Vector3) -> void:
+	var br = bridge_at(world)
+	if br == null:
+		hud.toast("Orada sağlam bir köprü yok.")
+		return
+	bridge_pick = false
+	var n := 0
+	for u in selected_units():
+		if u.has_weapon() and u.can_hit(br):
+			n += 1
+		order_attack([u], br)
+	hud.toast("%d birlik köprüye ateş ediyor." % n if n > 0 else "Köprü görülmüyor ya da birlikler köprüye ateş edemiyor.")
 	hud.rebuild()
 
 
@@ -804,7 +864,7 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	s.trail = true
 	if not m.get("hypersonic", false):
 		for e in entities:
-			if e.is_building and e.team != b.team and e.kind == "sam" and e.built and e.powered():
+			if e.is_building and Defs.foe(b.team, e.team) and e.kind == "sam" and e.built and e.powered():
 				if Entity.flat(e.position, pos) <= e.wrange() and randf() < Defs.INTERCEPT_CHANCE:
 					s.intercept_at = randf_range(0.6, 0.85)
 					fx_tracer(e.muzzle_pos(), e.muzzle_pos() + Vector3(0, 30, 0), Color(1, 1, 1), 0.15, 0.4)
@@ -896,7 +956,11 @@ func select_same_on_screen(src: Entity) -> void:
 func pick_entity(sp: Vector2):
 	var best = null
 	var best_s := 1.0
-	for e in entities:
+	var cands: Array = entities.duplicate()
+	for p in points:
+		if Defs.foe(Defs.PLAYER, p.team):
+			cands.append(p)
+	for e in cands:
 		if not e.alive or not e.seen:
 			continue
 		var wp: Vector3 = e.aim_pos()
@@ -961,6 +1025,8 @@ func order_retreat(units: Array) -> void:
 	if units.is_empty():
 		return
 	var hq: Building = teams[units[0].team].hq
+	if hq == null or not is_instance_valid(hq):
+		return
 	var pos := hq.position + Vector3(-signf(hq.position.x) * 12.0, 0, 0)
 	order_move(units, pos, false)
 	# Geri çekilen birlik daha hızlı gider ve %30 az hasar alır.
@@ -989,7 +1055,7 @@ func order_enter(units: Array, house) -> void:
 
 func pick_house(world: Vector3):
 	for h in houses:
-		if Entity.flat(world, h.position) < Garrison.RADIUS + 1.2:
+		if Entity.flat(world, h.position) < h.radius + 1.2:
 			return h
 	return null
 
@@ -1014,7 +1080,7 @@ func place_mine(team: int, pos: Vector3) -> bool:
 	ts.money -= Defs.MINE_COST
 	var node := Models.build({"model": "mine"}, team)
 	node.position = pos
-	node.visible = team == Defs.PLAYER
+	node.visible = Defs.friendly(team)
 	add_child(node)
 	mines.append({team = team, pos = pos, node = node})
 	_msg(team, "Mayın döşendi (%d/%d)." % [team_mines(team), Defs.MAX_LANDMINES])
@@ -1042,7 +1108,7 @@ func place_obstacle(team: int, pos: Vector3) -> bool:
 func _mine_tick() -> void:
 	for m in mines.duplicate():
 		for e in nearby(m.pos, 4.0):
-			if e.team != m.team and e.alive and not e.is_air and not e.is_building and e.armor != "inf":
+			if Defs.foe(m.team, e.team) and e.alive and not e.is_air and not e.is_building and e.armor != "inf":
 				if Entity.flat(e.global_position, m.pos) <= e.radius + 0.8:
 					fx_explosion(m.pos + Vector3(0, 0.5, 0), 2.4)
 					fx_scorch(m.pos, 1.6)
@@ -1053,9 +1119,9 @@ func _mine_tick() -> void:
 						hud.toast("Birliğin mayına çarptı!")
 					break
 		# Düşman mayını, yanına gelen birliğe görünür olur.
-		if m.team != Defs.PLAYER and not m.node.visible:
+		if not Defs.friendly(m.team) and not m.node.visible:
 			for e in entities:
-				if e.team == Defs.PLAYER and not e.is_air and not e.is_building and Entity.flat(e.global_position, m.pos) < 5.0:
+				if Defs.friendly(e.team) and not e.is_air and not e.is_building and Entity.flat(e.global_position, m.pos) < 5.0:
 					m.node.visible = true
 					break
 
@@ -1068,7 +1134,7 @@ func _ew_tick(dt: float) -> void:
 			continue
 		var r: float = e.d.ew
 		for o in nearby(e.global_position, r):
-			if o.team == e.team or not o.is_air or not o.alive:
+			if not Defs.foe(e.team, o.team) or not o.is_air or not o.alive:
 				continue
 			if Entity.flat(e.global_position, o.global_position) > r:
 				continue
@@ -1093,7 +1159,7 @@ func _objective(t: int, dt: float) -> void:
 	var need := 1.0
 	if o.type == "hold":
 		need = float(o.secs)
-		if points[o.point].owner_team == t:
+		if Defs.ally(points[o.point].owner_team, t):
 			ts.obj_prog += dt
 	else:
 		need = float(o.count)
@@ -1101,9 +1167,9 @@ func _objective(t: int, dt: float) -> void:
 	var steps := [0.5, 0.8]
 	if ts.obj_note < steps.size() and f >= steps[ts.obj_note]:
 		ts.obj_note += 1
-		hud.toast(("Görev: %%%d tamamlandı." if t == Defs.PLAYER else "Uyarı: düşman görevinin %%%d'ini tamamladı!") % int(f * 100.0), 6.0)
+		hud.toast(("Görev: %%%d tamamlandı." if Defs.friendly(t) else "Uyarı: düşman görevinin %%%d'ini tamamladı!") % int(f * 100.0), 6.0)
 	if f >= 1.0:
-		_end(t)
+		_end(Defs.SIDE[t])
 
 
 func objective_fraction(t: int) -> float:
@@ -1191,7 +1257,7 @@ func use_ability(team: int, pos: Vector3) -> bool:
 			var m := missile_info(team, 0)
 			var sams: Array = []
 			for e in entities:
-				if e.is_building and e.team != team and e.kind == "sam" and e.built and e.powered() and Entity.flat(e.position, pos) <= e.wrange():
+				if e.is_building and Defs.foe(team, e.team) and e.kind == "sam" and e.built and e.powered() and Entity.flat(e.position, pos) <= e.wrange():
 					sams.append(e)
 			for i in 4:
 				# Her batarya en çok bir füzeyi önleyebilir: doyurma saldırısı.
@@ -1240,7 +1306,9 @@ func _sky_shell(team: int, pos: Vector3) -> void:
 	s.scale = Vector3.ONE * 0.5
 	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	s.src_team = team
-	s.start = pos + Vector3(-signf(pos.x - teams[team].hq.position.x) * 20.0, 40.0, 0)
+	var hq: Building = teams[team].hq
+	var hx: float = hq.position.x if hq != null and is_instance_valid(hq) else 0.0
+	s.start = pos + Vector3(-signf(pos.x - hx) * 20.0, 40.0, 0)
 	s.end = Vector3(pos.x, 0.3, pos.z)
 	s.speed = 55.0
 	s.base = 100.0
@@ -1282,9 +1350,16 @@ func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: 
 
 func splash_damage(pos: Vector3, r: float, base: float, mult: Dictionary, src_team: int, tag := "", attacker = null) -> void:
 	for e in nearby(pos, r + 7.0):
-		if e.alive and e.team != src_team and not e.is_air:
+		if e.alive and Defs.foe(src_team, e.team) and not e.is_air:
 			if Entity.flat(e.global_position, pos) - e.radius <= r:
 				e.take_damage(base * float(mult.get(e.armor, 0.0)), attacker, tag)
+	# Köprüler ve ikmal noktaları da alan hasarından payını alır.
+	for br in bridges:
+		if br.alive and br.dist_to(pos) <= r:
+			br.take_damage(base * float(mult.get("bld", 0.0)), attacker, tag)
+	for p in points:
+		if p.alive and Defs.foe(src_team, p.team) and Entity.flat(p.global_position, pos) - p.radius <= r:
+			p.take_damage(base * float(mult.get("bld", 0.0)), attacker, tag)
 
 
 func fx_tracer(a: Vector3, b: Vector3, col: Color, width := 0.07, secs := 0.07) -> void:
@@ -1485,12 +1560,13 @@ static func _p(a: Array) -> Vector3:
 ## Mermiler, hedefler ve sis kaydedilmez; yüklemede yeniden kurulur.
 func save_game() -> void:
 	var data := {
-		v = 1, scn = Scenarios.chosen, side = Scenarios.side, diff = Scenarios.difficulty,
-		time = time, wave = 0, teams = [], ents = [], points = [], mines = [],
+		v = SAVE_V, scn = Scenarios.chosen, side = Scenarios.side, diff = Scenarios.difficulty, mode = Scenarios.mode,
+		time = time, waves = [], teams = [], ents = [], points = [], mines = [], bridges = [],
 	}
-	for c in get_children():
-		if c is EnemyAI:
-			data.wave = c.wave
+	for ai in ais:
+		data.waves.append(ai.wave)
+	for br in bridges:
+		data.bridges.append([snappedf(br.hp, 1.0), br.down])
 	for ts in teams:
 		data.teams.append({
 			money = ts.money, tier = ts.tier, upgrading = ts.upgrading, upgrade_t = ts.upgrade_t,
@@ -1522,7 +1598,7 @@ func save_game() -> void:
 			r.house = houses.find(e.garrison) if e.garrison != null else -1
 		data.ents.append(r)
 	for pt in points:
-		data.points.append(pt.owner_team)
+		data.points.append([pt.owner_team, snappedf(pt.hp, 1.0)])
 	for m in mines:
 		data.mines.append({team = m.team, p = _v(m.pos)})
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -1537,13 +1613,13 @@ static func saved_info() -> Dictionary:
 	if f == null:
 		return {}
 	var d = JSON.parse_string(f.get_as_text())
-	return d if d is Dictionary else {}
+	return d if d is Dictionary and int(d.get("v", 0)) == SAVE_V else {}
 
 
 ## Kaydı sahneye geri kurar (_ready içinde, harita kurulduktan sonra çağrılır).
 func _restore(data: Dictionary) -> void:
 	time = float(data.time)
-	for t in 2:
+	for t in Defs.N:
 		var src: Dictionary = data.teams[t]
 		var ts: TeamState = teams[t]
 		ts.money = float(src.money)
@@ -1600,19 +1676,21 @@ func _restore(data: Dictionary) -> void:
 		if e is Unit:
 			e.update_figures()
 	for i in mini(points.size(), data.points.size()):
-		var o := int(data.points[i])
-		if o != Defs.NEUTRAL:
-			points[i].owner_team = o
-			points[i].flag.material_override = Models.mat(Defs.TEAM_COLORS[o])
+		points[i].claim(int(data.points[i][0]))
+		points[i].hp = float(data.points[i][1])
+	for i in mini(bridges.size(), data.bridges.size()):
+		if data.bridges[i][1]:
+			bridges[i].collapse()
+		else:
+			bridges[i].hp = float(data.bridges[i][0])
 	for m in data.mines:
 		var node := Models.build({"model": "mine"}, int(m.team))
 		node.position = _p(m.p)
-		node.visible = int(m.team) == Defs.PLAYER
+		node.visible = Defs.friendly(int(m.team))
 		add_child(node)
 		mines.append({team = int(m.team), pos = _p(m.p), node = node})
-	for c in get_children():
-		if c is EnemyAI:
-			c.wave = int(data.wave)
+	for i in mini(ais.size(), data.waves.size()):
+		ais[i].wave = int(data.waves[i])
 	recalc()
 
 
