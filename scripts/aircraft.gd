@@ -169,7 +169,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String) -> void:
 			var a := nr * 1.05
 			var b := nr * 1.15
 			var y: float = -hh * p.get("iny", 0.55)
-			var bx := sp * sx
+			var bx: float = sp * sx
 			k.loft(skin, [
 				[Vector3(x - a, y - b, front - l * 0.04), Vector3(x + a, y - b, front - l * 0.04), Vector3(x + a, y + b, front), Vector3(x - a, y + b, front)],
 				[Vector3(bx - a, ny - b, l * 0.08), Vector3(bx + a, ny - b, l * 0.08), Vector3(bx + a, ny + b * 0.8, l * 0.08), Vector3(bx - a, ny + b * 0.8, l * 0.08)],
@@ -183,7 +183,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String) -> void:
 		k.box("dark", Vector3(hw * 1.0, hh * 0.85, 0.01), Vector3(0, -hh * 0.92, 0.2 * l + 0.008))
 	elif intake == "side":
 		for sx in [-1.0, 1.0]:
-			var x := (hw * 0.9 + w * 0.12) * sx
+			var x: float = (hw * 0.9 + w * 0.12) * sx
 			var a := w * 0.12
 			k.loft(skin, [
 				[Vector3(x - a, -hh * 0.75, 0.21 * l), Vector3(x + a, -hh * 0.75, 0.19 * l), Vector3(x + a, hh * 0.45, 0.19 * l), Vector3(x - a, hh * 0.45, 0.21 * l)],
@@ -318,9 +318,9 @@ static func _slab(k: Kit, s: String, pts: Array, y: float, t0: float, t1: float,
 		var lo: Array = []
 		var hi: Array = []
 		for q in pts:
-			var f := (q.x - x0) / maxf(x1 - x0, 0.001)
+			var f: float = (q.x - x0) / maxf(x1 - x0, 0.001)
 			var t := lerpf(t0, t1, f)
-			var yy := y + (q.x - x0) * dt
+			var yy: float = y + (q.x - x0) * dt
 			lo.append(Vector3(q.x * sx, yy - t * 0.4, q.y))
 			hi.append(Vector3(q.x * sx, yy + t * 0.6, q.y))
 		k.loft(s, [lo, hi])

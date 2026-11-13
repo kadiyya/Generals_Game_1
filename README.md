@@ -13,6 +13,8 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![Çatışma](docs/ekran/catisma.png)
 
+![Binalar](docs/ekran/binalar.png)
+
 ## Şu an oynanabilen
 
 **Senaryolar.** Açılışta senaryo ve taraf seçilir; her senaryoda iki tarafı da oynayabilirsin.

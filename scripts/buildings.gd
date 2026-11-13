@@ -333,7 +333,7 @@ static func _havaalani(k: Kit) -> void:
 			k.box("white", Vector3(0.18, 0.012, 0.7), Vector3(1.55 + i * 0.7, 0.068, 5.4 * sz))
 		k.box("white", Vector3(0.05, 0.012, 11.6), Vector3(2.6 + 1.5 * sz, 0.068, 0))
 		# kemerli hangar: ağzı piste bakar
-		var z := 2.6 * sz
+		var z: float = 2.6 * sz
 		var a: Array = []
 		var b: Array = []
 		for i in 9:
