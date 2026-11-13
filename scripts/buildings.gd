@@ -26,6 +26,7 @@ static func slots(k: Kit, bc: Color, tc: Color) -> void:
 	k.slot("ore", "concrete", Color(0.3, 0.26, 0.22), 0.3)
 	k.slot("sand", "fabric", Color(0.62, 0.55, 0.4), 0.4)
 	k.slot("teamroof", "corrug", tc.darkened(0.1), 0.15)
+	k.slot("machine", "steel", Color(0.3, 0.36, 0.33), 0.3)
 
 
 static func design(id: String, k: Kit) -> void:
@@ -522,34 +523,163 @@ static func _crane(k: Kit) -> void:
 	k.box("steel", Vector3(0.9, 0.5, 0.9), Vector3(-3.6, 3.95, 0))
 
 
-## İkmal noktası: petrol kulesi ve tanklar ya da sandık / varil yığını. Çevresinde kum torbaları, bir direk.
+## İkmal noktası. Petrol: at başı pompa (kiriş ve krank dönen parçalar: "pump_beam", "pump_crank"), depolama
+## tankları, boru hattı, kuyu başı, kulübe ve variller. Sandık: palet üstünde cephane sandıkları, yakıt varilleri,
+## kamuflaj ağı gerili çadır, kum torbaları. Bayrak direği her ikisinde de aynı yerde (SupplyPoint bayrağı oraya asar).
 static func _supply(k: Kit, oil: bool) -> void:
-	k.lathe("conc2", [Vector2(3.0, 0.0), Vector2(2.9, 0.08), Vector2(0, 0.08)], Vector3.ZERO, Vector3.ZERO, 16)
+	# zemin plakası yok: çevresindeki ezilmiş toprak haritanın zemininde çizilir
 	if oil:
-		var c := Vector3(0, 0.08, -0.6)
-		for sx in [-1.0, 1.0]:
-			for sz in [-1.0, 1.0]:
-				k.box("steel", Vector3(0.1, 4.5, 0.1), c + Vector3(0.38 * sx, 2.2, 0.38 * sz), Vector3(-9.0 * sz, 0, 9.0 * sx))
-		for i in 4:
-			var w := 1.35 - i * 0.33
-			k.box("steel", Vector3(w, 0.05, w), c + Vector3(0, 0.6 + i * 1.05, 0))
-			k.box("steel", Vector3(0.05, 1.2, 0.05), c + Vector3(w * 0.5, 1.1 + i * 1.05, 0), Vector3(35 * (1 if i % 2 == 0 else -1), 0, 0))
-		k.box("hull2", Vector3(0.6, 0.3, 0.6), c + Vector3(0, 4.45, 0))
-		k.lathe("dark", [Vector2(0.07, 0), Vector2(0.07, 4.0)], c + Vector3(0, 0.2, 0), Vector3.ZERO, 6)
-		# pompa ve tanklar
-		k.box("yellow", Vector3(0.12, 0.12, 1.5), Vector3(0.9, 1.3, -0.5), Vector3(12, 0, 0))
-		k.box("steel", Vector3(0.14, 1.2, 0.14), Vector3(0.9, 0.65, -0.6))
-		for sx in [-1.0, 1.0]:
-			_tank(k, "sheet", Vector3(1.5 * sx, 0.08, 1.0), 0.8, 1.3)
-			k.lathe("red", [Vector2(0.815, 0.9), Vector2(0.815, 1.1)], Vector3(1.5 * sx, 0.08, 1.0), Vector3.ZERO, 14)
-		Tanks._cyl(k, "steel", 0.07, 2.4, Vector3(0, 0.4, 1.0), Vector3(0, 0, 90), 6)
+		_pumpjack(k, Vector3(0.1, 0.06, -1.0))
+		_tank(k, "sheet", Vector3(0.5, 0.06, 1.55), 0.66, 1.7)
+		_tank(k, "sheet", Vector3(1.95, 0.06, 0.65), 0.55, 1.4)
+		for t in [[Vector3(0.5, 0.06, 1.55), 0.66, 1.7], [Vector3(1.95, 0.06, 0.65), 0.55, 1.4]]:
+			var c: Vector3 = t[0]
+			var r: float = t[1]
+			var h: float = t[2]
+			k.lathe("red", [Vector2(r + 0.012, h * 0.62), Vector2(r + 0.012, h * 0.7)], c, Vector3.ZERO, 14)
+			# merdiven ve tepe korkuluğu
+			k.box("steel", Vector3(0.03, h, 0.03), c + Vector3(-r - 0.04, h * 0.5, -0.1))
+			k.box("steel", Vector3(0.03, h, 0.03), c + Vector3(-r - 0.04, h * 0.5, 0.1))
+			for i in int(h / 0.25):
+				k.box("steel", Vector3(0.02, 0.02, 0.2), c + Vector3(-r - 0.04, 0.2 + i * 0.25, 0))
+			k.lathe("steel", [Vector2(r * 0.95, h + r * 0.2 + 0.25), Vector2(r * 0.95, h + r * 0.2 + 0.28)], c, Vector3.ZERO, 12)
+		# boru hattı: kuyu başından tanklara, alçak mesnetler üstünde
+		Tanks._cyl(k, "steel", 0.05, 1.9, Vector3(1.8, 0.28, -0.25), Vector3(90, 0, 0), 6)
+		Tanks._cyl(k, "steel", 0.05, 1.4, Vector3(1.1, 0.28, 0.7), Vector3(0, 0, 90), 6)
+		for z in [-0.9, -0.2, 0.5]:
+			k.box("conc", Vector3(0.18, 0.22, 0.12), Vector3(1.8, 0.15, z))
+		# kulübe ve variller
+		k.box("sheet", Vector3(1.0, 1.0, 1.1), Vector3(-2.15, 0.56, 0.45))
+		k.box("roof", Vector3(1.15, 0.06, 1.25), Vector3(-2.15, 1.1, 0.45), Vector3(0, 0, 6))
+		k.box("dark", Vector3(0.02, 0.7, 0.42), Vector3(-1.64, 0.43, 0.45))
+		_drums(k, Vector3(-0.9, 0.06, 1.3), 3)
 	else:
-		_crates(k, Vector3(-1.2, 0.08, -0.7))
-		_crates(k, Vector3(0.5, 0.08, -1.2))
-		k.box("canvas2", Vector3(1.6, 0.7, 1.0), Vector3(0.9, 0.43, 0.7), Vector3(0, 12, 0))
-		k.box("canvas", Vector3(1.7, 0.06, 1.1), Vector3(0.9, 0.8, 0.7), Vector3(0, 12, 0))
-		for i in 4:
-			Tanks._cyl(k, "hull2" if i % 2 == 0 else "red", 0.22, 0.6, Vector3(-1.4 + (i % 2) * 0.5, 0.38, 1.0 + floorf(i * 0.5) * 0.5), Vector3.ZERO, 8)
-		_sandbags(k, Vector3(-2.3, 0.08, -0.4), 0.0, 4)
-	k.lathe("steel", [Vector2(0.05, 0), Vector2(0.03, 4.0)], Vector3(-1.9, 0.08, 1.6), Vector3.ZERO, 6)
+		# paletli cephane sandıkları
+		_pallet(k, Vector3(-1.3, 0.06, -0.9), 7, 2)
+		_pallet(k, Vector3(-0.1, 0.06, -1.55), 3, 1)
+		_pallet(k, Vector3(-1.5, 0.06, 0.25), 11, 2)
+		_drums(k, Vector3(1.6, 0.06, -1.1), 6)
+		k.box("hull2", Vector3(0.25, 0.32, 0.12), Vector3(0.95, 0.22, -1.7), Vector3(0, 15, 0))
+		k.box("hull2", Vector3(0.25, 0.32, 0.12), Vector3(1.15, 0.22, -1.75), Vector3(0, -8, 0))
+		_net_tent(k, Vector3(0.95, 0.06, 0.85))
+		_sandbags(k, Vector3(-2.5, 0.06, -1.2), 0.0, 5)
+		_sandbags(k, Vector3(2.55, 0.06, -0.3), 0.0, 4)
+	k.lathe("steel", [Vector2(0.05, 0), Vector2(0.03, 4.0)], Vector3(-1.9, 0.06, 1.6), Vector3.ZERO, 6)
 	k.lathe("white", [Vector2(0.12, 0), Vector2(0.12, 0.25), Vector2(0, 0.3)], Vector3(-1.9, 4.0, 1.6), Vector3.ZERO, 6)
+
+
+## İki nokta arasında kare kesitli çubuk (dikme, kol).
+static func _strut(k: Kit, s: String, a: Vector3, b: Vector3, t: float) -> void:
+	var d := (b - a).normalized()
+	var u := d.cross(Vector3.UP)
+	if u.length() < 0.1:
+		u = d.cross(Vector3.RIGHT)
+	u = u.normalized() * t
+	var v := d.cross(u).normalized() * t
+	k.loft(s, [[a - u - v, a + u - v, a + u + v, a - u + v], [b - u - v, b + u - v, b + u + v, b - u + v]])
+
+
+## At başı petrol pompası, x yönünde. c: kızak ortası. Kiriş (at başıyla) ve krank (karşı ağırlıklarla) parçadır.
+static func _pumpjack(k: Kit, c: Vector3) -> void:
+	for sz in [-1.0, 1.0]:
+		k.box("steel", Vector3(3.1, 0.14, 0.1), c + Vector3(-0.1, 0.07, 0.32 * sz))
+	for x in [-1.4, -0.4, 0.6, 1.3]:
+		k.box("steel", Vector3(0.08, 0.1, 0.7), c + Vector3(x, 0.07, 0))
+	var pv := c + Vector3(0.1, 1.85, 0)
+	# A ayaklı taşıyıcı (samson direği)
+	for sz in [-1.0, 1.0]:
+		_strut(k, "steel", c + Vector3(-0.35, 0.14, 0.3 * sz), pv + Vector3(0, -0.1, 0.09 * sz), 0.045)
+		_strut(k, "steel", c + Vector3(0.55, 0.14, 0.3 * sz), pv + Vector3(0, -0.1, 0.09 * sz), 0.045)
+	k.box("steel", Vector3(0.2, 0.12, 0.3), pv + Vector3(0, -0.08, 0))
+	# kiriş, at başı, askı teli ve tij; arkada eşitleme çubuğu ve biyel kolları
+	k.begin_part("pump_beam", pv, Vector3(0, 0, 1))
+	k.box("yellow", Vector3(2.8, 0.24, 0.16), pv + Vector3(-0.05, 0.12, 0))
+	var rings: Array = []
+	for i in 6:
+		var a := lerpf(-0.42, 0.3, i / 5.0)
+		var o := pv + Vector3(cos(a) * 1.55, sin(a) * 1.55 + 0.12, 0)
+		var inn := pv + Vector3(cos(a) * 1.2, sin(a) * 1.2 + 0.12, 0)
+		rings.append([o + Vector3(0, 0, -0.16), o + Vector3(0, 0, 0.16), inn + Vector3(0, 0, 0.12), inn + Vector3(0, 0, -0.12)])
+	k.loft("yellow", rings)
+	var hx := pv + Vector3(cos(-0.42) * 1.55, sin(-0.42) * 1.55 + 0.12, 0)
+	for sz in [-1.0, 1.0]:
+		k.box("dark", Vector3(0.02, 1.1, 0.02), Vector3(hx.x + 0.02, hx.y - 0.5, 0.06 * sz))
+	k.box("steel", Vector3(0.12, 0.05, 0.18), Vector3(hx.x + 0.02, hx.y - 1.05, 0))
+	k.box("yellow", Vector3(0.14, 0.14, 0.7), pv + Vector3(-1.4, 0.0, 0))
+	for sz in [-1.0, 1.0]:
+		_strut(k, "steel", pv + Vector3(-1.4, 0.0, 0.3 * sz), pv + Vector3(-1.42, -1.0, 0.36 * sz), 0.035)
+	k.end_part()
+	# kuyu başı: boru, flanşlar, kırmızı vana volanları
+	var wx := hx.x + 0.02
+	k.lathe("steel", [Vector2(0.09, 0), Vector2(0.09, 0.55), Vector2(0.14, 0.55), Vector2(0.14, 0.62), Vector2(0.05, 0.62), Vector2(0.05, 0.75)],
+		Vector3(wx, c.y, c.z), Vector3.ZERO, 8)
+	for sz in [-1.0, 1.0]:
+		Tanks._cyl(k, "steel", 0.04, 0.3, Vector3(wx, c.y + 0.35, c.z + 0.15 * sz), Vector3(90, 0, 0), 6)
+		k.lathe("red", [Vector2(0.09, -0.01), Vector2(0.09, 0.01), Vector2(0.06, 0.01)], Vector3(wx, c.y + 0.35, c.z + 0.3 * sz), Vector3(90, 0, 0), 8)
+	# redüktör, motor, kayış kapağı
+	var kc := pv + Vector3(-1.42, -1.1, 0)
+	k.box("machine", Vector3(0.5, 0.5, 0.38), Vector3(kc.x, c.y + 0.4, c.z))
+	k.box("machine", Vector3(0.4, 0.32, 0.3), Vector3(kc.x - 0.65, c.y + 0.3, c.z))
+	k.box("steel", Vector3(0.55, 0.3, 0.06), Vector3(kc.x - 0.35, c.y + 0.45, c.z + 0.2))
+	# krank kolları ve karşı ağırlıklar (döner)
+	k.begin_part("pump_crank", kc, Vector3(0, 0, 1))
+	for sz in [-1.0, 1.0]:
+		k.box("steel", Vector3(0.14, 0.7, 0.06), kc + Vector3(0, -0.12, 0.3 * sz))
+		k.box("dark", Vector3(0.5, 0.32, 0.1), kc + Vector3(0, -0.42, 0.3 * sz))
+	Tanks._cyl(k, "steel", 0.06, 0.7, kc, Vector3(90, 0, 0), 8)
+	k.end_part()
+
+
+## Palet üstünde cephane sandıkları (koyu yeşil, kapak çıtalı). n: tohum, rows: kat sayısı.
+static func _pallet(k: Kit, p: Vector3, n: int, rows: int) -> void:
+	k.box("wood", Vector3(1.0, 0.1, 0.8), p + Vector3(0, 0.05, 0))
+	for r in rows:
+		for i in 2:
+			for j in 2:
+				if r == rows - 1 and (i + j + n) % 3 == 0:
+					continue
+				var c := p + Vector3(-0.24 + i * 0.48, 0.24 + r * 0.29, -0.19 + j * 0.38)
+				k.box("hull", Vector3(0.45, 0.28, 0.35), c, Vector3(0, ((n + i * 3 + j) % 5 - 2) * 2.0, 0))
+				k.box("hull2", Vector3(0.46, 0.04, 0.36), c + Vector3(0, 0.12, 0))
+				k.box("dark", Vector3(0.12, 0.03, 0.02), c + Vector3(0, 0.05, 0.18))
+
+
+## Varil öbeği: kenar çemberli yakıt varilleri, biri yatık.
+static func _drums(k: Kit, p: Vector3, n: int) -> void:
+	for i in n:
+		var c := p + Vector3((i % 3) * 0.44 - 0.44, 0, floorf(i / 3.0) * 0.44)
+		var s: String = "hull2" if i % 3 != 1 else "red"
+		var prof := [Vector2(0, 0), Vector2(0.2, 0), Vector2(0.2, 0.18), Vector2(0.21, 0.19), Vector2(0.2, 0.2), Vector2(0.2, 0.38),
+			Vector2(0.21, 0.39), Vector2(0.2, 0.4), Vector2(0.2, 0.6), Vector2(0.16, 0.61), Vector2(0, 0.61)]
+		if i == n - 1 and n > 3:
+			k.lathe(s, prof, c + Vector3(0.6, 0.2, 0.2), Vector3(0, 30, 90), 10)
+		else:
+			k.lathe(s, prof, c, Vector3.ZERO, 10)
+
+
+static func _net_y(i: int, j: int) -> float:
+	return 1.33 - 0.22 * sin(PI * j / 5.0) * sin(PI * i / 4.0) + 0.04 * sin(i * 2.3 + j * 1.7)
+
+
+## Çadır ve üstüne gerilmiş kamuflaj ağı (sarkan, düzensiz yüzey, köşelerde direk).
+static func _net_tent(k: Kit, c: Vector3) -> void:
+	k.loft("canvas2", [[c + Vector3(-0.7, 0, -0.55), c + Vector3(0.7, 0, -0.55), c + Vector3(0, 0.95, -0.55)],
+		[c + Vector3(-0.7, 0, 0.55), c + Vector3(0.7, 0, 0.55), c + Vector3(0, 0.95, 0.55)]])
+	k.box("dark", Vector3(0.5, 0.6, 0.02), c + Vector3(0, 0.3, 0.56))
+	for p in [Vector3(-1.1, 0, -0.9), Vector3(1.1, 0, -0.9), Vector3(1.1, 0, 0.9), Vector3(-1.1, 0, 0.9)]:
+		k.box("wood", Vector3(0.05, 1.35, 0.05), c + p + Vector3(0, 0.67, 0))
+	# ağ: sarkan ince levha şeritleri (her biri kendi küçük kalınlığıyla)
+	for i in 4:
+		var z0 := lerpf(-1.0, 1.0, i / 4.0)
+		var z1 := lerpf(-1.0, 1.0, (i + 1) / 4.0)
+		for j in 5:
+			var rings: Array = []
+			for jj in [j, j + 1]:
+				var x := lerpf(-1.2, 1.2, jj / 5.0)
+				var y0 := _net_y(i, jj)
+				var y1 := _net_y(i + 1, jj)
+				rings.append([c + Vector3(x, y0, z0), c + Vector3(x, y1, z1), c + Vector3(x, y1 - 0.03, z1), c + Vector3(x, y0 - 0.03, z0)])
+			k.loft("canvas2" if fposmod(sin(i * 12.9 + j * 78.2) * 43758.5, 1.0) > 0.3 else "canvas", rings)
+	for sx in [-1.0, 1.0]:
+		k.loft("canvas", [[c + Vector3(1.2 * sx, 1.32, -1.0), c + Vector3(1.2 * sx, 1.3, 1.0), c + Vector3(1.45 * sx, 0.3, 0.7), c + Vector3(1.45 * sx, 0.3, -0.8)],
+			[c + Vector3(1.2 * sx, 1.29, -1.0), c + Vector3(1.2 * sx, 1.27, 1.0), c + Vector3(1.42 * sx, 0.3, 0.7), c + Vector3(1.42 * sx, 0.3, -0.8)]])

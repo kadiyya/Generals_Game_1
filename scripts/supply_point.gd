@@ -12,6 +12,9 @@ var is_oil := false
 var cap_team := Defs.NEUTRAL
 var cap_t := 0.0
 var flag: MeshInstance3D
+var beam: Node3D    # petrol pompası: kiriş iner kalkar, krank döner
+var crank: Node3D
+var pump_t := 0.0
 
 
 func setup(p: Vector3, inc: float, ct: float, oil: bool) -> void:
@@ -19,11 +22,21 @@ func setup(p: Vector3, inc: float, ct: float, oil: bool) -> void:
 	income = inc
 	cap_time = ct
 	is_oil = oil
-	add_child(Models.supply_point(oil))
+	var model := Models.supply_point(oil)
+	add_child(model)
+	var parts := model.get_node_or_null("parts")
+	if parts != null:
+		beam = parts.get_node_or_null("pump_beam") as Node3D
+		crank = parts.get_node_or_null("pump_crank") as Node3D
 	flag = Models.box(self, Vector3(1.5, 0.9, 0.06), Vector3(-1.1, 3.5, 1.6), Color(0.9, 0.9, 0.9))
 
 
 func _process(dt: float) -> void:
+	if crank != null and visible:
+		# sahipli kuyu hızlı, sahipsiz kuyu ağır çalışır
+		pump_t += dt * (1.6 if owner_team != Defs.NEUTRAL else 0.7)
+		crank.basis = Basis(crank.get_meta("axis"), -pump_t)
+		beam.basis = Basis(beam.get_meta("axis"), sin(pump_t) * 0.28)
 	var n := [0, 0]
 	for e in Game.I.entities:
 		if e.alive and not e.is_building and e.d.get("capture", false) and Entity.flat(e.position, position) <= RADIUS:

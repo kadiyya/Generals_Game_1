@@ -131,49 +131,110 @@ func block_circle(p: Vector3, r: float, v: bool) -> void:
 
 func _visuals() -> void:
 	var m: Dictionary = Defs.MAP
+	_ground(m)
+	# su: koyu, parlak, dalgacıklı yüzey (kıyıdaki çamur zemin renginde)
+	var wm := StandardMaterial3D.new()
+	wm.albedo_color = Color(0.13, 0.24, 0.26)
+	wm.roughness = 0.06
+	wm.metallic = 0.15
+	wm.normal_enabled = true
+	var nt := NoiseTexture2D.new()
+	nt.seamless = true
+	nt.as_normal_map = true
+	nt.bump_strength = 4.0
+	var nn := FastNoiseLite.new()
+	nn.frequency = 0.06
+	nt.noise = nn
+	wm.normal_texture = nt
+	wm.normal_scale = 0.6
+	wm.uv1_triplanar = true
+	wm.uv1_world_triplanar = true
+	wm.uv1_scale = Vector3.ONE * 0.08
 	for r in m.water:
 		var w := Models.box(self, Vector3(r[2] - r[0], 0.06, r[3] - r[1]),
-			Vector3((r[0] + r[2]) * 0.5, 0.0, (r[1] + r[3]) * 0.5), Color(0.16, 0.36, 0.55))
+			Vector3((r[0] + r[2]) * 0.5, 0.0, (r[1] + r[3]) * 0.5), Color(0.1, 0.2, 0.23))
 		w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		w.material_override = Tex.mat("water", Color(0.16, 0.36, 0.55), 0.06, true)
+		w.material_override = wm
+	# köprüler, yıkıntılar: kendi dikdörtgenlerine göre kurulur
 	for r in m.bridges:
-		var big: bool = (r[2] - r[0]) > 12.0
-		Models.box(self, Vector3(r[2] - r[0], 0.12, r[3] - r[1]),
-			Vector3((r[0] + r[2]) * 0.5, 0.03, (r[1] + r[3]) * 0.5),
-			m.ground.darkened(0.08) if big else Color(0.5, 0.48, 0.44))
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 1.0
-	cone.height = 1.0
-	cone.radial_segments = 5
-	cone.rings = 1
-	var cube := BoxMesh.new()
-	_scatter(MOUNTAIN, cone, Tex.mat("rock", Color(0.5, 0.46, 0.41), 0.22, true), Vector2(1.7, 2.6), Vector2(3.5, 8.5))
-	_scatter(TREES, cone, Tex.mat("rock", Color(0.2, 0.42, 0.22), 0.5, true), Vector2(1.0, 1.5), Vector2(3.0, 5.0))
-	_scatter(RUINS, cube, Tex.mat("panel", Color(0.55, 0.52, 0.48), 0.25, true), Vector2(1.3, 1.9), Vector2(1.0, 3.2))
+		var along_x := Props.bridge_along_x(m, r)
+		var ln: float = (r[2] - r[0]) if along_x else (r[3] - r[1])
+		var wd: float = (r[3] - r[1]) if along_x else (r[2] - r[0])
+		var k := _kit(m)
+		Props.bridge(k, ln, wd, wd > 12.0)
+		_place(k.mesh(), Vector3((r[0] + r[2]) * 0.5, 0, (r[1] + r[3]) * 0.5), 0.0 if along_x else 90.0)
+	var sd := 1
+	for r in m.ruins:
+		var k := _kit(m)
+		Props.ruin(k, r[2] - r[0], r[3] - r[1], sd)
+		_place(k.mesh(), Vector3((r[0] + r[2]) * 0.5, 0, (r[1] + r[3]) * 0.5), 0.0)
+		sd += 1
+	# ağaç, kaya, çalı, taş ve ot öbekleri: tür başına bir mesh, MultiMesh ile çoğaltılır
+	var sc := Props.scatter(m, Array(kind), gw, gh, CELL, Defs.MAP_W, Defs.MAP_H)
+	for id in sc:
+		var k := _kit(m)
+		Props.design(id, k)
+		var big: bool = not (id in Props.SMALL)
+		_multi(k.mesh(), sc[id], big)
 
 
-func _scatter(k: int, mesh: Mesh, material: Material, size: Vector2, height: Vector2) -> void:
-	var cells: Array = []
-	for y in gh:
-		for x in gw:
-			if kind[y * gw + x] == k:
-				cells.append(Vector2i(x, y))
-	if cells.is_empty():
-		return
+func _kit(m: Dictionary) -> Kit:
+	var k := Kit.new()
+	k.dust = Models._dust()
+	Props.slots(k, m)
+	return k
+
+
+func _place(mesh: Mesh, p: Vector3, yaw: float) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = p
+	mi.rotation_degrees.y = yaw
+	add_child(mi)
+
+
+func _multi(mesh: Mesh, items: Array, shadow: bool) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
-	mm.instance_count = cells.size()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 11 + k
-	for i in cells.size():
-		var w := center(cells[i]) + Vector3(rng.randf_range(-0.4, 0.4), 0, rng.randf_range(-0.4, 0.4))
-		var s := rng.randf_range(size.x, size.y)
-		var h := rng.randf_range(height.x, height.y)
-		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, h, s))
-		mm.set_instance_transform(i, Transform3D(b, Vector3(w.x, h * 0.5, w.z)))
+	mm.instance_count = items.size()
+	for i in items.size():
+		var it: Array = items[i]
+		var b := Basis(Vector3.UP, deg_to_rad(it[2])) * Basis.from_scale(Vector3(it[3], it[4], it[3]))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(it[0], 0, it[1])))
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
-	mi.material_override = material
+	if not shadow:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+## Zemin: köşe renkli tek ağ (renk geçişleri, yollar, orman tabanı, kıyı çamuru) üstünde toprak dokusu.
+func _ground(m: Dictionary) -> void:
+	var g := Props.ground(m, Array(kind), gw, gh, CELL, Defs.MAP_W, Defs.MAP_H, 1.25)
+	var verts := PackedVector3Array(g[0])
+	var cols := PackedColorArray(g[1])
+	var uvs := PackedVector2Array()
+	var nrm := PackedVector3Array()
+	for v in verts:
+		uvs.append(Vector2(v.x, v.z) * 0.07)
+		nrm.append(Vector3.UP)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = nrm
+	arr[Mesh.ARRAY_COLOR] = cols
+	arr[Mesh.ARRAY_TEX_UV] = uvs
+	arr[Mesh.ARRAY_INDEX] = PackedInt32Array(g[2])
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.albedo_texture = Tex.texture("ground")
+	mat.roughness = 0.95
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)

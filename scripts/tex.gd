@@ -47,6 +47,55 @@ static func texture(kind: String) -> ImageTexture:
 			img = _air_camo(n, [Color(0.77, 0.68, 0.5), Color(0.56, 0.44, 0.3), Color(0.55, 0.56, 0.4)], 0.032, false)
 		"air_split":
 			img = _air_camo(n, [Color(0.6, 0.65, 0.7), Color(0.36, 0.4, 0.46), Color(0.5, 0.58, 0.66)], 0.035, true)
+		"leaf":
+			# yaprak örtüsü: öbekler, aralarında koyu boşluklar, tek tek açık yaprak benekleri
+			n.frequency = 0.09
+			n.fractal_octaves = 3
+			var a := _noise(n)
+			var g := FastNoiseLite.new()
+			g.seed = 41
+			g.frequency = 0.3
+			var b := _noise(g)
+			img = Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
+			for y in SIZE:
+				for x in SIZE:
+					var va := a.get_pixel(x, y).r
+					var v := lerpf(0.68, 1.06, va) * lerpf(0.86, 1.06, b.get_pixel(x, y).r)
+					v *= lerpf(0.72, 1.0, smoothstep(0.2, 0.36, va))
+					img.set_pixel(x, y, Color(v, v, v))
+		"bark":
+			# ağaç kabuğu: dikey çatlaklar ve pürüz
+			n.frequency = 0.08
+			img = _range(n, 0.72, 1.0, 0.06)
+			var rng := RandomNumberGenerator.new()
+			rng.seed = 3
+			for x in SIZE:
+				var dk := rng.randf()
+				for y in SIZE:
+					var wob := int(2.0 * sin(y * 0.2 + x))
+					if dk > 0.62 or (x + wob) % 9 == 0:
+						img.set_pixel(x, y, img.get_pixel(x, y) * 0.62)
+		"stone":
+			# kaya: iri leke, ince taneler, kılcal çatlaklar, açık liken benekleri
+			n.frequency = 0.05
+			n.fractal_octaves = 4
+			img = _range(n, 0.62, 1.0, 0.07)
+			var c := FastNoiseLite.new()
+			c.seed = 57
+			c.frequency = 0.035
+			var cr := _noise(c)
+			var l := FastNoiseLite.new()
+			l.seed = 59
+			l.frequency = 0.14
+			var li := _noise(l)
+			for y in SIZE:
+				for x in SIZE:
+					var v := img.get_pixel(x, y).r
+					if absf(cr.get_pixel(x, y).r - 0.5) < 0.014:
+						v *= 0.58
+					if li.get_pixel(x, y).r > 0.74:
+						v = minf(v * 1.14, 1.0)
+					img.set_pixel(x, y, Color(v, v, v))
 		"concrete":
 			# beton: lekeler, kalıp derzleri, akıntı izleri
 			n.frequency = 0.045

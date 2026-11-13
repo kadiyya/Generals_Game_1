@@ -220,7 +220,7 @@ static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 	t.add_child(tur)
 
 
-## Bina, vinç ya da ikmal noktası (buildings.gd): tek mesh, renk ve toz başına bir kez üretilir.
+## Bina, vinç ya da ikmal noktası (buildings.gd): tek mesh (ve varsa hareketli parçalar), renk ve toz başına bir kez üretilir.
 static func _structure(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 	var key := "bld|%s|%s|%s|%s" % [id, bc.to_html(), tc.to_html(), _dust().to_html()]
 	if not _vehicles.has(key):
@@ -228,10 +228,24 @@ static func _structure(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 		k.dust = _dust()
 		Buildings.slots(k, bc, tc)
 		Buildings.design(id, k)
-		_vehicles[key] = [k.mesh()]
+		_vehicles[key] = [k.mesh(), k.part_meshes()]
 	var m := MeshInstance3D.new()
 	m.mesh = _vehicles[key][0]
 	n.add_child(m)
+	# hareketli parçalar (ör. petrol pompasının kirişi ve krankı): merkezlerinde, eksenleri meta olarak
+	var pl: Array = _vehicles[key][1]
+	if pl.is_empty():
+		return
+	var parts := Node3D.new()
+	parts.name = "parts"
+	n.add_child(parts)
+	for pm in pl:
+		var mi := MeshInstance3D.new()
+		mi.name = pm[0]
+		mi.mesh = pm[1]
+		mi.position = pm[2]
+		mi.set_meta("axis", pm[3])
+		parts.add_child(mi)
 
 
 ## Piyade: her asker ayrı düğümdür (Unit adım, çömelme ve kayıp animasyonlarını bunlarla yapar), mesh ortaktır.

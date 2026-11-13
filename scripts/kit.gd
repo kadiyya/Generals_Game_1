@@ -15,6 +15,9 @@ const MATS := {
 	"paint": ["skin", 3.0, 0.42, 0.12],
 	"concrete": ["concrete", 2.6, 0.9, 0.0],
 	"corrug": ["corrug", 1.0, 0.55, 0.25],
+	"leaf": ["leaf", 1.2, 0.85, 0.0],
+	"bark": ["bark", 0.8, 0.9, 0.0],
+	"stone": ["stone", 3.0, 0.88, 0.0],
 	"optic": ["", 1.0, 0.12, 0.3],
 	"emit": ["", 1.0, 1.0, 0.0],
 	"camo_ru": ["air_ru", 3.2, 0.36, 0.2],
@@ -26,6 +29,7 @@ const MATS := {
 static var _mats := {}
 
 var dust := Color(0.55, 0.5, 0.4)
+var ao_min := 0.48     # zemine değen kısımların en koyu tonu (yassı ve küçük süslerde daha açık tutulur)
 var grounded := true   # yer aracı: alt kısım çamurlanır ve gölgelenir. Hava araçlarında kapalı.
 var soot := Vector3.ZERO   # hava aracı egzoz isi: z, soot.x'ten geriye soot.y'ye doğru kararır; |x| < soot.z şeridinde (z 0 ise yok)
 var _slots := {}      # yuva adı -> [malzeme türü, renk, toz oranı]
@@ -349,7 +353,7 @@ func _shade(sl: Array, q: Vector3, n: Vector3) -> Color:
 	c = c.lerp(mud, clampf(k * low * 1.25, 0.0, 1.0))
 	c = c.lerp(dust, clampf(k * top * top * 0.55 * (1.0 - low), 0.0, 1.0))
 	# gökyüzünü gören üst yüzeyler açık, yanlar biraz, alta bakanlar çok koyu; gövdenin altı gölgede
-	var ao := lerpf(0.48, 1.0, smoothstep(0.0, 0.9, q.y))
+	var ao := lerpf(ao_min, 1.0, smoothstep(0.0, 0.9, q.y))
 	ao *= 0.86 + 0.14 * top - 0.32 * clampf(-n.y, 0.0, 1.0)
 	return Color(c.r * ao, c.g * ao, c.b * ao)
 

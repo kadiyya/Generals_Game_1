@@ -341,10 +341,11 @@ const COUNTRIES := {
 
 # ---------------------------------------------------------------- haritalar
 # Dikdörtgenler [x0, z0, x1, z1]. rock/trees/ruins/water geçilmez; bridges suyu geçilir yapar.
+# flora: ağaç ve çalı türleri (mixed: çam ve yapraklı, pine: çoğunlukla çam, desert: kuru çalı ve taş).
 # points: [x, z, gelir $/sn, ele geçirme süresi, petrol mü]
 const MAPS := {
 	"harkiv": {
-		name = "Harkiv Açıkları", ground = Color(0.47, 0.5, 0.28), patch = Color(0.56, 0.52, 0.27),
+		name = "Harkiv Açıkları", ground = Color(0.47, 0.5, 0.28), patch = Color(0.56, 0.52, 0.27), flora = "mixed",
 		bases = [Vector3(-90, 0, 0), Vector3(90, 0, 0)],
 		rock = [],
 		trees = [
@@ -367,7 +368,7 @@ const MAPS := {
 		],
 	},
 	"korfez": {
-		name = "Körfez", ground = Color(0.66, 0.58, 0.4), patch = Color(0.6, 0.5, 0.34),
+		name = "Körfez", ground = Color(0.66, 0.58, 0.4), patch = Color(0.6, 0.5, 0.34), flora = "desert",
 		bases = [Vector3(-92, 0, -20), Vector3(92, 0, -20)],
 		rock = [
 			[-60.0, -70.0, -50.0, -30.0], [-60.0, -16.0, -50.0, 22.0],
@@ -385,7 +386,7 @@ const MAPS := {
 		],
 	},
 	"kesmir": {
-		name = "Sınır Hattı", ground = Color(0.38, 0.44, 0.28), patch = Color(0.43, 0.46, 0.3),
+		name = "Sınır Hattı", ground = Color(0.38, 0.44, 0.28), patch = Color(0.43, 0.46, 0.3), flora = "pine",
 		bases = [Vector3(-90, 0, 10), Vector3(90, 0, 10)],
 		rock = [
 			[-49.0, -70.0, -41.0, -40.0], [-49.0, -26.0, -41.0, -6.0],
