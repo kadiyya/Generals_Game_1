@@ -384,7 +384,10 @@ func _rebuild_now() -> void:
 		var b: Building = g.selection[0]
 		refreshers.append(_refresh_building_title.bind(b))
 		if b.built:
-			for id in b.d.get("produces", []):
+			for id in b.d.get("slots", b.d.get("produces", [])):
+				if id == "":
+					_empty_slot()
+					continue
 				var ud: Dictionary = Defs.UNITS[id]
 				var cost := g.unit_cost(0, id)
 				var label: String = ud.name
@@ -401,6 +404,8 @@ func _rebuild_now() -> void:
 				var ms: Array = Scenarios.country(0).missiles
 				for i in ms.size():
 					var mb := _btn(ms[i].name, g.begin_targeting.bind(b, i))
+					if g.missile_info(0, i).get("exp", false):
+						_exp_style(mb)
 					refreshers.append(_refresh_missile.bind(mb, b, i))
 			if not b.d.get("produces", []).is_empty():
 				_btn("Toplanma\nNoktası", g.begin_rally.bind(b))
@@ -417,6 +422,8 @@ func _rebuild_now() -> void:
 
 func _card(b: Building, id: String, label: String, cost: int) -> Button:
 	var btn := _btn("%s\n$%d" % [label, cost], _card_pressed.bind(b, id), id)
+	if Defs.UNITS[id].get("exp", false):
+		_exp_style(btn)
 	btn.pivot_offset = btn.custom_minimum_size * 0.5
 	var f := Button.new()
 	f.name = "flip"
@@ -473,6 +480,14 @@ func _refresh_card(btn: Button, id: String, label: String, cost: int, tier: int)
 	btn.add_theme_font_size_override("font_size", 15)
 	btn.remove_theme_color_override("font_color")
 	_refresh_cost(btn, label, cost, tier)
+	# Doktrine uyan birimin fiyatı yeşil, cezalı olanınki kırmızı.
+	var m := Game.I.mod(Defs.PLAYER, "cost_" + Defs.UNITS[id].cls)
+	if m < 0.95:
+		btn.add_theme_color_override("font_color", Color(0.55, 1.0, 0.55))
+		btn.text += "  ▼%d%%" % int(round((1.0 - m) * 100.0))
+	elif m > 1.05:
+		btn.add_theme_color_override("font_color", Color(1.0, 0.55, 0.5))
+		btn.text += "  ▲%d%%" % int(round((m - 1.0) * 100.0))
 
 
 func _update_tip(id: String) -> void:
@@ -602,6 +617,40 @@ func _btn(text: String, cb: Callable, icon_id := "") -> Button:
 	b.pressed.connect(func(): Game.I.sfx.play("click"))
 	actions.add_child(b)
 	return b
+
+
+## Ülkede bulunmayan birimin yuvası: boş bir çerçeve (diğer yuvalar kaymaz).
+func _empty_slot() -> void:
+	var p := Panel.new()
+	p.custom_minimum_size = Vector2(126, 112)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.12)
+	sb.border_color = Color(1, 1, 1, 0.08)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(4)
+	p.add_theme_stylebox_override("panel", sb)
+	actions.add_child(p)
+
+
+## Deneysel silahlar (son kademe) turuncu zeminli kartla gösterilir.
+func _exp_style(btn: Button) -> void:
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		var sb := StyleBoxFlat.new()
+		var c := Color(0.85, 0.42, 0.08)
+		match st:
+			"hover":
+				c = c.lightened(0.12)
+			"pressed":
+				c = c.darkened(0.15)
+			"disabled":
+				c = Color(0.45, 0.26, 0.1)
+		sb.bg_color = c
+		sb.border_color = Color(1.0, 0.75, 0.3)
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(5)
+		btn.add_theme_stylebox_override(st, sb)
+	btn.tooltip_text = "DENEYSEL SİLAH: pahalı ama çok etkili."
 
 
 func _refresh_cost(b: Button, label: String, cost: int, tier: int) -> void:
@@ -748,7 +797,8 @@ func _draw_overlay() -> void:
 			continue
 		var is_sel: bool = g.selection.has(e)
 		var unbuilt: bool = e.is_building and not e.built
-		if e.hp >= e.max_hp and not is_sel and not unbuilt and e.rank == 0:
+		var armed_air: bool = e is AirUnit and e.d.has("ammo")
+		if e.hp >= e.max_hp and not is_sel and not unbuilt and e.rank == 0 and not armed_air:
 			continue
 		var wp: Vector3 = e.global_position + Vector3(0, 2.4 if not e.is_building else 4.5, 0)
 		if cam.is_position_behind(wp):
@@ -768,9 +818,8 @@ func _draw_overlay() -> void:
 			var cx: float = p.x - w * 0.5 - 8.0
 			var cy: float = p.y + 4.0 - r * 5.0
 			overlay.draw_colored_polygon(PackedVector2Array([Vector2(cx - 5, cy), Vector2(cx, cy - 4), Vector2(cx + 5, cy), Vector2(cx + 5, cy + 2), Vector2(cx, cy - 2), Vector2(cx - 5, cy + 2)]), Color(1.0, 0.82, 0.25))
-		if e is AirUnit and e.team == Defs.PLAYER and e.d.has("ammo"):
-			var txt := "Füze %d" % e.ammo if e.state == "patrol" else "Silahlanıyor"
-			overlay.draw_string(font, p + Vector2(-w * 0.5, -6), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+		if e is AirUnit and e.d.has("ammo"):
+			_ammo_pips(e, p + Vector2(0, -4), font)
 	for pt in g.points:
 		var wp2: Vector3 = pt.position + Vector3(0, 5.2, 0)
 		if cam.is_position_behind(wp2):
@@ -835,6 +884,28 @@ func _mm_tex() -> ImageTexture:
 				img.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0))
 		_mmt = ImageTexture.create_from_image(img)
 	return _mmt
+
+
+## Hava aracının üstünde mühimmat: dolu ve boş füze simgeleri; silahlanırken yazı.
+func _ammo_pips(e, p: Vector2, font: Font) -> void:
+	var n := int(e.d.ammo)
+	var w := 7.0
+	var x0 := p.x - n * w * 0.5
+	var col: Color = Color.WHITE if Defs.friendly(e.team) else Color(1.0, 0.75, 0.7)
+	overlay.draw_rect(Rect2(x0 - 3, p.y - 13, n * w + 4, 12), Color(0, 0, 0, 0.55))
+	for i in n:
+		var x := x0 + i * w
+		var full: bool = i < e.ammo
+		var body := PackedVector2Array([Vector2(x + 1, p.y - 3), Vector2(x + 1, p.y - 9), Vector2(x + 2.5, p.y - 12), Vector2(x + 4, p.y - 9), Vector2(x + 4, p.y - 3)])
+		if full:
+			overlay.draw_colored_polygon(body, col)
+		else:
+			body.append(body[0])
+			overlay.draw_polyline(body, Color(col, 0.45), 1.0)
+	if e.state != "patrol" and e.state != "takeoff":
+		overlay.draw_string(font, Vector2(x0 + n * w + 4, p.y - 2), "silahlanıyor", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.8, 0.9, 1.0))
+	elif e.d.has("ammo") and Defs.friendly(e.team):
+		overlay.draw_string(font, Vector2(x0 + n * w + 4, p.y - 2), "%d/%d" % [e.ammo, n], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
 
 
 func _mm(p: Vector3) -> Vector2:

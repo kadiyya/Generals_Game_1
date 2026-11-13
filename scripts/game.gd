@@ -164,6 +164,8 @@ func _ready() -> void:
 		add_child(load("res://tools/loadtest.gd").new())
 	elif args.has("--tuttest"):
 		add_child(load("res://tools/tuttest.gd").new())
+	elif args.has("--uishot"):
+		add_child(load("res://tools/uishot.gd").new())
 	elif args.has("--maptest"):
 		add_child(load("res://tools/maptest.gd").new())
 	elif args.has("--mapshot"):
@@ -1006,6 +1008,11 @@ func finish_research(b: Building) -> void:
 
 func missile_info(team: int, i: int) -> Dictionary:
 	var m: Dictionary = Scenarios.country(team).missiles[i].duplicate()
+	if int(m.tier) >= 3:
+		# Deneysel füze: pahalı ama çok etkili.
+		m.exp = true
+		m.cost = float(m.cost) * 1.3
+		m.dmg = float(m.dmg) * 1.3
 	m.cost = int(round(float(m.cost) * mod(team, "missile_cost")))
 	m.cd = float(m.cd) * mod(team, "missile_cd")
 	return m

@@ -157,35 +157,43 @@ const BUILDING_KINDS := {
 
 # ---------------------------------------------------------------- doktrinler
 # mods anahtarları: cost_<sınıf>, hp_<sınıf>, dmg_<sınıf>, range_<sınıf>, rearm, missile_cost, missile_cd, pop_cap, drone_resist
+# Doktrin, ülkenin savaş tarzını fiyatla dayatır: doktrine uyan birimler çok ucuz, uymayanlar cezalı pahalıdır.
 const DOCTRINES := {
 	"hava": {
-		name = "Hava Üstünlüğü", desc = "Uçaklar ucuz ve hızlı silahlanır. Kara ordusu pahalı.",
-		mods = {cost_fighter = 0.85, cost_striker = 0.85, cost_stealth = 0.85, rearm = 0.7, cost_tank = 1.15},
+		name = "Hava Üstünlüğü", desc = "Uçaklar %30 ucuz ve hızlı silahlanır, İHA'lar ucuz. Tank ve topçu %35-40 pahalı.",
+		mods = {cost_fighter = 0.7, cost_striker = 0.7, cost_stealth = 0.75, cost_uav_recon = 0.85, cost_uav_strike = 0.85,
+			cost_uav_heavy = 0.85, rearm = 0.7, cost_tank = 1.35, cost_arty = 1.4, cost_mlrs = 1.4, cost_ifv = 1.2,
+			cost_sdrone_fpv = 1.3, cost_sdrone_bomb = 1.3},
 		ability = {id = "ikmal", name = "Havada Yakıt İkmali", cost = 800, cd = 150.0, tier = 2, target = false,
 			desc = "60 saniye boyunca uçakların mühimmatı havada yenilenir ve %20 hızlı uçarlar: üsse dönmeden uzun devriye."},
 	},
 	"iha": {
-		name = "İHA Doktrini", desc = "Küçük ve büyük İHA'lar ucuz. Uçaklar pahalı.",
-		mods = {cost_sdrone_recon = 0.7, cost_sdrone_fpv = 0.7, cost_sdrone_bomb = 0.7, cost_loiter = 0.7,
-			cost_uav_strike = 0.8, cost_uav_kami = 0.8, cost_uav_heavy = 0.8, cost_fighter = 1.2},
+		name = "İHA Doktrini", desc = "Küçük dronlar %40, büyük İHA'lar %30 ucuz. Tank yok; zırhlı, topçu ve uçaklar %30-60 pahalı.",
+		mods = {cost_sdrone_recon = 0.6, cost_sdrone_fpv = 0.6, cost_sdrone_bomb = 0.6, cost_loiter = 0.6,
+			cost_uav_recon = 0.7, cost_uav_strike = 0.7, cost_uav_kami = 0.7, cost_uav_heavy = 0.7,
+			cost_ifv = 1.3, cost_arty = 1.3, cost_mlrs = 1.3, cost_spaag = 1.2, cost_tank = 1.6,
+			cost_fighter = 1.5, cost_striker = 1.6, cost_stealth = 1.6},
 		ability = {id = "suru", name = "Sürü Saldırısı", cost = 600, cd = 120.0, tier = 1, target = true,
 			desc = "Görülen bir noktaya, en yakın birliğinden 8 FPV dronu birden fırlatır. Hava savunmasını doyurur."},
 	},
 	"zirh": {
-		name = "Zırhlı / Topçu", desc = "Tank ve topçu daha dayanıklı ve ucuz. İHA'lar pahalı.",
-		mods = {hp_tank = 1.2, hp_arty = 1.2, hp_mlrs = 1.2, cost_tank = 0.9, cost_arty = 0.9, cost_uav_strike = 1.2},
+		name = "Zırhlı / Topçu", desc = "Tank ve topçu %20-25 ucuz ve daha dayanıklı. Dronlar ve İHA'lar %40 pahalı.",
+		mods = {hp_tank = 1.2, hp_arty = 1.2, hp_mlrs = 1.2, cost_tank = 0.75, cost_arty = 0.8, cost_mlrs = 0.8, cost_ifv = 0.85,
+			cost_sdrone_recon = 1.3, cost_sdrone_fpv = 1.4, cost_loiter = 1.4, cost_uav_strike = 1.4, cost_uav_kami = 1.4,
+			cost_uav_heavy = 1.4, cost_fighter = 1.15, cost_striker = 1.1},
 		ability = {id = "baraj", name = "Topçu Barajı", cost = 700, cd = 120.0, tier = 1, target = true,
 			desc = "Görülen bir alana 7 saniye boyunca 14 ağır top mermisi yağdırır. Siperleri ve toplu piyadeyi dağıtır."},
 	},
 	"fuze": {
-		name = "Balistik Füze", desc = "Füzeler ucuz, çabuk hazır; Füze Üssü Kademe 2'de açılır. Zırhlılar zayıf.",
-		mods = {missile_cost = 0.65, missile_cd = 0.6, hp_tank = 0.9, hp_ifv = 0.9},
+		name = "Balistik Füze", desc = "Füzeler %40 ucuz, çabuk hazır; Füze Üssü Kademe 2'de açılır. Kamikaze İHA'lar ucuz. Zırhlı ve uçaklar %35-40 pahalı.",
+		mods = {missile_cost = 0.6, missile_cd = 0.6, cost_uav_kami = 0.7, cost_sdrone_fpv = 0.8, cost_loiter = 0.85,
+			hp_tank = 0.9, hp_ifv = 0.9, cost_tank = 1.35, cost_ifv = 1.2, cost_fighter = 1.4, cost_striker = 1.4, cost_stealth = 1.4},
 		ability = {id = "salvo", name = "Doyurma Salvosu", cost = 1600, cd = 180.0, tier = 2, target = true,
 			desc = "Görülen bir noktaya aynı anda 4 balistik füze atar. Her hava savunma bataryası en çok birini önleyebilir."},
 	},
 	"denge": {
-		name = "Dengeli / İnsan Gücü", desc = "Piyade ucuz, birlik sınırı yüksek.",
-		mods = {cost_inf = 0.7, cost_at = 0.8, pop_cap = 12.0},
+		name = "Dengeli / İnsan Gücü", desc = "Piyade %35, tanksavar %25 ucuz, birlik sınırı yüksek. Pahalı doktrin cezası yok.",
+		mods = {cost_inf = 0.65, cost_at = 0.75, cost_ifv = 0.9, pop_cap = 12.0},
 		ability = {id = "seferberlik", name = "Seferberlik", cost = 400, cd = 150.0, tier = 1, target = false,
 			desc = "Karargâhın yanında anında 4 piyade mangası toplar (birlik sınırı izin verdiği kadar)."},
 	},
@@ -216,9 +224,8 @@ const COUNTRIES := {
 			["mavic", "DJI Mavic 3", "sdrone_recon", "quad", {}],
 			["fpv", "FPV Kamikaze", "sdrone_fpv", "quad", {}],
 			["baba", "Baba Yaga", "sdrone_bomb", "hexa", {}],
+			["sb600", "Switchblade 600", "loiter", "xwing", {}],
 			["bradley", "M2 Bradley", "ifv", "ifv_tall", {}],
-			["t64", "T-64BV", "tank", "tank_ru", {}],
-			["leo2", "Leopard 2A6", "tank", "tank_leo", {cost = 850, hp = 1300, tier = 2}],
 			["gepard", "Gepard", "spaag", "gepard", {}],
 			["bohdana", "2S22 Bohdana", "arty", "truck_gun", {}],
 			["himars", "M142 HIMARS", "mlrs", "himars", {}],
@@ -227,6 +234,7 @@ const COUNTRIES := {
 			["f16", "F-16", "fighter", "f16", {}],
 			["mirage", "Mirage 2000-5", "fighter", "mirage", {}],
 			["tryzub", "Tryzub Lazer", "laser", "laser_truck", {}],
+			["peklo", "Peklo Füze-Drone", "uav_kami", "liutyi", {tier = 3, dmg = 420.0, speed = 10.0, hp = 110, cost = 700}],
 		],
 	},
 	"ru": {
@@ -253,6 +261,7 @@ const COUNTRIES := {
 			["su34", "Su-34", "striker", "su34", {}],
 			["su57", "Su-57", "stealth", "su57", {}],
 			["s70", "S-70 Okhotnik-B", "uav_heavy", "flyingwing", {tier = 3, stealth = true, cost = 1900, hp = 420}],
+			["t14", "T-14 Armata", "tank", "tank_ru2", {tier = 3, hp = 1450, cost = 1100}],
 		],
 	},
 	"il": {
@@ -269,7 +278,6 @@ const COUNTRIES := {
 			["merkava", "Merkava Mk 4", "tank", "tank_merkava", {hp = 1250, cost = 780}],
 			["irondome", "Iron Dome", "spaag", "irondome", {speed = 3.2, dmg = 65.0, cd = 1.0, proj = "missile", range = 17.0}],
 			["atmos", "ATMOS 2000", "arty", "truck_gun", {}],
-			["puls", "PULS", "mlrs", "mlrs_truck", {}],
 			["eitan", "Heron TP", "uav_recon", "twinboom", {}],
 			["hermes", "Hermes 900", "uav_strike", "vtail", {}],
 			["harop", "Harop", "uav_kami", "harop", {}],
@@ -277,6 +285,7 @@ const COUNTRIES := {
 			["f15i", "F-15I Ra'am", "striker", "f15", {}],
 			["f35i", "F-35I Adir", "stealth", "f35", {}],
 			["ironbeam", "Iron Beam", "laser", "laser_truck", {}],
+			["barak", "Merkava Barak", "tank", "tank_merkava", {tier = 3, hp = 1450, cost = 1100}],
 		],
 	},
 	"ir": {
@@ -304,7 +313,7 @@ const COUNTRIES := {
 			["shahed136", "Shahed-136", "uav_kami", "shahed", {}],
 			["f14", "F-14A Tomcat", "fighter", "f14", {}],
 			["mig29", "MiG-29", "fighter", "mig29", {}],
-			["f4", "F-4E Phantom II", "striker", "f4", {cost = 1500, hp = 440}],
+			["shahed238", "Shahed-238 (jet)", "uav_kami", "shahed", {tier = 3, dmg = 440.0, speed = 11.0, hp = 110, cost = 700}],
 		],
 	},
 	"pk": {
@@ -333,6 +342,7 @@ const COUNTRIES := {
 			["jf17", "JF-17 Thunder", "fighter", "jf17", {}],
 			["j10c", "J-10C", "fighter", "j10", {cost = 1650, dmg = 145.0}],
 			["f16", "F-16", "fighter", "f16", {}],
+			["j35", "J-35", "stealth", "f35", {}],
 		],
 	},
 	"in": {
@@ -362,6 +372,7 @@ const COUNTRIES := {
 			["su30", "Su-30MKI", "fighter", "su30", {cost = 1650, hp = 480}],
 			["rafale", "Rafale", "fighter", "rafale", {cost = 1750, dmg = 150.0}],
 			["ghatak", "Ghatak", "uav_heavy", "flyingwing", {tier = 3, stealth = true, cost = 1900, hp = 420}],
+			["durga", "DURGA-II Lazer", "laser", "laser_truck", {}],
 		],
 	},
 }
@@ -640,6 +651,14 @@ static func setup() -> void:
 			d.cls = u[2]
 			d.model = u[3]
 			d.cc = cc
+			if int(d.get("tier", 1)) >= 3:
+				# Deneysel silah: pahalı ama çok etkili.
+				d.exp = true
+				d.cost = int(round(float(d.cost) * 1.5))
+				d.hp = float(d.hp) * 1.3
+				d.time = float(d.time) * 1.2
+				if d.has("dmg"):
+					d.dmg = float(d.dmg) * 1.5
 			var id := "%s_%s" % [cc, u[0]]
 			Defs.UNITS[id] = d
 			if not produces.has(d.from):
@@ -653,6 +672,7 @@ static func setup() -> void:
 			b.armor = "bld"
 			if produces.has(kind):
 				b.produces = produces[kind]
+				b.slots = country_slots(cc, kind)
 			if kind == "sam":
 				b.name = c.sam[0]
 				b.model = c.sam[1]
@@ -661,6 +681,38 @@ static func setup() -> void:
 			if kind == "engel":
 				b.model = "obstacle"
 			Defs.BUILDINGS["%s_%s" % [cc, kind]] = b
+
+
+# Üretim panelindeki sabit yuva düzeni: her binada sınıflar bu sırayla dizilir. Bir sınıfın yuva sayısı, o sınıftan
+# en çok birimi olan ülkeye göre belirlenir; ülkede olmayan birimin yuvası boş kalır, diğerleri kaymaz.
+const SLOT_ORDER := {
+	kisla = ["inf", "at", "sdrone_recon", "sdrone_fpv", "sdrone_bomb", "loiter"],
+	fabrika = ["ifv", "tank", "arty", "mlrs", "spaag", "ew", "laser"],
+	havaalani = ["uav_recon", "uav_strike", "uav_heavy", "uav_kami", "fighter", "striker", "stealth"],
+}
+
+
+## Bir binanın yuvaları: [birim kimliği ya da ""] (boş yuva).
+static func country_slots(cc: String, kind: String) -> Array:
+	var out: Array = []
+	if not SLOT_ORDER.has(kind):
+		return out
+	for cls in SLOT_ORDER[kind]:
+		var most := 0
+		for c in COUNTRIES:
+			var n := 0
+			for u in COUNTRIES[c].units:
+				if u[2] == cls:
+					n += 1
+			most = maxi(most, n)
+		var mine: Array = []
+		for u in COUNTRIES[cc].units:
+			if u[2] == cls:
+				mine.append("%s_%s" % [cc, u[0]])
+		mine.sort_custom(func(a, b): return int(Defs.UNITS[a].get("tier", 1)) < int(Defs.UNITS[b].get("tier", 1)))
+		for i in most:
+			out.append(mine[i] if i < mine.size() else "")
+	return out
 
 
 static func country(team: int) -> Dictionary:

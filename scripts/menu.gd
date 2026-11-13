@@ -22,7 +22,7 @@ func _ready() -> void:
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--maptest"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--maptest") or args.has("--uishot"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:

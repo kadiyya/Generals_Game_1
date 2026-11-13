@@ -29,13 +29,13 @@ func _ready() -> void:
 			func(): return _dug()],
 		["İnşa menüsünden bir Santral ve bir Fabrika kur. Vinç sayısı aynı anda kaç inşaat yürüyeceğini belirler.",
 			func(): return g.count_kind(0, "santral", false) > 0 and g.count_kind(0, "fabrika", false) > 0],
-		["Fabrikadan bir tank üret. Fabrikayı seçip Toplanma Noktası'na basarak yeni birliklerin nereye gideceğini de seçebilirsin.",
-			func(): return _count("tank") >= 1],
+		["Fabrikadan bir M2 Bradley üret. Ukrayna'nın tankı yok (İHA doktrini): yeşil fiyatlı dronlar ucuz, kırmızı fiyatlılar pahalı. Fabrikayı seçip Toplanma Noktası'na basarak yeni birliklerin nereye gideceğini de seçebilirsin.",
+			func(): return _count("ifv") >= 1],
 		["Birliklerini seçip Grup 1 düğmesine basılı tut: grup kaydedilir. Sonra Grup 1'e dokunarak hepsini bir anda seçebilirsin.",
 			func(): return not g.groups[0].is_empty()],
 		["Sol paneldeki doktrin yeteneğini (Sürü Saldırısı) görebildiğin bir düşman bölgesine kullan.",
 			func(): return g.teams[0].ab_cd > 0.0],
-		["Eğitim bitti! Artık düşman saldıracak. Görevin ekranın üstünde: merkez köyü 8 dakika tut ya da düşman karargâhını yık.",
+		["Eğitim bitti! Haritada beliren kaynak yataklarına Maden Ocağı kur, ileri üslerle ikmal hattını uzat. Görevin ekranın üstünde: Çuhuiv köprübaşını 10 dakika tut ya da düşman karargâhını yık.",
 			func(): return t > 10.0],
 	]
 	panel = PanelContainer.new()
