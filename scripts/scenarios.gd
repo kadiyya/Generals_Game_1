@@ -570,6 +570,7 @@ const TIPS := {
 const LIST := [
 	{
 		name = "Rusya – Ukrayna", map = "harkiv", a = "ua", b = "ru",
+		geo = {c = Vector2(36.5, 49.8), zoom = 9.0, a = Vector2(34.6, 49.8), b = Vector2(38.6, 50.4), col = Color(1.0, 0.72, 0.25), label = "Harkiv – Severski Donets"},
 		desc = "Harkiv'in doğusu: Severski Donets ve Oskil nehirleri, köprüler, Peçenihi barajı, geniş ormanlar ve ağaç hatlarıyla bölünmüş tarlalar. Ukrayna'nın tankı yok; drone'larla Rus zırhını avlar. Rusya ağır zırh ve topçuya güvenir.",
 		obj = {
 			a = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
@@ -578,6 +579,7 @@ const LIST := [
 	},
 	{
 		name = "İran – İsrail", map = "korfez", a = "il", b = "ir",
+		geo = {c = Vector2(42.0, 31.8), zoom = 6.0, a = Vector2(35.0, 31.6), b = Vector2(49.5, 31.5), col = Color(0.3, 0.85, 0.75), label = "Huzistan – Zagros"},
 		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir.",
 		obj = {
 			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, text = "4 stratejik hedefi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
@@ -586,15 +588,16 @@ const LIST := [
 	},
 	{
 		name = "Pakistan – Hindistan", map = "kesmir", a = "pk", b = "in",
+		geo = {c = Vector2(74.5, 33.0), zoom = 10.0, a = Vector2(72.8, 33.4), b = Vector2(76.3, 32.6), col = Color(0.55, 0.9, 0.4), label = "Keşmir – Kontrol Hattı"},
 		desc = "Kontrol Hattı: kuzeyde Himalaya eteklerinin çam ormanları ve hâkim tepeler, güneyde kanallarla bölünmüş Pencap ovası; Chenab, Jhelum ve Tawi nehirleri. Pakistan balistik füzelere, Hindistan insan gücüne güvenir.",
 		obj = {
 			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla", "fuze"], count = 3, text = "3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla, füze üssü)"},
 			b = {type = "hold", point = 0, secs = 600.0, text = "Akhnur köprübaşını toplam 10 dakika elinde tut"},
 		},
 	},
-	{name = "Çin – ABD: Tayvan Çıkarması", locked = true, desc = "Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır. Deniz moduyla açılacak."},
-	{name = "Çin – ABD: Okyanus", locked = true, desc = "İki donanma okyanusta karşılaşır; amaç karadaki üsleri yok etmek. Deniz moduyla açılacak."},
-	{name = "Türkiye – Yunanistan: Adalar", locked = true, desc = "Türkiye'nin silahları üstün, Yunanistan'ın silahlandırılmış adaları ve kaynakları fazla. Deniz moduyla açılacak."},
+	{name = "Çin – ABD: Tayvan Çıkarması", locked = true, geo = {c = Vector2(120.5, 24.0), zoom = 6.0, col = Color(0.9, 0.35, 0.3)}, desc = "Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır. Deniz moduyla açılacak."},
+	{name = "Çin – ABD: Okyanus", locked = true, geo = {c = Vector2(150.0, 18.0), zoom = 2.5, col = Color(0.35, 0.6, 1.0)}, desc = "İki donanma okyanusta karşılaşır; amaç karadaki üsleri yok etmek. Deniz moduyla açılacak."},
+	{name = "Türkiye – Yunanistan: Adalar", locked = true, geo = {c = Vector2(26.0, 38.5), zoom = 9.0, col = Color(0.85, 0.85, 0.95)}, desc = "Türkiye'nin silahları üstün, Yunanistan'ın silahlandırılmış adaları ve kaynakları fazla. Deniz moduyla açılacak."},
 ]
 
 

@@ -4,6 +4,9 @@ extends Control
 
 var list: VBoxContainer
 var detail: VBoxContainer
+var world: WorldMap
+var logo: Logo
+var scn_btns: Array = []
 
 
 func _ready() -> void:
@@ -32,153 +35,238 @@ func _ready() -> void:
 	var th := Theme.new()
 	th.default_font_size = 20
 	theme = th
-	var bg := ColorRect.new()
-	bg.color = Color(0.07, 0.09, 0.11)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	var mc := MarginContainer.new()
-	mc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for s in ["left", "right", "top", "bottom"]:
-		mc.add_theme_constant_override("margin_" + s, 24)
-	add_child(mc)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 14)
-	mc.add_child(vb)
-	var title := Label.new()
-	title.text = "SENARYO SEÇ"
-	title.add_theme_font_size_override("font_size", 34)
-	vb.add_child(title)
+	world = WorldMap.new()
+	add_child(world)
+	logo = Logo.new()
+	logo.position = Vector2(18, 10)
+	logo.size = Vector2(520, 118)
+	add_child(logo)
 	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 24)
-	hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(hb)
+	hb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hb.offset_top = 136
+	hb.offset_left = 18
+	hb.offset_right = -18
+	hb.offset_bottom = -14
+	hb.add_theme_constant_override("separation", 18)
+	add_child(hb)
+	var left := _panel()
+	left.custom_minimum_size = Vector2(400, 0)
+	hb.add_child(left)
 	var sc := ScrollContainer.new()
-	sc.custom_minimum_size = Vector2(470, 0)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	hb.add_child(sc)
+	left.add_child(sc)
 	list = VBoxContainer.new()
-	list.add_theme_constant_override("separation", 10)
+	list.add_theme_constant_override("separation", 8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(list)
 	var info := Game.saved_info()
 	if not info.is_empty():
-		var cont := Button.new()
 		var sc_name: String = Scenarios.LIST[int(info.scn)].name
-		cont.text = "Devam Et — %s, %02d:%02d" % [sc_name, int(info.time) / 60, int(info.time) % 60]
-		cont.custom_minimum_size = Vector2(450, 64)
-		cont.focus_mode = Control.FOCUS_NONE
-		cont.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		cont.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65))
-		cont.pressed.connect(_continue)
-		list.add_child(cont)
-	var tut := Button.new()
-	tut.text = "Eğitim — oynamayı adım adım öğren"
-	tut.custom_minimum_size = Vector2(450, 64)
-	tut.focus_mode = Control.FOCUS_NONE
-	tut.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	tut.add_theme_color_override("font_color", Color(1.0, 0.86, 0.45))
-	tut.pressed.connect(_tutorial)
-	list.add_child(tut)
-	var st := Button.new()
-	st.text = "Ayarlar — ses, grafik ve performans"
-	st.custom_minimum_size = Vector2(450, 64)
-	st.focus_mode = Control.FOCUS_NONE
-	st.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	st.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-	st.pressed.connect(_settings)
-	list.add_child(st)
+		_list_btn("Devam Et — %s, %02d:%02d" % [sc_name, int(info.time) / 60, int(info.time) % 60], Color(0.6, 1.0, 0.65), _continue)
+	_list_btn("Eğitim — oynamayı adım adım öğren", Color(1.0, 0.86, 0.45), _tutorial)
+	_list_btn("Ayarlar — ses, grafik ve performans", Color(0.7, 0.85, 1.0), _settings)
 	for i in Scenarios.LIST.size():
 		var scn: Dictionary = Scenarios.LIST[i]
-		var b := Button.new()
-		b.text = scn.name + ("   (kilitli)" if scn.get("locked", false) else "")
-		b.custom_minimum_size = Vector2(450, 64)
-		b.focus_mode = Control.FOCUS_NONE
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.pressed.connect(_show.bind(i))
-		list.add_child(b)
+		var b := _list_btn(scn.name + ("   (kilitli)" if scn.get("locked", false) else ""), Color(0.9, 0.92, 0.95), _show.bind(i))
+		scn_btns.append(b)
+	var sc2 := ScrollContainer.new()
+	sc2.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hb.add_child(sc2)
 	detail = VBoxContainer.new()
-	detail.add_theme_constant_override("separation", 14)
+	detail.add_theme_constant_override("separation", 10)
 	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hb.add_child(detail)
+	sc2.add_child(detail)
 	_show(Scenarios.chosen if not Scenarios.LIST[Scenarios.chosen].get("locked", false) else 0)
 	for a in args:
 		if a.begins_with("--menushot="):
 			_menushot.call_deferred(a.trim_prefix("--menushot="))
 
 
+func _panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.02, 0.05, 0.07, 0.72)
+	sb.border_color = Color(1, 1, 1, 0.12)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	p.add_theme_stylebox_override("panel", sb)
+	return p
+
+
+func _list_btn(text: String, col: Color, cb: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(372, 56)
+	b.focus_mode = Control.FOCUS_NONE
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_color_override("font_color", col)
+	b.pressed.connect(cb)
+	list.add_child(b)
+	return b
+
+
 func _menushot(path: String) -> void:
 	# Geliştirme aracı: menünün ekran görüntüsünü alıp çıkar.
-	for i in 4:
+	for i in 40:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(path)
 	get_tree().quit()
 
 
-func _show(i: int) -> void:
+## Haritanın üstünde okunur yazı: koyu kontur.
+func _outlined(text: String, fs: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", fs)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	l.add_theme_constant_override("outline_size", 7)
+	return l
+
+
+## Ayrıntı alanında yarı saydam bir kutu açar ve içindeki dikey düzeni döndürür.
+func _box() -> VBoxContainer:
+	var p := _panel()
+	detail.add_child(p)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	p.add_child(v)
+	return v
+
+
+func _clear_detail() -> void:
 	for c in detail.get_children():
 		detail.remove_child(c)
 		c.queue_free()
+
+
+func _show(i: int) -> void:
+	_clear_detail()
 	var scn: Dictionary = Scenarios.LIST[i]
-	var name_lbl := Label.new()
-	name_lbl.text = scn.name
-	name_lbl.add_theme_font_size_override("font_size", 28)
-	detail.add_child(name_lbl)
-	var desc := Label.new()
-	desc.text = scn.desc
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	world.show_scenario(i)
+	var geo: Dictionary = scn.get("geo", {})
+	logo.accent = geo.get("col", Color(0.95, 0.55, 0.15))
+	for k in scn_btns.size():
+		scn_btns[k].modulate = Color(1, 1, 1) if k == i else Color(0.8, 0.8, 0.8)
+	detail.add_child(_outlined(scn.name, 32, geo.get("col", Color.WHITE).lerp(Color.WHITE, 0.4)))
+	var desc := _outlined(scn.desc, 17, Color(0.92, 0.94, 0.96))
+	desc.custom_minimum_size = Vector2(440, 110)
+	desc.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	detail.add_child(desc)
 	if scn.get("locked", false):
-		var l := Label.new()
-		l.text = "Bu senaryo deniz modu eklendiğinde açılacak."
-		l.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
-		detail.add_child(l)
+		detail.add_child(_outlined("Bu senaryo deniz modu eklendiğinde açılacak.", 18, Color(1.0, 0.8, 0.4)))
 		return
+	var box := _box()
+	# harita önizlemesi; yanında düzen ve zorluk
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	box.add_child(row)
+	var pv := MapPreview.new()
+	pv.setup(scn)
+	row.add_child(pv)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 6)
+	row.add_child(col)
 	var map_lbl := Label.new()
 	map_lbl.text = "Harita: %s" % Scenarios.MAPS[scn.map].name
 	map_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
-	detail.add_child(map_lbl)
-	var dl := HBoxContainer.new()
-	dl.add_theme_constant_override("separation", 10)
-	detail.add_child(dl)
+	map_lbl.add_theme_font_size_override("font_size", 16)
+	col.add_child(map_lbl)
+	var mlbl := Label.new()
+	mlbl.text = "Düzen"
+	mlbl.add_theme_font_size_override("font_size", 16)
+	col.add_child(mlbl)
+	var ml := HFlowContainer.new()
+	ml.add_theme_constant_override("h_separation", 6)
+	ml.add_theme_constant_override("v_separation", 6)
+	col.add_child(ml)
+	for k in Defs.MODES.size():
+		var mb := Button.new()
+		mb.text = Defs.MODES[k].name
+		mb.toggle_mode = true
+		mb.button_pressed = k == Scenarios.mode
+		mb.custom_minimum_size = Vector2(0, 44)
+		mb.focus_mode = Control.FOCUS_NONE
+		mb.add_theme_font_size_override("font_size", 16)
+		mb.tooltip_text = Defs.MODES[k].desc
+		mb.pressed.connect(func():
+			Scenarios.mode = k
+			_show(i))
+		ml.add_child(mb)
+	var mdesc := Label.new()
+	mdesc.text = Defs.MODES[Scenarios.mode].desc
+	mdesc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mdesc.add_theme_font_size_override("font_size", 14)
+	mdesc.add_theme_color_override("font_color", Color(0.75, 0.8, 0.85))
+	col.add_child(mdesc)
 	var dlbl := Label.new()
-	dlbl.text = "Zorluk:"
-	dl.add_child(dlbl)
+	dlbl.text = "Zorluk"
+	dlbl.add_theme_font_size_override("font_size", 16)
+	col.add_child(dlbl)
+	var dl := HBoxContainer.new()
+	dl.add_theme_constant_override("separation", 6)
+	col.add_child(dl)
 	for k in Defs.DIFFS.size():
 		var db := Button.new()
 		db.text = Defs.DIFFS[k].name
 		db.toggle_mode = true
 		db.button_pressed = k == Scenarios.difficulty
-		db.custom_minimum_size = Vector2(110, 48)
+		db.custom_minimum_size = Vector2(96, 44)
 		db.focus_mode = Control.FOCUS_NONE
+		db.add_theme_font_size_override("font_size", 16)
 		db.pressed.connect(func():
 			Scenarios.difficulty = k
 			_show(i))
 		dl.add_child(db)
 	var pick := Label.new()
 	pick.text = "Tarafını seç:"
-	detail.add_child(pick)
+	box.add_child(pick)
 	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 16)
-	detail.add_child(hb)
+	hb.add_theme_constant_override("separation", 12)
+	box.add_child(hb)
 	var codes: Array = [scn.a, scn.b]
 	for side in 2:
 		var c: Dictionary = Scenarios.COUNTRIES[codes[side]]
 		var doc: Dictionary = Scenarios.DOCTRINES[c.doctrine]
 		var b := Button.new()
-		b.text = "%s\n%s\n\n%s" % [c.name, doc.name, doc.desc]
+		b.text = "%s — %s\n%s" % [c.name, doc.name, doc.desc]
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(330, 190)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.custom_minimum_size = Vector2(250, 128)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_size_override("font_size", 15)
+		var sbn := StyleBoxFlat.new()
+		sbn.bg_color = Color(0.1, 0.13, 0.15, 0.9)
+		sbn.border_color = [Color(0.35, 0.6, 1.0), Color(1.0, 0.35, 0.3)][side]
+		sbn.border_width_left = 4
+		sbn.set_corner_radius_all(5)
+		sbn.content_margin_left = 84
+		sbn.content_margin_right = 10
+		b.add_theme_stylebox_override("normal", sbn)
+		var sbh := sbn.duplicate()
+		sbh.bg_color = Color(0.16, 0.2, 0.22, 0.95)
+		b.add_theme_stylebox_override("hover", sbh)
+		b.add_theme_stylebox_override("pressed", sbh)
+		var cc: String = codes[side]
+		b.draw.connect(func(): WorldMap.draw_flag(b, Rect2(14, b.size.y * 0.5 - 20, 60, 40), cc))
 		b.pressed.connect(_pick.bind(i, side))
 		hb.add_child(b)
 
 
 ## Ayarlar: her biri açılıp kapanır ve hemen kaydedilir. Gölge ve texture bir sonraki maçta geçerli olur.
 func _settings() -> void:
-	for c in detail.get_children():
-		detail.remove_child(c)
-		c.queue_free()
+	_clear_detail()
+	world.show_scenario(-1)
+	var holder := detail
+	detail = _box()
 	var t := Label.new()
 	t.text = "Ayarlar"
 	t.add_theme_font_size_override("font_size", 28)
@@ -196,6 +284,7 @@ func _settings() -> void:
 		cb.focus_mode = Control.FOCUS_NONE
 		cb.toggled.connect(func(on: bool): Settings.set_v(k, on))
 		detail.add_child(cb)
+	detail = holder
 
 
 func _pick(i: int, side: int) -> void:
@@ -232,4 +321,24 @@ func _continue() -> void:
 
 
 func _start() -> void:
+	if world == null:
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+		return
+	# Büyük harita kurulurken logolu bekleme ekranı.
+	var cover := ColorRect.new()
+	cover.color = Color(0.02, 0.04, 0.05, 0.92)
+	cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(cover)
+	var lg := Logo.new()
+	lg.accent = logo.accent
+	lg.size = Vector2(520, 118)
+	lg.position = size * 0.5 - Vector2(260, 100)
+	cover.add_child(lg)
+	var l := Label.new()
+	l.text = "Harita hazırlanıyor..."
+	l.position = size * 0.5 + Vector2(-110, 40)
+	l.add_theme_font_size_override("font_size", 22)
+	cover.add_child(l)
+	for i in 3:
+		await RenderingServer.frame_post_draw
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
