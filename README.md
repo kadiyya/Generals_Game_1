@@ -47,7 +47,7 @@ doktrininde füzeler ucuzdur ve Füze Üssü bir kademe erken açılır.
 **Deneysel silahlar (Kademe 3):** Tryzub ve Iron Beam lazerleri (drone katili), S-70 Okhotnik-B, Ghatak, Su-57, F-35I, hipersonik füzeler.
 
 **Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız hedefe döner; ateşte geri tepme, namlu alevi ve duman;
-araçların arkasında toz; piyade yürürken adım atar, ateş ederken çömelir; füzeler duman izi bırakır; vurulan uçak
+araçların arkasında toz; uçaklarda dönüşte kanatçık, irtifa ve yön dümenleri oynar, art yakıcı titrer, seyir ışıkları ve çakar yanar, İHA kamerası hedefe döner, kanat altı yükler atıldıkça eksilir, pervaneler döner; piyade yürürken adım atar, ateş ederken çömelir; füzeler duman izi bırakır; vurulan uçak
 duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
 
 Ayrıca: arazi ve yol bulma, serbest bina yerleşimi, vinç, hız düğmesi (duraklatıp emir verme), karargâh yanında onarım, savaş sisi.
@@ -93,7 +93,7 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/tanks.gd` | Ayrıntılı tank modelleri (T-72B3, T-90M, Leopard 2A6, Merkava Mk 4): gerçek ölçülerle yürüyen aksam, kule, reaktif zırh, takım rengi tanıma örtüsü |
 | `scripts/vehicles.gd` | Diğer kara araçları ve piyade: BMP, M113 türevleri, Bradley, Namer, Gepard, Shilka, Tor, obüsler, TOS-1A, kamyonlu sistemler (Pantsir, Iron Dome, HIMARS, roketatarlar, lazer) |
 | `scripts/buildings.gd` | Bina modelleri, hava savunma bataryaları, vinç ve ikmal noktaları: beton ve oluklu sac dokular, pencereler, bacalar, antenler, bayrak ve çatı şeridiyle takım rengi |
-| `scripts/aircraft.gd` | Ayrıntılı uçak ve İHA modelleri: jetler `AIRFRAMES` tablosundan (gövde istasyonları, hava alığı, nasel, kokpit camı, füze/bomba, milli işaret), İHA'lar gerçek ölçüyle; dönen pervaneler |
+| `scripts/aircraft.gd` | Uçak ve İHA modelleri, gerçek ölçüyle: `AIRFRAMES` tablosu (gövde kesitleri, profilli kanat ve kuyruklar, hava alığı, nasel, kanopi, lüle), boya şemaları (Rus, çöl, İsrail, splinter kamuflajı), hareketli parçalar (kanatçık, dümen, art yakıcı, çakar, kamera, dış yükler) |
 | `scripts/kit.gd` | Araç mesh kurucusu: parçaları malzeme başına tek yüzeyde birleştirir, çamur/toz/gölgeyi köşe rengine işler |
 | `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda, uçak boyası, beton, oluklu sac) |
 | `scripts/terrain.gd` | Arazi ve yol bulma |

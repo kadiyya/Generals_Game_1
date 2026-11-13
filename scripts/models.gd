@@ -138,26 +138,41 @@ static func build(d: Dictionary, team: int) -> Node3D:
 
 # ---------------------------------------------------------------- parçalar
 
-## Uçak / İHA modeli (aircraft.gd). Pervaneler "rotors" düğümünün altında; AirUnit onları döndürür.
+## Uçak / İHA modeli (aircraft.gd). Hareketli parçalar "parts", pervaneler "rotors" düğümünün altında; AirUnit oynatır.
 static func _aircraft(n: Node3D, d: Dictionary, id: String, ac: Color, tc: Color) -> void:
+	var cc: String = d.get("cc", "")
 	# Geran-2 Rusya'da siyaha boyalı uçar.
-	if id == "shahed" and d.get("cc", "") == "ru":
+	if id == "shahed" and cc == "ru":
 		ac = Color(0.13, 0.13, 0.14)
 	var cls: String = d.get("cls", "")
-	var key := "%s|%s|%s|%s" % [id, ac.to_html(), tc.to_html(), cls]
+	var ammo: int = int(d.get("ammo", 0))
+	var sk := Aircraft.scheme(id, cc, ac)
+	var key := "%s|%s|%s|%s|%s|%s" % [id, ac.to_html(), tc.to_html(), cls, ammo, sk[0]]
 	if not _air.has(key):
 		var k := Kit.new()
 		var pk := Kit.new()
 		k.grounded = false
 		pk.grounded = false
-		Aircraft.slots(k, ac, tc)
-		Aircraft.slots(pk, ac, tc)
-		var made := Aircraft.design(id, k, pk, cls)
-		_air[key] = [k.mesh(), pk.mesh() if not made.is_empty() else null, made]
+		Aircraft.slots(k, ac, tc, sk)
+		Aircraft.slots(pk, ac, tc, sk)
+		var made := Aircraft.design(id, k, pk, cls, ammo)
+		_air[key] = [k.mesh(), pk.mesh() if not made.is_empty() else null, made, k.part_meshes()]
 	var c: Array = _air[key]
 	var body := MeshInstance3D.new()
 	body.mesh = c[0]
 	n.add_child(body)
+	var parts := Node3D.new()
+	parts.name = "parts"
+	n.add_child(parts)
+	for pm in c[3]:
+		var mi := MeshInstance3D.new()
+		mi.name = pm[0]
+		mi.mesh = pm[1]
+		mi.position = pm[2]
+		mi.set_meta("axis", pm[3])
+		if String(pm[0]).begins_with("burn") or String(pm[0]) == "strobe":
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parts.add_child(mi)
 	var hubs: Array = c[2]
 	if hubs.is_empty():
 		return
@@ -169,10 +184,10 @@ static func _aircraft(n: Node3D, d: Dictionary, id: String, ac: Color, tc: Color
 		hub.position = hb[0]
 		hub.rotation_degrees = hb[1]
 		rotors.add_child(hub)
-		var pm := MeshInstance3D.new()
-		pm.mesh = c[1]
-		pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		hub.add_child(pm)
+		var prop := MeshInstance3D.new()
+		prop.mesh = c[1]
+		prop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		hub.add_child(prop)
 
 
 ## Ayrıntılı kara aracı (tanks.gd, vehicles.gd): gövde ve varsa kule iki mesh olarak eklenir.

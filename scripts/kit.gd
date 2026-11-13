@@ -16,6 +16,11 @@ const MATS := {
 	"concrete": ["concrete", 2.6, 0.9, 0.0],
 	"corrug": ["corrug", 1.0, 0.55, 0.25],
 	"optic": ["", 1.0, 0.12, 0.3],
+	"emit": ["", 1.0, 1.0, 0.0],
+	"camo_ru": ["air_ru", 3.2, 0.42, 0.12],
+	"camo_desert": ["air_desert", 3.2, 0.5, 0.08],
+	"camo_il": ["air_il", 3.2, 0.5, 0.08],
+	"camo_split": ["air_split", 3.2, 0.4, 0.12],
 }
 
 static var _mats := {}
@@ -29,6 +34,9 @@ var _scale := 1.0
 var _stack: Array = []
 var _seed := 12345
 var _tint := 1.0
+var _parts := {}      # parça adı -> [yüzeyler, eksen merkezi, eksen]: ayrı mesh olur, oyunda oynatılır
+var _main := {}
+var _pivot := Vector3.ZERO
 
 
 ## Bir renk yuvası tanımlar. dusty: kirlenme oranı (0 = hiç, 1 = alt kısmı tamamen çamur rengine döner).
@@ -50,6 +58,32 @@ func pop() -> void:
 	_scale = s[1]
 
 
+## Hareketli parça başlatır: bundan sonraki üçgenler ayrı bir mesh'e gider. pivot ve axis yerel koordinatta
+## verilir (dönme merkezi ve ekseni); end_part() ile ana gövdeye dönülür.
+func begin_part(name: String, pivot: Vector3, axis: Vector3) -> void:
+	var pv := _xf * pivot
+	var ax := (_xf.basis * axis).normalized()
+	if not _parts.has(name):
+		_parts[name] = [{}, pv, ax]
+	_main = _surf
+	_surf = _parts[name][0]
+	_pivot = pv
+
+
+func end_part() -> void:
+	_surf = _main
+	_pivot = Vector3.ZERO
+
+
+## Hareketli parçalar: [ad, mesh, merkez, eksen] listesi. Mesh köşeleri merkeze göredir.
+func part_meshes() -> Array:
+	var out: Array = []
+	for name in _parts:
+		var p: Array = _parts[name]
+		out.append([name, _build(p[0]), p[1], p[2]])
+	return out
+
+
 # ---------------------------------------------------------------- parçalar
 
 ## Kutu: size boyutlarında, pos merkezli, rot derece döndürülmüş.
@@ -65,7 +99,8 @@ func box(s: String, size: Vector3, pos: Vector3, rot := Vector3.ZERO) -> void:
 
 ## Kesitleri sırayla birleştirir ve iki ucu kapatır. Kesitler aynı sayıda köşeli, aynı sırada dolaşılan
 ## dışbükey çokgenlerdir; bütün cisim de dışbükey olmalıdır. smooth: kesit çevresinde normaller yumuşatılır.
-func loft(s: String, rings: Array, smooth := false) -> void:
+## round: kesitler arasında da yumuşatılır (gövde, kanopi gibi kesintisiz yüzeyler).
+func loft(s: String, rings: Array, smooth := false, round := false) -> void:
 	_vary()
 	var ctr := Vector3.ZERO
 	var cnt := 0
@@ -75,6 +110,7 @@ func loft(s: String, rings: Array, smooth := false) -> void:
 			cnt += 1
 	ctr /= float(cnt)
 	var m: int = rings[0].size()
+	var bands: Array = []
 	for i in rings.size() - 1:
 		var r0: Array = rings[i]
 		var r1: Array = rings[i + 1]
@@ -91,6 +127,11 @@ func loft(s: String, rings: Array, smooth := false) -> void:
 			if fn.dot((a + b + c + d) * 0.25 - ctr) < 0.0:
 				fn = -fn
 			fns.append(fn)
+		bands.append(fns)
+	for i in rings.size() - 1:
+		var r0: Array = rings[i]
+		var r1: Array = rings[i + 1]
+		var fns: Array = bands[i]
 		for j in m:
 			var a: Vector3 = r0[j]
 			var b: Vector3 = r0[(j + 1) % m]
@@ -98,13 +139,32 @@ func loft(s: String, rings: Array, smooth := false) -> void:
 			var d: Vector3 = r1[j]
 			var na: Vector3 = fns[j]
 			var nb: Vector3 = fns[j]
-			if smooth:
+			var nc: Vector3 = fns[j]
+			var nd: Vector3 = fns[j]
+			if round:
+				na = _vnorm(bands, i, j, m)
+				nb = _vnorm(bands, i, j + 1, m)
+				nc = _vnorm(bands, i + 1, j + 1, m)
+				nd = _vnorm(bands, i + 1, j, m)
+			elif smooth:
 				na = (fns[(j - 1 + m) % m] + fns[j]).normalized()
 				nb = (fns[j] + fns[(j + 1) % m]).normalized()
-			_emit(s, [a, b, c], [na, nb, nb], [])
-			_emit(s, [a, c, d], [na, nb, na], [])
+				nc = nb
+				nd = na
+			_emit(s, [a, b, c], [na, nb, nc], [])
+			_emit(s, [a, c, d], [na, nc, nd], [])
 	_cap(s, rings[0], ctr)
 	_cap(s, rings[rings.size() - 1], ctr)
+
+
+## Kesit ri'deki j köşesinin normali: çevresindeki dört yüzün ortalaması.
+func _vnorm(bands: Array, ri: int, j: int, m: int) -> Vector3:
+	var n := Vector3.ZERO
+	for b in [ri - 1, ri]:
+		if b >= 0 and b < bands.size():
+			var f: Array = bands[b]
+			n += f[(j - 1 + m) % m] + f[j % m]
+	return n.normalized()
 
 
 ## Döner cisim: profil noktaları (yarıçap, yükseklik), alttan üste dış yüzey boyunca sıralı.
@@ -245,7 +305,7 @@ func _emit(s: String, p: Array, n: Array, uv: Array) -> void:
 	var az := absf(fn.z)
 	for i in order:
 		var q: Vector3 = w[i]
-		dst[0].append(q)
+		dst[0].append(q - _pivot)
 		dst[1].append(wn[i])
 		dst[2].append(_shade(sl, q, wn[i]))
 		if not uv.is_empty():
@@ -263,6 +323,8 @@ func _shade(sl: Array, q: Vector3, n: Vector3) -> Color:
 	var c: Color = sl[1]
 	var k: float = sl[2]
 	var top := clampf(n.y, 0.0, 1.0)
+	if sl[0] == "emit":
+		return c
 	if not grounded:
 		var lit := (0.88 + 0.12 * top - 0.3 * clampf(-n.y, 0.0, 1.0)) * _tint
 		return Color(c.r * lit, c.g * lit, c.b * lit)
@@ -283,9 +345,13 @@ func is_empty() -> bool:
 
 ## Birikmiş üçgenlerden mesh üretir; malzeme türü başına bir yüzey.
 func mesh() -> ArrayMesh:
+	return _build(_surf)
+
+
+func _build(surf: Dictionary) -> ArrayMesh:
 	var am := ArrayMesh.new()
-	for kind in _surf:
-		var src: Array = _surf[kind]
+	for kind in surf:
+		var src: Array = surf[kind]
 		var arr := []
 		arr.resize(Mesh.ARRAY_MAX)
 		arr[Mesh.ARRAY_VERTEX] = PackedVector3Array(src[0])
@@ -305,7 +371,9 @@ static func material(kind: String) -> StandardMaterial3D:
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true
 	var tex: String = d[0]
-	if tex != "":
+	if kind == "emit":
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	elif tex != "":
 		var k: float = 1.0 / float(d[1])
 		m.albedo_texture = Tex.texture(tex)
 		m.uv1_scale = Vector3(k, k, 1.0)

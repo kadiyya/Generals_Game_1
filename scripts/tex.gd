@@ -38,6 +38,14 @@ static func texture(kind: String) -> ImageTexture:
 			img = _range(n, 0.6, 1.0, 0.06)
 		"track":
 			img = _track(n)
+		"air_ru":
+			img = _air_camo(n, [Color(0.64, 0.7, 0.76), Color(0.47, 0.55, 0.66), Color(0.56, 0.62, 0.7)], 0.028, false)
+		"air_desert":
+			img = _air_camo(n, [Color(0.74, 0.64, 0.47), Color(0.52, 0.4, 0.27), Color(0.58, 0.58, 0.42)], 0.03, false)
+		"air_il":
+			img = _air_camo(n, [Color(0.77, 0.68, 0.5), Color(0.56, 0.44, 0.3), Color(0.55, 0.56, 0.4)], 0.032, false)
+		"air_split":
+			img = _air_camo(n, [Color(0.6, 0.65, 0.7), Color(0.36, 0.4, 0.46), Color(0.5, 0.58, 0.66)], 0.035, true)
 		"concrete":
 			# beton: lekeler, kalıp derzleri, akıntı izleri
 			n.frequency = 0.045
@@ -175,6 +183,33 @@ static func _track(n: FastNoiseLite) -> Image:
 				v *= 0.65
 			v *= lerpf(0.72, 1.05, mud.get_pixel(x, y).r)
 			img.set_pixel(x, y, Color(v, v, v))
+	return img
+
+
+## Uçak kamuflajı (renkli): üç tonlu yumuşak ya da keskin (splinter) lekeler, panel çizgileri ve perçin sıraları.
+static func _air_camo(n: FastNoiseLite, cols: Array, freq: float, sharp: bool) -> Image:
+	n.frequency = freq
+	n.fractal_octaves = 2 if sharp else 3
+	var a := _noise(n)
+	var g := FastNoiseLite.new()
+	g.seed = 31
+	g.frequency = freq * 1.3
+	var b := _noise(g)
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
+	var e := 0.005 if sharp else 0.035
+	for y in SIZE:
+		for x in SIZE:
+			var va := a.get_pixel(x, y).r
+			var vb := b.get_pixel(x, y).r
+			var c: Color = cols[0]
+			c = c.lerp(cols[1], smoothstep(0.55 - e, 0.55 + e, va))
+			c = c.lerp(cols[2], smoothstep(0.6 - e, 0.6 + e, vb) * (1.0 - smoothstep(0.5, 0.56, va)))
+			var k := 0.94 + 0.06 * vb
+			if x % 32 == 0 or y % 32 == 0 or (y % 64 < 32 and x % 32 == 16 and y % 32 > 12):
+				k *= 0.8
+			elif (x % 32 == 3 or y % 32 == 3) and (x + y) % 4 == 0:
+				k *= 0.9
+			img.set_pixel(x, y, Color(c.r * k, c.g * k, c.b * k))
 	return img
 
 

@@ -17,6 +17,9 @@ var rearm_t := 0.0
 var life := -1.0
 var bob_t := randf() * 6.0
 var rotors: Node3D = null   # varsa pervaneler döner
+var parts: Array = []       # hareketli parçalar: [düğüm, eksen, ad, o anki açı]
+var turn_rate := 0.0
+var anim_t := randf() * 10.0
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -32,6 +35,10 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 	position.y = alt
 	patrol = position
 	rotors = model.get_node_or_null("rotors")
+	var pn := model.get_node_or_null("parts")
+	if pn != null:
+		for c in pn.get_children():
+			parts.append([c, c.get_meta("axis", Vector3.UP), String(c.name), 0.0])
 	ring.position.y = 0.0
 
 
@@ -59,9 +66,11 @@ func _process(dt: float) -> void:
 		return
 	cd_timer -= dt
 	scan_timer -= dt
-	if rotors != null and visible:
-		for r in rotors.get_children():
-			r.rotate_object_local(Vector3.UP, dt * 38.0)
+	if visible:
+		if rotors != null:
+			for r in rotors.get_children():
+				r.rotate_object_local(Vector3.UP, dt * 38.0)
+		_animate(dt)
 	if life > 0.0:
 		life -= dt
 		if life <= 0.0:
@@ -147,6 +156,7 @@ func _fly(goal: Vector3, dt: float) -> void:
 		var before := yaw
 		yaw = rotate_toward(yaw, want, turn * dt)
 		tr = angle_difference(before, yaw) / maxf(dt, 0.001)
+	turn_rate = tr
 	position += Vector3(sin(yaw), 0, cos(yaw)) * speed * dt
 	position.y = alt
 	rotation.y = yaw
@@ -154,4 +164,45 @@ func _fly(goal: Vector3, dt: float) -> void:
 	if d.get("small", false):
 		bob_t += dt * 5.0
 		model.position.y = sin(bob_t) * 0.18
-		model.rotation.x = sin(bob_t * 0.7) * 0.08
+		model.rotation.x = sin(bob_t * 0.7) * 0.08 + (0.14 if rotors != null and rotors.get_child_count() >= 4 else 0.0)
+
+
+## Küçük hareketler: yatışta kanatçıklar zıt, irtifa dümenleri ve kanardlar yukarı, dikey dümen dönüş yönüne sapar;
+## art yakıcı titrer (hedefe dalarken büyür), çakar ışık yanıp söner, kamera hedefe döner (yoksa tarar),
+## kanat altı yükler cephane kadar görünür.
+func _animate(dt: float) -> void:
+	anim_t += dt
+	var bank := model.rotation.z
+	var pull := clampf(absf(turn_rate) * 0.35, 0.0, 0.45) + sin(anim_t * 0.9) * 0.04
+	var k := minf(1.0, dt * 6.0)
+	for p in parts:
+		var node: Node3D = p[0]
+		var nm: String = p[2]
+		var side := 1.0 if nm.ends_with("_l") else -1.0
+		var want := 0.0
+		if nm.begins_with("burn"):
+			node.scale = Vector3.ONE * (0.8 + randf() * 0.35 + (0.3 if target != null else 0.0))
+			continue
+		if nm == "strobe":
+			node.visible = fmod(anim_t, 1.3) < 0.1
+			continue
+		if nm.begins_with("store"):
+			node.visible = not d.has("ammo") or int(nm.substr(5)) < ammo
+			continue
+		if nm == "eo":
+			if target != null and is_instance_valid(target):
+				var to: Vector3 = target.global_position - global_position
+				want = angle_difference(rotation.y, atan2(to.x, to.z))
+			else:
+				want = sin(anim_t * 0.35) * 1.4
+			p[3] = rotate_toward(p[3], want, dt * 2.5)
+			node.basis = Basis(p[1], p[3])
+			continue
+		if nm.begins_with("ail"):
+			want = clampf(bank * 1.8, -0.45, 0.45) * side + sin(anim_t * 2.3 + side) * 0.03
+		elif nm.begins_with("stab") or nm.begins_with("can"):
+			want = -pull + clampf(bank, -0.3, 0.3) * 0.35 * side
+		elif nm.begins_with("rud"):
+			want = clampf(turn_rate * 0.3, -0.35, 0.35) + sin(anim_t * 1.7) * 0.03
+		p[3] = lerpf(p[3], want, k)
+		node.basis = Basis(p[1], p[3])
