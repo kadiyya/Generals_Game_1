@@ -12,15 +12,15 @@ const MATS := {
 	"steel": ["steel", 1.2, 0.6, 0.2],
 	"track": ["track", 1.0, 0.7, 0.25],
 	"fabric": ["fabric", 0.9, 0.95, 0.0],
-	"paint": ["skin", 1.6, 0.42, 0.15],
+	"paint": ["skin", 3.0, 0.42, 0.12],
 	"concrete": ["concrete", 2.6, 0.9, 0.0],
 	"corrug": ["corrug", 1.0, 0.55, 0.25],
 	"optic": ["", 1.0, 0.12, 0.3],
 	"emit": ["", 1.0, 1.0, 0.0],
-	"camo_ru": ["air_ru", 3.2, 0.42, 0.12],
-	"camo_desert": ["air_desert", 3.2, 0.5, 0.08],
-	"camo_il": ["air_il", 3.2, 0.5, 0.08],
-	"camo_split": ["air_split", 3.2, 0.4, 0.12],
+	"camo_ru": ["air_ru", 3.2, 0.36, 0.2],
+	"camo_desert": ["air_desert", 3.2, 0.42, 0.15],
+	"camo_il": ["air_il", 3.2, 0.42, 0.15],
+	"camo_split": ["air_split", 3.2, 0.36, 0.2],
 }
 
 static var _mats := {}
@@ -30,6 +30,7 @@ var grounded := true   # yer aracı: alt kısım çamurlanır ve gölgelenir. Ha
 var _slots := {}      # yuva adı -> [malzeme türü, renk, toz oranı]
 var _surf := {}       # malzeme türü -> [köşeler, normaller, renkler, uv]
 var _xf := Transform3D.IDENTITY
+var _nb := Basis.IDENTITY   # normaller için ters-devrik dönüşüm (eksen başına ölçekte normaller doğru kalsın)
 var _scale := 1.0
 var _stack: Array = []
 var _seed := 12345
@@ -46,16 +47,25 @@ func slot(name: String, kind: String, c: Color, dusty := 0.5) -> void:
 
 ## Sonraki parçalar bu konum, döndürme (derece) ve ölçekle yerleştirilir. pop() ile geri alınır.
 func push(pos: Vector3, rot := Vector3.ZERO, scale := 1.0) -> void:
-	_stack.append([_xf, _scale])
+	_stack.append([_xf, _scale, _nb])
 	var r := Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z))
 	_xf = _xf * Transform3D(Basis.from_euler(r) * scale, pos)
+	_nb = _nb * Basis.from_euler(r)
 	_scale *= scale
+
+
+## Eksen başına ölçek: oranları stilize etmek için (ör. gövdeyi ve kanatları biraz genişletmek). pop() ile geri alınır.
+func push_scale(v: Vector3) -> void:
+	_stack.append([_xf, _scale, _nb])
+	_xf = _xf * Transform3D(Basis.from_scale(v), Vector3.ZERO)
+	_nb = _nb * Basis.from_scale(Vector3(1.0 / v.x, 1.0 / v.y, 1.0 / v.z))
 
 
 func pop() -> void:
 	var s: Array = _stack.pop_back()
 	_xf = s[0]
 	_scale = s[1]
+	_nb = s[2]
 
 
 ## Hareketli parça başlatır: bundan sonraki üçgenler ayrı bir mesh'e gider. pivot ve axis yerel koordinatta
@@ -284,7 +294,7 @@ func _emit(s: String, p: Array, n: Array, uv: Array) -> void:
 	var wn: Array = []
 	for i in 3:
 		w.append(_xf * (p[i] as Vector3))
-		wn.append((_xf.basis * (n[i] as Vector3)).normalized())
+		wn.append((_nb * (n[i] as Vector3)).normalized())
 	var a: Vector3 = w[0]
 	var face: Vector3 = (w[1] - a).cross(w[2] - a)
 	if face.length_squared() < 1e-14:

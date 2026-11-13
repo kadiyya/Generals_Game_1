@@ -64,16 +64,12 @@ static func texture(kind: String) -> ImageTexture:
 					var wave := 0.8 + 0.2 * absf(sin(x * PI / 8.0))
 					img.set_pixel(x, y, img.get_pixel(x, y) * wave)
 		"skin":
-			# uçak boyası: hafif lekeler, panel çizgileri ve perçin sıraları
+			# uçak boyası: hafif lekeler, tonu biraz farklı sac paneller, panel çizgileri ve perçin sıraları
 			n.frequency = 0.04
-			img = _range(n, 0.86, 1.0, 0.025)
+			img = _range(n, 0.88, 1.0, 0.02)
 			for y in SIZE:
 				for x in SIZE:
-					var line := x % 32 == 0 or y % 32 == 0 or (y % 64 < 32 and x % 32 == 16 and y % 32 > 12)
-					if line:
-						img.set_pixel(x, y, img.get_pixel(x, y) * 0.76)
-					elif (x % 32 == 3 or y % 32 == 3) and (x + y) % 4 == 0:
-						img.set_pixel(x, y, img.get_pixel(x, y) * 0.9)
+					img.set_pixel(x, y, img.get_pixel(x, y) * _panel(x, y))
 		"fabric":
 			# branda ve tanıma örtüsü: hafif leke ve ince dokuma
 			n.frequency = 0.09
@@ -204,13 +200,23 @@ static func _air_camo(n: FastNoiseLite, cols: Array, freq: float, sharp: bool) -
 			var c: Color = cols[0]
 			c = c.lerp(cols[1], smoothstep(0.55 - e, 0.55 + e, va))
 			c = c.lerp(cols[2], smoothstep(0.6 - e, 0.6 + e, vb) * (1.0 - smoothstep(0.5, 0.56, va)))
-			var k := 0.94 + 0.06 * vb
-			if x % 32 == 0 or y % 32 == 0 or (y % 64 < 32 and x % 32 == 16 and y % 32 > 12):
-				k *= 0.8
-			elif (x % 32 == 3 or y % 32 == 3) and (x + y) % 4 == 0:
-				k *= 0.9
+			var k := (0.95 + 0.05 * vb) * _panel(x, y)
 			img.set_pixel(x, y, Color(c.r * k, c.g * k, c.b * k))
 	return img
+
+
+## Uçak sacı çarpanı: her panel biraz farklı tonda (yamalı sac görünümü), aralarında koyu çizgi, kenarlarında perçin.
+## Paneller 32 piksel; her iki sıradan birinde ortadan ikiye bölünür.
+static func _panel(x: int, y: int) -> float:
+	var split := y % 64 < 32
+	if x % 32 == 0 or y % 32 == 0 or (split and x % 32 == 16):
+		return 0.74
+	var cx := x / 16 if split else (x / 32) * 2 + 101
+	var h := fposmod(sin(cx * 12.9898 + (y / 32) * 78.233) * 43758.5453, 1.0)
+	var k := 0.88 + 0.16 * h
+	if (x % 16 == 3 or y % 32 == 3) and (x + y) % 4 == 0:
+		k *= 0.86
+	return k
 
 
 ## Gürültüyü eşiklere göre düz tonlara ayırır: [[eşik, ton], ...]

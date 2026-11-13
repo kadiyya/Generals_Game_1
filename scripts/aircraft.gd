@@ -150,13 +150,22 @@ const AIRFRAMES := {
 const DRONES := ["quad", "hexa", "small_plane", "xwing", "shahed", "shahed_s", "harop", "tb2", "twinboom", "mohajer6",
 	"liutyi", "vtail", "akinci", "flyingwing"]
 
+# Oyun stili (RTS kamerasından okunurluk için abartılmış oranlar): jetler biraz büyütülür, gövde ve kanat açıklığı
+# yanlara ve yukarı genişletilir, kanat ve kuyruk yüzeyleri gerçekteki inceliklerinden kalın çizilir.
+const BIG := 1.1
+const STY := Vector3(1.16, 1.14, 1.0)
+const TK := 1.7
+const FIN_T := 0.07
+# Takım rengi: kanat uçlarında şerit (açıklığın son BAND kadarı), dikey kuyrukların üst kısmı.
+const BAND := 0.2
+
 # Gövde kesit şablonları: [z / L, yarı genişlik / W, üst / H, alt / H, merkez y / H, köşelilik]
-const LIGHT := [[0.5, 0.06, 0.06, 0.06, -0.05, 2.0], [0.485, 0.38, 0.38, 0.36, -0.04, 2.0], [0.455, 0.62, 0.62, 0.58, -0.02, 2.0],
-	[0.4, 0.8, 0.8, 0.74, 0.0, 2.1], [0.29, 0.86, 0.88, 0.75, 0.04, 2.3], [0.2, 0.93, 0.92, 0.82, 0.05, 2.4],
+const LIGHT := [[0.49, 0.1, 0.1, 0.08, -0.05, 2.0], [0.477, 0.46, 0.46, 0.42, -0.04, 2.0], [0.45, 0.7, 0.68, 0.62, -0.02, 2.1],
+	[0.4, 0.84, 0.82, 0.76, 0.0, 2.2], [0.29, 0.86, 0.88, 0.75, 0.04, 2.3], [0.2, 0.93, 0.92, 0.82, 0.05, 2.4],
 	[0.1, 0.98, 0.86, 0.88, 0.03, 2.6], [0.0, 1.0, 0.82, 0.9, 0.0, 2.7], [-0.15, 0.97, 0.8, 0.88, 0.0, 2.6],
 	[-0.32, 0.86, 0.76, 0.78, 0.0, 2.4], [-0.44, 0.74, 0.72, 0.72, 0.0, 2.0]]
-const HEAVY := [[0.5, 0.06, 0.06, 0.06, -0.05, 2.0], [0.485, 0.38, 0.38, 0.36, -0.04, 2.0], [0.455, 0.62, 0.62, 0.58, -0.02, 2.0],
-	[0.4, 0.8, 0.8, 0.74, 0.0, 2.1], [0.29, 0.86, 0.9, 0.75, 0.05, 2.3], [0.2, 0.92, 0.96, 0.78, 0.08, 2.4],
+const HEAVY := [[0.49, 0.1, 0.1, 0.08, -0.05, 2.0], [0.477, 0.46, 0.46, 0.42, -0.04, 2.0], [0.45, 0.7, 0.68, 0.62, -0.02, 2.1],
+	[0.4, 0.84, 0.82, 0.76, 0.0, 2.2], [0.29, 0.86, 0.9, 0.75, 0.05, 2.3], [0.2, 0.92, 0.96, 0.78, 0.08, 2.4],
 	[0.1, 0.9, 0.86, 0.68, 0.08, 2.6], [-0.05, 0.78, 0.72, 0.5, 0.08, 2.7], [-0.25, 0.58, 0.56, 0.36, 0.08, 2.6],
 	[-0.44, 0.36, 0.36, 0.26, 0.05, 2.2]]
 
@@ -201,8 +210,8 @@ static func slots(k: Kit, ac: Color, tc: Color, sk: Array) -> void:
 	k.slot("burnt", "steel", Color(0.3, 0.27, 0.25), 0.0)
 	k.slot("dark", "steel", Color(0.06, 0.06, 0.07), 0.0)
 	k.slot("plastic", "paint", Color(0.17, 0.18, 0.18), 0.0)
-	k.slot("glass", "optic", Color(0.4, 0.5, 0.56), 0.0)
-	k.slot("gold", "optic", Color(0.6, 0.5, 0.28), 0.0)
+	k.slot("glass", "optic", Color(0.13, 0.18, 0.25), 0.0)
+	k.slot("gold", "optic", Color(0.5, 0.38, 0.15), 0.0)
 	k.slot("team", "paint", tc, 0.0)
 	k.slot("white", "paint", Color(0.9, 0.9, 0.87), 0.0)
 	k.slot("bomb", "paint", Color(0.36, 0.37, 0.3), 0.0)
@@ -211,8 +220,9 @@ static func slots(k: Kit, ac: Color, tc: Color, sk: Array) -> void:
 	k.slot("navr", "emit", Color(1.0, 0.15, 0.1), 0.0)
 	k.slot("navg", "emit", Color(0.2, 1.0, 0.3), 0.0)
 	k.slot("navw", "emit", Color(1.0, 1.0, 0.95), 0.0)
-	k.slot("flame", "emit", Color(1.0, 0.62, 0.22), 0.0)
-	k.slot("flame2", "emit", Color(1.0, 0.92, 0.6), 0.0)
+	k.slot("flame", "emit", Color(1.0, 0.55, 0.16), 0.0)
+	k.slot("flame2", "emit", Color(1.0, 0.93, 0.7), 0.0)
+	k.slot("glow", "emit", Color(0.95, 0.42, 0.12), 0.0)
 	k.slot("lens", "emit", Color(0.35, 0.75, 1.0), 0.0)
 
 
@@ -292,7 +302,8 @@ static func _foil(le: float, te: float, t: float, part: int, sym: bool) -> Array
 
 ## Kanat yarısı. w: [kök x, kök hücum, kök firar, uç x, uç hücum, uç firar, y, kalınlık oranı, dihedral, kanatçık başı,
 ## kanatçık sonu]. side: +1 sağ / -1 sol. name: kanatçık parça adı ("" ise kanatçık yok). allmove: bütün yüzey parça.
-static func _wing(k: Kit, s: String, w: Array, side: float, name: String, allmove: bool) -> void:
+## band > 0: açıklığın son band kadarı takım renginde şeritle kaplanır; kanatçık şeritten önce biter.
+static func _wing(k: Kit, s: String, w: Array, side: float, name: String, allmove: bool, band := 0.0) -> void:
 	var dt := tan(deg_to_rad(w[8]))
 	if allmove:
 		var pv := Vector3(w[0] * side, w[6], lerpf(w[1], w[2], 0.4))
@@ -302,7 +313,7 @@ static func _wing(k: Kit, s: String, w: Array, side: float, name: String, allmov
 		return
 	var fr: Array = [0.0, 1.0]
 	if name != "" and w.size() > 10:
-		fr = [0.0, w[9], w[10], 1.0]
+		fr = [0.0, w[9], minf(w[10], 1.0 - band) if band > 0.0 else w[10], 1.0]
 	for i in fr.size() - 1:
 		var fa: float = fr[i]
 		var fb: float = fr[i + 1]
@@ -315,6 +326,25 @@ static func _wing(k: Kit, s: String, w: Array, side: float, name: String, allmov
 			k.end_part()
 		else:
 			k.loft(s, [_wsec(w, side, dt, fa, 0), _wsec(w, side, dt, fb, 0)])
+	if band > 0.0:
+		_wband(k, w, side, dt, 1.0 - band)
+
+
+## Kanat ucu şeridi: profili saran, biraz kalın takım renkli kılıf (f0'dan uca kadar).
+static func _wband(k: Kit, w: Array, side: float, dt: float, f0: float) -> void:
+	var rings: Array = []
+	for f in [f0, 1.0]:
+		var x: float = lerpf(w[0], w[3], f) + (0.02 if f >= 1.0 else 0.0)
+		var le: float = lerpf(w[1], w[4], f)
+		var te: float = lerpf(w[2], w[5], f)
+		var y: float = w[6] + (x - w[0]) * dt
+		var t: float = maxf(float(w[7]) * TK * absf(le - te), 0.03)
+		var r: Array = []
+		for q in _foil(le + 0.03, te - 0.03, t, 0, false):
+			var off := 0.03 if q.y > 0.0 else (-0.03 if q.y < 0.0 else 0.0)
+			r.append(Vector3(x * side, y + q.y + off, q.x))
+		rings.append(r)
+	k.loft("team", rings)
 
 
 static func _wsec(w: Array, side: float, dt: float, f: float, part: int) -> Array:
@@ -322,9 +352,9 @@ static func _wsec(w: Array, side: float, dt: float, f: float, part: int) -> Arra
 	var le := lerpf(w[1], w[4], f)
 	var te := lerpf(w[2], w[5], f)
 	var y: float = w[6] + (x - w[0]) * dt
-	var t: float = w[7] * absf(le - te)
+	var t: float = w[7] * TK * absf(le - te)
 	var r: Array = []
-	for q in _foil(le, te, maxf(t, 0.02), part, false):
+	for q in _foil(le, te, maxf(t, 0.03), part, false):
 		r.append(Vector3(x * side, y + q.y, q.x))
 	return r
 
@@ -341,7 +371,7 @@ static func _wtop(w: Array, x: float) -> Vector2:
 	var f := clampf((x - w[0]) / maxf(w[3] - w[0], 0.01), 0.0, 1.0)
 	var le := lerpf(w[1], w[4], f)
 	var te := lerpf(w[2], w[5], f)
-	var y: float = w[6] + (x - w[0]) * tan(deg_to_rad(w[8])) + w[7] * absf(le - te) * 0.5
+	var y: float = w[6] + (x - w[0]) * tan(deg_to_rad(w[8])) + w[7] * TK * absf(le - te) * 0.5
 	return Vector2(y, (le + te) * 0.5)
 
 
@@ -351,7 +381,7 @@ static func _fin(k: Kit, s: String, f: Array, xs: float, rud: String, band: bool
 	var x: float = f[0] * xs
 	var cant: float = f[1] * xs
 	var h: float = f[7] - f[4]
-	var ttk := 0.045
+	var ttk := FIN_T
 	k.push(Vector3(x, f[4], 0), Vector3(0, 0, -cant))
 	var parts := [0] if rud == "" else [1, 2]
 	for pt in parts:
@@ -373,15 +403,53 @@ static func _fin(k: Kit, s: String, f: Array, xs: float, rud: String, band: bool
 			k.loft(s, rings)
 	if band:
 		var r2: Array = []
-		for fy in [0.8, 1.0]:
+		for fy in [0.66, 1.0]:
 			var le := lerpf(f[2], f[5], fy)
 			var te := lerpf(f[3], f[6], fy)
 			var r: Array = []
-			for q in _foil(le + 0.02, te - 0.02, ttk * absf(le - te) + 0.03, 0, true):
-				r.append(Vector3(q.y, fy * h + (0.01 if fy > 0.9 else 0.0), q.x))
+			for q in _foil(le + 0.02, te - 0.02, ttk * absf(le - te) + 0.06, 0, true):
+				r.append(Vector3(q.y, fy * h + (0.02 if fy > 0.9 else 0.0), q.x))
 			r2.append(r)
 		k.loft("team", r2)
 	k.pop()
+
+
+## Gövde istasyonlarından z'deki kesit (doğrusal ara değer): [z, yarı genişlik, üst, alt, merkez y, köşelilik].
+static func _stat(st: Array, z: float) -> Array:
+	for i in st.size() - 1:
+		var a: Array = st[i]
+		var b: Array = st[i + 1]
+		if z <= a[0] and z >= b[0]:
+			var t: float = (a[0] - z) / maxf(a[0] - b[0], 0.001)
+			var r: Array = []
+			for j in 6:
+				r.append(lerpf(a[j], b[j], t))
+			return r
+	return st[0] if z > st[0][0] else st[st.size() - 1]
+
+
+## Gövdenin sırtına oturan ince şerit (ör. kokpit önündeki mat siyah parlama önleyici panel). z0 önde, ang: tepeden
+## iki yana açı (derece).
+static func _strip(k: Kit, s: String, st: Array, z0: float, z1: float, ang: float) -> void:
+	var rings: Array = []
+	for i in 5:
+		var z := lerpf(z0, z1, i / 4.0)
+		var r := _stat(st, z)
+		var e: float = 2.0 / r[5]
+		var a2 := ang * (0.55 + 0.45 * i / 4.0)
+		var outer: Array = []
+		var inner: Array = []
+		for j in 7:
+			var a := deg_to_rad(90.0 - a2 + a2 * 2.0 * j / 6.0)
+			var c := cos(a)
+			var sn := sin(a)
+			var x: float = r[1] * signf(c) * pow(absf(c), e)
+			var y: float = r[2] * pow(sn, e)
+			outer.append(Vector3(x * 1.025, r[4] + y * 1.025 + 0.01, z))
+			inner.append(Vector3(x * 0.99, r[4] + y * 0.99, z))
+		inner.reverse()
+		rings.append(outer + inner)
+	k.loft(s, rings, true)
 
 
 ## Kanopi: yarım elips kesitli cam fanus, çerçeveleri koyu.
@@ -429,10 +497,11 @@ static func _nozzle(k: Kit, x: float, y: float, r: float, z: float, idx: int) ->
 		k.push(p, Vector3(0, 0, 30.0 * i))
 		k.box("steel", Vector3(0.04, 0.03, ln * 0.45), Vector3(0, r * 0.97, -ln * 0.7), Vector3(-6, 0, 0))
 		k.pop()
-	k.lathe("dark", [Vector2(0, 0), Vector2(r * 0.77, 0), Vector2(r * 0.77, 0.01), Vector2(0, 0.01)], p + Vector3(0, 0, -ln * 0.45), Vector3(-90, 0, 0), 12)
+	k.lathe("glow", [Vector2(0, 0), Vector2(r * 0.77, 0), Vector2(r * 0.77, 0.01), Vector2(0, 0.01)], p + Vector3(0, 0, -ln * 0.45), Vector3(-90, 0, 0), 12)
 	k.begin_part("burn%d" % idx, p + Vector3(0, 0, -ln * 0.5), Vector3(0, 0, -1))
-	k.lathe("flame", [Vector2(r * 0.7, 0), Vector2(r * 0.5, r * 1.0), Vector2(r * 0.2, r * 2.0), Vector2(0, r * 2.4)], p + Vector3(0, 0, -ln * 0.5), Vector3(-90, 0, 0), 10)
-	k.lathe("flame2", [Vector2(r * 0.45, 0), Vector2(r * 0.25, r * 0.7), Vector2(0, r * 1.1)], p + Vector3(0, 0, -ln * 0.52), Vector3(-90, 0, 0), 8)
+	k.lathe("flame", [Vector2(r * 0.74, 0), Vector2(r * 0.62, r * 1.2), Vector2(r * 0.36, r * 3.0), Vector2(r * 0.12, r * 4.4), Vector2(0, r * 4.9)],
+		p + Vector3(0, 0, -ln * 0.5), Vector3(-90, 0, 0), 10)
+	k.lathe("flame2", [Vector2(r * 0.5, 0), Vector2(r * 0.4, r * 0.9), Vector2(r * 0.16, r * 2.2), Vector2(0, r * 2.7)], p + Vector3(0, 0, -ln * 0.52), Vector3(-90, 0, 0), 8)
 	k.end_part()
 
 
@@ -525,7 +594,7 @@ static func _hubs(s: float, hubs: Array) -> Array:
 
 static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 	var L: float = p["L"]
-	var S: float = float(p["game"]) / L
+	var S: float = float(p["game"]) * BIG / L
 	var W: float = p["W"]
 	var H: float = p["H"]
 	var heavy: bool = p["fam"] == "heavy"
@@ -533,6 +602,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 	var facet: bool = p.get("facet", false)
 	var n := 12 if facet else 16
 	k.push(Vector3.ZERO, Vector3.ZERO, S)
+	k.push_scale(STY)
 	# gövde: burun (radom) ve geri kalanı
 	var tpl: Array = HEAVY if heavy else LIGHT
 	var st: Array = []
@@ -555,7 +625,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 	_fuse(k, "radome", st.slice(0, 4), n)
 	_fuse(k, "skin", st.slice(3), n)
 	if p.has("pitot"):
-		k.lathe("steel", [Vector2(0.04, 0), Vector2(0.015, 0.8), Vector2(0, 0.82)], Vector3(0, st[0][4], L * 0.5 - 0.05), Vector3(90, 0, 0), 5)
+		k.lathe("steel", [Vector2(0.04, 0), Vector2(0.015, 0.8), Vector2(0, 0.82)], Vector3(0, st[0][4], st[0][0] - 0.05), Vector3(90, 0, 0), 5)
 	if p.has("spine"):
 		var sp: Array = p["spine"]
 		var yb: float = H * 0.7
@@ -579,8 +649,11 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 			k.loft("skin", [_sec(pd[3], px * sx, py, pr * 0.92, pr * 0.95, pr * 0.95, 2.4, 14),
 				_sec(lerpf(pd[3], pd[4], 0.5), px * sx, py, pr, pr, pr, 2.2, 14), _sec(pd[4], px * sx, py, pr * 0.96, pr * 0.96, pr * 0.96, 2.0, 14)], true, true)
 	_intake(k, p["intake"], p.get("pods", []), L)
-	# kanopi
-	_canopy(k, p["can"])
+	# kanopi ve önündeki mat siyah parlama önleyici panel
+	var cn: Array = p["can"]
+	if ni != "nose":
+		_strip(k, "plastic", st, cn[0] + 1.6, cn[0] - 0.2, 34.0)
+	_canopy(k, cn)
 	# kanatlar ve kuyruk
 	var w: Array = p["wing"]
 	if p.has("glove"):
@@ -588,7 +661,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 		for sx in [-1.0, 1.0]:
 			_wing(k, "skin", [g[0], g[1], g[2], g[3], g[4], g[5], w[6], 0.035, 0.0], sx, "", false)
 	for sx in [-1.0, 1.0]:
-		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false, BAND)
 		if p.has("stab"):
 			_wing(k, "skin", p["stab"], sx, "stab_l" if sx < 0.0 else "stab_r", true)
 		if p.has("canard"):
@@ -631,6 +704,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 	# dış yükler: cephane sayısı kadar, iki kanada sırayla
 	if cls == "stealth":
 		k.pop()
+		k.pop()
 		return
 	var spots: Array = []
 	var tips: bool = p.get("tips", false)
@@ -663,6 +737,7 @@ static func _jet(k: Kit, p: Dictionary, cls: String, ammo: int) -> void:
 	if cls == "striker":
 		var cy: float = -H * 1.1 - 0.3
 		k.lathe("skin2", [Vector2(0, 0), Vector2(0.28, 0.5), Vector2(0.32, 2.0), Vector2(0.2, 3.2), Vector2(0, 3.6)], Vector3(0, cy, -2.4), Vector3(90, 0, 0), 12)
+	k.pop()
 	k.pop()
 
 
@@ -769,7 +844,7 @@ static func _orlan(k: Kit, pk: Kit) -> Array:
 		[0.1, 0.12, 0.14, 0.1, 0.02, 2.4], [-0.3, 0.07, 0.08, 0.06, 0.03, 2.2], [-1.45, 0.03, 0.035, 0.03, 0.03, 2.0]], 12)
 	var w := [0.05, 0.3, 0.02, 1.55, 0.24, 0.05, 0.16, 0.12, 2.0, 0.55, 0.95]
 	for sx in [-1.0, 1.0]:
-		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.16)
 		_wing(k, "skin", [0.03, -1.18, -1.36, 0.45, -1.26, -1.42, 0.03, 0.08, 0.0], sx, "stab_l" if sx < 0.0 else "stab_r", true)
 		_mark(k, Vector3(1.0 * sx, 0.18, 0.13), 0.09)
 	_fin(k, "skin", [0.0, 0.0, -1.12, -1.4, 0.04, -1.32, -1.45, 0.42], 1.0, "rud", true)
@@ -810,7 +885,7 @@ static func _shahed(k: Kit, pk: Kit, sc: float) -> Array:
 	_fuse(k, "radome", [[1.75, 0.04, 0.04, 0.04, 0.0, 2.0], [1.6, 0.11, 0.11, 0.1, 0.0, 2.0], [1.35, 0.16, 0.16, 0.14, 0.0, 2.2]], 12)
 	_fuse(k, "skin", [[1.35, 0.16, 0.16, 0.14, 0.0, 2.2], [0.8, 0.18, 0.18, 0.15, 0.0, 2.4], [-1.2, 0.18, 0.18, 0.15, 0.0, 2.4], [-1.5, 0.13, 0.13, 0.12, 0.0, 2.2]], 12)
 	for sx in [-1.0, 1.0]:
-		_wing(k, "skin", [0.16, 1.3, -1.25, 1.25, -1.0, -1.45, 0.0, 0.05, 0.0, 0.15, 0.85], sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "skin", [0.16, 1.3, -1.25, 1.25, -1.0, -1.45, 0.0, 0.05, 0.0, 0.15, 0.85], sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.14)
 		_fin(k, "skin", [1.27, 0.0, -0.85, -1.45, -0.2, -1.1, -1.48, 0.38], sx, "rud_l" if sx < 0.0 else "rud_r", true)
 		_mark(k, Vector3(0.62 * sx, 0.05, -0.65), 0.16)
 	k.lathe("dark", [Vector2(0.12, 0), Vector2(0.11, 0.18), Vector2(0.04, 0.24)], Vector3(0, 0.0, -1.5), Vector3(-90, 0, 0), 12)
@@ -829,7 +904,7 @@ static func _harop(k: Kit, pk: Kit) -> Array:
 	_fuse(k, "skin", [[1.35, 0.03, 0.03, 0.03, -0.02, 2.0], [1.2, 0.11, 0.11, 0.1, -0.01, 2.2], [0.8, 0.16, 0.18, 0.15, 0.0, 2.6],
 		[-0.6, 0.16, 0.17, 0.14, 0.0, 2.6], [-1.05, 0.09, 0.09, 0.08, 0.0, 2.2]], 12)
 	for sx in [-1.0, 1.0]:
-		_wing(k, "skin", [0.14, 0.3, -0.55, 1.45, -0.75, -1.02, 0.04, 0.06, 0.0, 0.3, 0.9], sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "skin", [0.14, 0.3, -0.55, 1.45, -0.75, -1.02, 0.04, 0.06, 0.0, 0.3, 0.9], sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.16)
 		_wing(k, "skin", [0.12, 1.0, 0.8, 0.42, 0.86, 0.78, 0.06, 0.06, 0.0], sx, "can_l" if sx < 0.0 else "can_r", true)
 		_fin(k, "skin", [1.47, 0.0, -0.7, -1.0, 0.04, -0.9, -1.04, 0.42], sx, "rud_l" if sx < 0.0 else "rud_r", true)
 		_mark(k, Vector3(0.82 * sx, 0.09, -0.55), 0.13)
@@ -851,7 +926,7 @@ static func _twin(k: Kit, span: float, ln: float, bx: float, wy: float, tz: floa
 		[-hz + 0.15, 0.13, 0.14, 0.13, 0.02, 2.0]], 14)
 	var w := [0.25, chord * 0.65, -chord * 0.35, span * 0.5, chord * 0.45, -chord * 0.15, wy, 0.13, 1.5, 0.55, 0.95]
 	for sx in [-1.0, 1.0]:
-		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.12)
 		k.loft("skin", [_sec(chord * 0.55, bx * sx, wy - 0.06, 0.06, 0.06, 0.06, 2.0, 10), _sec(chord * 0.3, bx * sx, wy - 0.06, 0.09, 0.09, 0.09, 2.0, 10),
 			_sec(tz + 0.3, bx * sx, wy - 0.06, 0.07, 0.07, 0.07, 2.0, 10), _sec(tz, bx * sx, wy - 0.06, 0.04, 0.04, 0.04, 2.0, 10)], true, true)
 		var mx := span * 0.33
@@ -942,7 +1017,7 @@ static func _mq9(k: Kit, pk: Kit, ammo: int) -> Array:
 		[-4.8, 0.13, 0.13, 0.13, 0.0, 2.0]], 14)
 	var w := [0.35, 0.8, -0.45, 10.0, 0.35, -0.15, 0.2, 0.13, 1.0, 0.55, 0.92]
 	for sx in [-1.0, 1.0]:
-		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "skin", w, sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.1)
 		_fin(k, "skin", [0.15, 45.0, -3.3, -4.7, 0.2, -4.3, -4.8, 2.0], sx, "rud_l" if sx < 0.0 else "rud_r", true)
 		_mark(k, Vector3(6.0 * sx, 0.42, 0.15), 0.4)
 	_fin(k, "skin", [0.0, 0.0, -3.8, -4.7, -0.15, -4.4, -4.75, -1.2], 1.0, "rud", false)
@@ -973,8 +1048,7 @@ static func _akinci(k: Kit, pk: Kit, ammo: int) -> Array:
 		_wing(k, "skin", w, sx, "", false)
 		# bükük dış kanat (kanatçıklı)
 		k.push(Vector3(7.0 * sx, 0.1 + 6.5 * tan(deg_to_rad(2.0)), 0), Vector3(0, 0, 9.0 * sx))
-		_wing(k, "skin", [0.0, 0.7, -0.35, 3.0, 0.4, -0.2, 0.0, 0.12, 0.0, 0.05, 0.9], sx, "ail_l" if sx < 0.0 else "ail_r", false)
-		k.box("team", Vector3(0.5, 0.11, 0.6), Vector3(2.65 * sx, 0.0, 0.1))
+		_wing(k, "skin", [0.0, 0.7, -0.35, 3.0, 0.4, -0.2, 0.0, 0.12, 0.0, 0.05, 0.9], sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.25)
 		k.box("navr" if sx < 0.0 else "navg", Vector3(0.1, 0.1, 0.16), Vector3(3.03 * sx, 0.0, 0.2))
 		k.pop()
 		# motor naseli
@@ -1004,7 +1078,7 @@ static func _flyingwing(k: Kit) -> Array:
 	k.push(Vector3.ZERO, Vector3.ZERO, s)
 	for sx in [-1.0, 1.0]:
 		_wing(k, "stealth", [0.0, 7.0, -5.8, 3.4, 3.0, -4.2, 0.0, 0.11, 0.0], sx, "", false)
-		_wing(k, "stealth", [3.4, 3.0, -4.2, 9.9, -2.4, -3.6, 0.0, 0.07, 0.0, 0.1, 0.9], sx, "ail_l" if sx < 0.0 else "ail_r", false)
+		_wing(k, "stealth", [3.4, 3.0, -4.2, 9.9, -2.4, -3.6, 0.0, 0.07, 0.0, 0.1, 0.9], sx, "ail_l" if sx < 0.0 else "ail_r", false, 0.12)
 		_mark(k, Vector3(6.0 * sx, 0.12, -1.8), 0.5)
 	k.loft("stealth", [_sec(5.5, 0.0, 0.3, 0.6, 0.15, 0.1, 3.0, 12), _sec(3.0, 0.0, 0.3, 1.1, 0.55, 0.1, 3.0, 12), _sec(-2.5, 0.0, 0.3, 1.0, 0.5, 0.1, 3.0, 12),
 		_sec(-5.0, 0.0, 0.3, 0.6, 0.2, 0.1, 3.0, 12)], false, true)

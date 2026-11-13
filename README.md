@@ -93,7 +93,7 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/tanks.gd` | Ayrıntılı tank modelleri (T-72B3, T-90M, Leopard 2A6, Merkava Mk 4): gerçek ölçülerle yürüyen aksam, kule, reaktif zırh, takım rengi tanıma örtüsü |
 | `scripts/vehicles.gd` | Diğer kara araçları ve piyade: BMP, M113 türevleri, Bradley, Namer, Gepard, Shilka, Tor, obüsler, TOS-1A, kamyonlu sistemler (Pantsir, Iron Dome, HIMARS, roketatarlar, lazer) |
 | `scripts/buildings.gd` | Bina modelleri, hava savunma bataryaları, vinç ve ikmal noktaları: beton ve oluklu sac dokular, pencereler, bacalar, antenler, bayrak ve çatı şeridiyle takım rengi |
-| `scripts/aircraft.gd` | Uçak ve İHA modelleri, gerçek ölçüyle: `AIRFRAMES` tablosu (gövde kesitleri, profilli kanat ve kuyruklar, hava alığı, nasel, kanopi, lüle), boya şemaları (Rus, çöl, İsrail, splinter kamuflajı), hareketli parçalar (kanatçık, dümen, art yakıcı, çakar, kamera, dış yükler) |
+| `scripts/aircraft.gd` | Uçak ve İHA modelleri, gerçek ölçüyle: `AIRFRAMES` tablosu (gövde kesitleri, profilli kanat ve kuyruklar, hava alığı, nasel, kanopi, lüle), boya şemaları (Rus, çöl, İsrail, splinter kamuflajı), hareketli parçalar (kanatçık, dümen, art yakıcı, çakar, kamera, dış yükler). RTS kamerasında okunsun diye oranlar stilize edilir (`BIG`, `STY`, `TK`): tıknaz gövde, kalın kanat, takım renkli kanat uçları ve kuyruklar |
 | `scripts/kit.gd` | Araç mesh kurucusu: parçaları malzeme başına tek yüzeyde birleştirir, çamur/toz/gölgeyi köşe rengine işler |
 | `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda, uçak boyası, beton, oluklu sac) |
 | `scripts/terrain.gd` | Arazi ve yol bulma |
