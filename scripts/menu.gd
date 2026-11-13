@@ -1,5 +1,6 @@
 extends Control
-## Açılış ekranı: senaryo ve taraf seçimi. Oyuncu her senaryoda iki tarafı da oynayabilir.
+## Açılış ekranı: eğitim, kayıtlı oyuna devam, senaryo, zorluk ve taraf seçimi.
+## Oyuncu her senaryoda iki tarafı da oynayabilir.
 
 var list: VBoxContainer
 var detail: VBoxContainer
@@ -13,7 +14,16 @@ func _ready() -> void:
 			Scenarios.chosen = int(a.trim_prefix("--scn="))
 		elif a.begins_with("--side="):
 			Scenarios.side = int(a.trim_prefix("--side="))
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest"):
+		elif a.begins_with("--diff="):
+			Scenarios.difficulty = int(a.trim_prefix("--diff="))
+	Scenarios.tutorial = args.has("--tutorial")
+	if args.has("--load"):
+		_continue.call_deferred()
+		return
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest"):
+		_start.call_deferred()
+		return
+	if Scenarios.tutorial:
 		_start.call_deferred()
 		return
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -48,11 +58,30 @@ func _ready() -> void:
 	list.add_theme_constant_override("separation", 10)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(list)
+	var info := Game.saved_info()
+	if not info.is_empty():
+		var cont := Button.new()
+		var sc_name: String = Scenarios.LIST[int(info.scn)].name
+		cont.text = "Devam Et — %s, %02d:%02d" % [sc_name, int(info.time) / 60, int(info.time) % 60]
+		cont.custom_minimum_size = Vector2(450, 64)
+		cont.focus_mode = Control.FOCUS_NONE
+		cont.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		cont.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65))
+		cont.pressed.connect(_continue)
+		list.add_child(cont)
+	var tut := Button.new()
+	tut.text = "Eğitim — oynamayı adım adım öğren"
+	tut.custom_minimum_size = Vector2(450, 64)
+	tut.focus_mode = Control.FOCUS_NONE
+	tut.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tut.add_theme_color_override("font_color", Color(1.0, 0.86, 0.45))
+	tut.pressed.connect(_tutorial)
+	list.add_child(tut)
 	for i in Scenarios.LIST.size():
 		var scn: Dictionary = Scenarios.LIST[i]
 		var b := Button.new()
 		b.text = scn.name + ("   (kilitli)" if scn.get("locked", false) else "")
-		b.custom_minimum_size = Vector2(450, 72)
+		b.custom_minimum_size = Vector2(450, 64)
 		b.focus_mode = Control.FOCUS_NONE
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.pressed.connect(_show.bind(i))
@@ -98,6 +127,23 @@ func _show(i: int) -> void:
 	map_lbl.text = "Harita: %s" % Scenarios.MAPS[scn.map].name
 	map_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
 	detail.add_child(map_lbl)
+	var dl := HBoxContainer.new()
+	dl.add_theme_constant_override("separation", 10)
+	detail.add_child(dl)
+	var dlbl := Label.new()
+	dlbl.text = "Zorluk:"
+	dl.add_child(dlbl)
+	for k in Defs.DIFFS.size():
+		var db := Button.new()
+		db.text = Defs.DIFFS[k].name
+		db.toggle_mode = true
+		db.button_pressed = k == Scenarios.difficulty
+		db.custom_minimum_size = Vector2(110, 48)
+		db.focus_mode = Control.FOCUS_NONE
+		db.pressed.connect(func():
+			Scenarios.difficulty = k
+			_show(i))
+		dl.add_child(db)
 	var pick := Label.new()
 	pick.text = "Tarafını seç:"
 	detail.add_child(pick)
@@ -111,7 +157,7 @@ func _show(i: int) -> void:
 		var b := Button.new()
 		b.text = "%s\n%s\n\n%s" % [c.name, doc.name, doc.desc]
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(330, 230)
+		b.custom_minimum_size = Vector2(330, 190)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(_pick.bind(i, side))
@@ -121,6 +167,32 @@ func _show(i: int) -> void:
 func _pick(i: int, side: int) -> void:
 	Scenarios.chosen = i
 	Scenarios.side = side
+	Scenarios.tutorial = false
+	Scenarios.load_data = {}
+	_start()
+
+
+func _tutorial() -> void:
+	Scenarios.chosen = 0
+	Scenarios.side = 0
+	Scenarios.difficulty = 0
+	Scenarios.tutorial = true
+	Scenarios.load_data = {}
+	_start()
+
+
+func _continue() -> void:
+	var info := Game.saved_info()
+	if info.is_empty():
+		if OS.get_cmdline_user_args().has("--loadtest"):
+			print("LOADTEST BITTI  hata=1  (kayit yok)")
+			get_tree().quit(1)
+		return
+	Scenarios.chosen = int(info.scn)
+	Scenarios.side = int(info.side)
+	Scenarios.difficulty = int(info.diff)
+	Scenarios.tutorial = false
+	Scenarios.load_data = info
 	_start()
 
 

@@ -5,6 +5,9 @@ extends RefCounted
 
 static var chosen := 0     # seçilen senaryo
 static var side := 0       # oyuncunun tarafı: 0 = a ülkesi, 1 = b ülkesi
+static var difficulty := 0   # Defs.DIFFS içindeki sıra
+static var tutorial := false
+static var load_data := {}  # boş değilse kayıtlı oyun yüklenir
 
 # ---------------------------------------------------------------- birim sınıfları
 # armor: inf / light / heavy / bld / air (büyük hava aracı) / drone (küçük İHA)
@@ -475,8 +478,8 @@ const LIST := [
 		name = "Rusya – Ukrayna", map = "harkiv", a = "ua", b = "ru",
 		desc = "Harkiv açıkları. İki taraf da yoğun drone saldırıları yüzünden ilerleyemiyor. Ukrayna drone'lara, Rusya ağır zırh ve topçuya güvenir.",
 		obj = {
-			a = {type = "hold", point = 8, secs = 360.0, text = "Merkez köyü toplam 6 dakika elinde tut"},
-			b = {type = "hold", point = 8, secs = 360.0, text = "Merkez köyü toplam 6 dakika elinde tut"},
+			a = {type = "hold", point = 8, secs = 480.0, text = "Merkez köyü toplam 8 dakika elinde tut"},
+			b = {type = "hold", point = 8, secs = 480.0, text = "Merkez köyü toplam 8 dakika elinde tut"},
 		},
 	},
 	{
@@ -484,7 +487,7 @@ const LIST := [
 		desc = "İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir. Dağlar yüzünden kara harekâtı uzun ve zordur.",
 		obj = {
 			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, text = "4 stratejik hedefi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
-			b = {type = "hold", point = 7, secs = 360.0, text = "Petrol terminalini toplam 6 dakika elinde tut"},
+			b = {type = "hold", point = 7, secs = 480.0, text = "Petrol terminalini toplam 8 dakika elinde tut"},
 		},
 	},
 	{
@@ -492,7 +495,7 @@ const LIST := [
 		desc = "Dağlık kuzey, nehirli ova. Pakistan balistik füzelere, Hindistan dengeli ordusuna ve insan gücüne güvenir.",
 		obj = {
 			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla", "fuze"], count = 3, text = "3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla, füze üssü)"},
-			b = {type = "hold", point = 8, secs = 360.0, text = "Orta geçidi toplam 6 dakika elinde tut"},
+			b = {type = "hold", point = 8, secs = 480.0, text = "Orta geçidi toplam 8 dakika elinde tut"},
 		},
 	},
 	{name = "Çin – ABD: Tayvan Çıkarması", locked = true, desc = "Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır. Deniz moduyla açılacak."},
@@ -557,6 +560,6 @@ static func doctrine(team: int) -> Dictionary:
 ## Takımın görev hedefi (senaryoda yoksa boş sözlük).
 static func objective(team: int) -> Dictionary:
 	var scn: Dictionary = Defs.SCN
-	if not scn.has("obj"):
+	if not scn.has("obj") or (tutorial and Game.I != null and Game.I.tutorial_on):
 		return {}
 	return scn.obj.a if Defs.COUNTRY[team] == scn.a else scn.obj.b

@@ -316,7 +316,11 @@ Her ülke son kademede bir ya da iki deneysel sistem açabilir. Pahalı, tek ya 
 | Senaryoya özel görev hedefleri | Yapıldı (her tarafa ayrı görev) |
 | Birim kartı: özellikler ve ipucu | Yapıldı |
 | Karşı batarya radarı | Sonra |
-| Zorluk seçimi, ses | Sonra |
+| Yapay zekâ: zorluk seçimi, keşif, zayıf nokta, önce hava savunması, geri çekilme, doktrine göre ordu | Yapıldı |
+| Eğitim bölümü | Yapıldı (11 adım) |
+| Bina önizlemesi, toplanma noktası, devriye, birlik grupları | Yapıldı |
+| Kayıt ve devam | Yapıldı (otomatik kayıt, tek kayıt yuvası) |
+| Ses | Sonra |
 | Deniz modu ve kilitli senaryolar (ABD, Çin, Türkiye, Yunanistan) | En son |
 
 ## 13. Açık sorular

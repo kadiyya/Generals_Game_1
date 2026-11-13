@@ -54,6 +54,15 @@ var dust_color := Color(0.6, 0.55, 0.42)
 var houses: Array = []
 var mines: Array = []            # {team, pos, node}
 var ab_targeting := false        # doktrin yeteneği için hedef seçiliyor
+var ghost: Node3D = null         # yerleştirilen binanın önizlemesi
+var ghost_pos := Vector3.INF
+var rally_for: Building = null   # toplanma noktası seçiliyor
+var patrol_pick := false         # devriye noktası seçiliyor
+var rally_flag: Node3D = null
+var groups: Array = [[], [], []] # kayıtlı birlik grupları
+var tutorial_on := false
+var _save_t := 60.0
+const SAVE_PATH := "user://kayit.json"
 var _tick_t := 0.0
 var _puff: SphereMesh = null
 
@@ -73,13 +82,15 @@ func _ready() -> void:
 	add_child(fog)
 	cam = CameraRig.new()
 	add_child(cam)
-	for t in 2:
-		_setup_base(t, Defs.MAP.bases[t])
 	for p in Defs.MAP.points:
 		var sp := SupplyPoint.new()
 		add_child(sp)
 		sp.setup(Vector3(p[0], 0, p[1]), p[2], p[3], p[4])
 		points.append(sp)
+	var loading := not Scenarios.load_data.is_empty()
+	if not loading:
+		for t in 2:
+			_setup_base(t, Defs.MAP.bases[t])
 	for h in Defs.MAP.get("houses", []):
 		var g := Garrison.new()
 		add_child(g)
@@ -93,6 +104,9 @@ func _ready() -> void:
 			var r := Models.ring(SupplyPoint.RADIUS + 1.2, Color(1.0, 0.8, 0.2))
 			r.position = points[o.point].position + Vector3(0, 0.1, 0)
 			add_child(r)
+	if loading:
+		_restore(Scenarios.load_data)
+		Scenarios.load_data = {}
 	zone_ring = Models.ring(Defs.BUILD_ZONE, Color(1.0, 0.85, 0.2))
 	zone_ring.position = teams[Defs.PLAYER].hq.position + Vector3(0, 0.15, 0)
 	zone_ring.visible = false
@@ -102,11 +116,15 @@ func _ready() -> void:
 	controls = Controls.new()
 	add_child(controls)
 	add_child(EnemyAI.new())
+	if Scenarios.tutorial:
+		tutorial_on = true
+		add_child(load("res://scripts/tutorial.gd").new())
 	var hp: Vector3 = teams[Defs.PLAYER].hq.position
 	cam.focus = hp + Vector3(-signf(hp.x) * 10.0, 0, 0)
 	recalc()
 	fog.recompute()
-	hud.toast("%s — %s. İnşa düğmesiyle Kışla kur, piyadeyle ikmal noktalarını al." % [
+	if not tutorial_on:
+		hud.toast("%s — %s. İnşa düğmesiyle Kışla kur, piyadeyle ikmal noktalarını al." % [
 		Scenarios.country(Defs.PLAYER).name, Scenarios.doctrine(Defs.PLAYER).name], 10.0)
 	var args := OS.get_cmdline_user_args()
 	if args.has("--autotest"):
@@ -119,6 +137,10 @@ func _ready() -> void:
 		add_child(load("res://tools/animtest.gd").new())
 	elif args.has("--mechtest"):
 		add_child(load("res://tools/mechtest.gd").new())
+	elif args.has("--loadtest"):
+		add_child(load("res://tools/loadtest.gd").new())
+	elif args.has("--tuttest"):
+		add_child(load("res://tools/tuttest.gd").new())
 
 
 func set_speed(i: int) -> void:
@@ -252,7 +274,7 @@ func _process(dt: float) -> void:
 			if e.is_building and e.team == t and e.built and e.d.has("income"):
 				inc += float(e.d.income)
 		if t == Defs.ENEMY:
-			inc *= Defs.AI_INCOME_MULT
+			inc *= float(Defs.DIFFS[Scenarios.difficulty].income)
 		ts.income = inc
 		ts.money += inc * dt
 		if ts.upgrading:
@@ -271,6 +293,11 @@ func _process(dt: float) -> void:
 		_recalc_t = 0.3
 		recalc()
 		_heal(0.3)
+	_save_t -= dt
+	if _save_t <= 0.0 and not tutorial_on and OS.get_cmdline_user_args().is_empty():
+		_save_t = 60.0
+		save_game()
+	_update_rally_flag()
 	_tick_t -= dt
 	if _tick_t <= 0.0:
 		_tick_t = 0.25
@@ -408,6 +435,8 @@ func alert_base() -> void:
 
 
 func _end(w: int) -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(SAVE_PATH)
 	over = true
 	winner = w
 	hud.show_end(w == Defs.PLAYER)
@@ -562,22 +591,123 @@ func place_building(team: int, kind: String, pos: Vector3) -> bool:
 
 
 func begin_placing(kind: String) -> void:
-	cancel_targeting()
+	cancel_modes()
 	placing = kind
 	zone_ring.visible = true
-	hud.toast("Yerleştirmek için sarı çemberin içinde bir yere dokun.", 5.0)
+	hud.toast("Yer seçmek için sarı çemberin içinde bir yere dokun, sonra Onayla.", 5.0)
 	hud.rebuild()
 
 
 func cancel_placing() -> void:
 	placing = ""
 	zone_ring.visible = false
+	ghost_pos = Vector3.INF
+	if ghost != null:
+		ghost.queue_free()
+		ghost = null
 	hud.rebuild()
 
 
+## Dokunulan yere binanın yarı saydam önizlemesini koyar: yeşil kurulabilir, kırmızı kurulamaz.
+## Bina "Onayla" ile kurulur; başka bir yere dokunmak önizlemeyi taşır.
 func try_place(world: Vector3) -> void:
-	if place_building(Defs.PLAYER, placing, world):
+	ghost_pos = Vector3(world.x, 0, world.z)
+	if ghost != null:
+		ghost.queue_free()
+	var bd: Dictionary = Defs.BUILDINGS[Defs.bid(Defs.PLAYER, placing)]
+	ghost = Models.build(bd, Defs.PLAYER)
+	var ok := can_place(Defs.PLAYER, placing, ghost_pos)
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.3, 1.0, 0.4, 0.45) if ok else Color(1.0, 0.25, 0.2, 0.45)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_tint(ghost, m)
+	var r := Models.ring(float(bd.radius) + 0.5, Color(0.3, 1.0, 0.4) if ok else Color(1.0, 0.25, 0.2))
+	ghost.add_child(r)
+	ghost.position = ghost_pos
+	add_child(ghost)
+	hud.rebuild()
+
+
+func _tint(n: Node, m: Material) -> void:
+	if n is GeometryInstance3D:
+		n.material_override = m
+		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for c in n.get_children():
+		_tint(c, m)
+
+
+func confirm_place() -> void:
+	if ghost_pos != Vector3.INF and place_building(Defs.PLAYER, placing, ghost_pos):
 		cancel_placing()
+
+
+## Bütün hedef seçme kiplerini kapatır.
+func cancel_modes() -> void:
+	if placing != "":
+		cancel_placing()
+	cancel_targeting()
+	ab_targeting = false
+	rally_for = null
+	patrol_pick = false
+
+
+# ---------------------------------------------------------------- toplanma noktası, devriye, gruplar
+
+func begin_rally(b: Building) -> void:
+	cancel_modes()
+	rally_for = b
+	hud.toast("Yeni birliklerin toplanacağı yere dokun.", 5.0)
+	hud.rebuild()
+
+
+func set_rally(world: Vector3) -> void:
+	if rally_for != null and is_instance_valid(rally_for):
+		rally_for.rally = Vector3(world.x, 0, world.z)
+		fx_marker(world, Color(1.0, 0.85, 0.3))
+		var b := rally_for
+		rally_for = null
+		select([b])
+
+
+func begin_patrol() -> void:
+	cancel_modes()
+	patrol_pick = true
+	hud.toast("Devriye noktasına dokun: birlikler bulundukları yerle o nokta arasında gidip gelir.", 5.0)
+	hud.rebuild()
+
+
+func set_patrol(world: Vector3) -> void:
+	patrol_pick = false
+	for u in selected_units():
+		if u is Unit:
+			u.patrol_to(world)
+		elif u is AirUnit:
+			u.set_patrol(world)
+	fx_marker(world, Color(0.4, 0.8, 1.0))
+	hud.rebuild()
+
+
+func save_group(i: int) -> void:
+	groups[i] = selected_units()
+	hud.toast("Grup %d kaydedildi (%d birlik)." % [i + 1, groups[i].size()])
+
+
+func select_group(i: int, center: bool) -> void:
+	var live: Array = []
+	for u in groups[i]:
+		if is_instance_valid(u) and u.alive:
+			live.append(u)
+	groups[i] = live
+	if live.is_empty():
+		hud.toast("Grup %d boş. Kaydetmek için birlik seç ve düğmeye basılı tut." % (i + 1))
+		return
+	select(live)
+	if center:
+		var c := Vector3.ZERO
+		for u in live:
+			c += u.global_position
+		cam.focus = c / live.size()
 
 
 func nearest_building(team: int, kind: String, pos: Vector3):
@@ -695,8 +825,7 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 
 
 func begin_targeting(b: Building, i: int) -> void:
-	if placing != "":
-		cancel_placing()
+	cancel_modes()
 	targeting = b
 	targeting_i = i
 	hud.toast("Hedef için haritada görebildiğin bir yere dokun.", 5.0)
@@ -1020,8 +1149,7 @@ func begin_ability() -> void:
 	if not a.target:
 		use_ability(Defs.PLAYER, Vector3.INF)
 		return
-	cancel_placing()
-	cancel_targeting()
+	cancel_modes()
 	ab_targeting = true
 	hud.toast("%s: hedef için görebildiğin bir yere dokun." % a.name, 5.0)
 	hud.rebuild()
@@ -1323,3 +1451,168 @@ func fx_marker(pos: Vector3, c: Color) -> void:
 	var tw := create_tween()
 	tw.tween_property(m, "scale", Vector3(0.1, 0.2, 0.1), 0.45)
 	tw.tween_callback(m.queue_free)
+
+
+func _update_rally_flag() -> void:
+	var b = selection[0] if selection.size() == 1 else null
+	var show: bool = b != null and b is Building and b.rally != Vector3.INF
+	if show and rally_flag == null:
+		rally_flag = Node3D.new()
+		Models.cyl(rally_flag, 0.06, 0.06, 3.0, Vector3(0, 1.5, 0), Models.DARK)
+		Models.box(rally_flag, Vector3(1.0, 0.6, 0.05), Vector3(0.5, 2.7, 0), Color(1.0, 0.85, 0.3))
+		add_child(rally_flag)
+	if rally_flag != null:
+		rally_flag.visible = show
+		if show:
+			rally_flag.position = b.rally
+
+
+# ---------------------------------------------------------------- kayıt ve devam
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if not over and not tutorial_on and is_inside_tree() and not teams.is_empty():
+			save_game()
+
+
+static func _v(p: Vector3) -> Array:
+	return [snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)]
+
+
+static func _p(a: Array) -> Vector3:
+	return Vector3(a[0], a[1], a[2])
+
+
+## Maçın durumunu kaydeder: takımlar, birlikler, binalar, noktalar, mayınlar, görevler.
+## Mermiler, hedefler ve sis kaydedilmez; yüklemede yeniden kurulur.
+func save_game() -> void:
+	var data := {
+		v = 1, scn = Scenarios.chosen, side = Scenarios.side, diff = Scenarios.difficulty,
+		time = time, wave = 0, teams = [], ents = [], points = [], mines = [],
+	}
+	for c in get_children():
+		if c is EnemyAI:
+			data.wave = c.wave
+	for ts in teams:
+		data.teams.append({
+			money = ts.money, tier = ts.tier, upgrading = ts.upgrading, upgrade_t = ts.upgrade_t,
+			cranes = ts.cranes, researched = ts.researched, ab_cd = ts.ab_cd, tanker = maxf(0.0, ts.tanker_until - time),
+			obj = ts.obj_prog, obj_note = ts.obj_note,
+		})
+	for e in entities:
+		if not e.alive:
+			continue
+		var r := {id = e.def_id, team = e.team, p = _v(e.global_position), ry = snappedf(e.rotation.y, 0.01),
+			hp = snappedf(e.hp, 0.1), rank = e.rank, xp = snappedf(e.xp, 0.1)}
+		if e is Building:
+			r.b = true
+			r.built = e.built
+			r.build_t = e.build_t
+			r.queue = e.queue
+			r.prod_t = e.prod_t
+			r.research = e.research_id
+			r.research_t = e.research_t
+			r.missiles = e.missile_ready
+			if e.rally != Vector3.INF:
+				r.rally = _v(e.rally)
+		elif e is AirUnit:
+			r.patrol = _v(e.patrol)
+			r.ammo = e.ammo
+			r.life = e.life
+		else:
+			r.entrenched = e.entrenched
+			r.house = houses.find(e.garrison) if e.garrison != null else -1
+		data.ents.append(r)
+	for pt in points:
+		data.points.append(pt.owner_team)
+	for m in mines:
+		data.mines.append({team = m.team, p = _v(m.pos)})
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(data))
+
+
+static func saved_info() -> Dictionary:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return {}
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return {}
+	var d = JSON.parse_string(f.get_as_text())
+	return d if d is Dictionary else {}
+
+
+## Kaydı sahneye geri kurar (_ready içinde, harita kurulduktan sonra çağrılır).
+func _restore(data: Dictionary) -> void:
+	time = float(data.time)
+	for t in 2:
+		var src: Dictionary = data.teams[t]
+		var ts: TeamState = teams[t]
+		ts.money = float(src.money)
+		ts.tier = int(src.tier)
+		ts.upgrading = bool(src.upgrading)
+		ts.upgrade_t = float(src.upgrade_t)
+		ts.cranes = int(src.cranes)
+		ts.ab_cd = float(src.ab_cd)
+		ts.tanker_until = time + float(src.tanker)
+		ts.obj_prog = float(src.obj)
+		ts.obj_note = int(src.obj_note)
+		for rid in src.researched:
+			for r in Scenarios.RESEARCH:
+				if r.id == rid:
+					ts.researched.append(rid)
+					apply_mods(t, r.mods)
+	for r in data.ents:
+		var e: Entity
+		var pos := _p(r.p)
+		if r.get("b", false):
+			e = spawn_building(r.id, int(r.team), pos, bool(r.built))
+			e.build_t = float(r.build_t)
+			for q in r.queue:
+				e.queue.append(q)
+			e.prod_t = float(r.prod_t)
+			e.research_id = r.research
+			e.research_t = float(r.research_t)
+			for i in mini(e.missile_ready.size(), r.missiles.size()):
+				e.missile_ready[i] = float(r.missiles[i])
+			if r.has("rally"):
+				e.rally = _p(r.rally)
+			if e.kind == "hq":
+				teams[int(r.team)].hq = e
+		else:
+			e = spawn_unit(r.id, int(r.team), pos)
+			e.position.y = pos.y
+			e.rotation.y = float(r.ry)
+			if e is AirUnit:
+				e.set_patrol(_p(r.patrol))
+				e.ammo = int(r.ammo)
+				e.life = float(r.life)
+			else:
+				if int(r.house) >= 0 and int(r.house) < houses.size():
+					houses[int(r.house)].add(e)
+					e.garrison = houses[int(r.house)]
+					e.model.visible = false
+				elif r.entrenched:
+					e.entrenched = true
+					e.trench = Models.build({"model": "trench"}, e.team)
+					e.add_child(e.trench)
+		e.rank = int(r.rank)
+		e.xp = float(r.xp)
+		e.hp = minf(float(r.hp), e.max_hp)
+		if e is Unit:
+			e.update_figures()
+	for i in mini(points.size(), data.points.size()):
+		var o := int(data.points[i])
+		if o != Defs.NEUTRAL:
+			points[i].owner_team = o
+			points[i].flag.material_override = Models.mat(Defs.TEAM_COLORS[o])
+	for m in data.mines:
+		var node := Models.build({"model": "mine"}, int(m.team))
+		node.position = _p(m.p)
+		node.visible = int(m.team) == Defs.PLAYER
+		add_child(node)
+		mines.append({team = int(m.team), pos = _p(m.p), node = node})
+	for c in get_children():
+		if c is EnemyAI:
+			c.wave = int(data.wave)
+	recalc()

@@ -13,7 +13,14 @@ const MAP_H := 140.0
 const POP_CAP := 40
 const START_MONEY := 1000.0
 const HQ_INCOME := 10.0
-const AI_INCOME_MULT := 0.55      # yapay zekâ zorluğu: 1.0 = oyuncuyla eşit gelir
+# Yapay zekâ zorluğu. income: gelir çarpanı (1.0 = oyuncuyla eşit), first: ilk saldırı (sn),
+# tier: kademe atlama aralığı (sn), wave: ilk dalga büyüklüğü, retreat: geri çekilme can eşiği,
+# scout: keşif aralığı (sn), smart: zayıf noktayı seçme ve hava savunmasını önce vurma.
+const DIFFS := [
+	{name = "Kolay", income = 0.55, first = 450.0, tier = 260.0, wave = 5, retreat = 0.2, scout = 60.0, smart = false},
+	{name = "Orta", income = 0.8, first = 330.0, tier = 200.0, wave = 6, retreat = 0.3, scout = 35.0, smart = true},
+	{name = "Zor", income = 1.1, first = 240.0, tier = 150.0, wave = 7, retreat = 0.35, scout = 20.0, smart = true},
+]
 const MAX_TIER := 3
 const TIER_COST := [0, 1000, 2000]     # [bulunulan kademe] -> bir üst kademenin bedeli
 const TIER_TIME := [0.0, 40.0, 60.0]

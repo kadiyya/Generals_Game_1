@@ -29,6 +29,8 @@ var enter_target = null
 var retreating := false
 var ew_ring: MeshInstance3D = null
 var los_t := 0.0
+var patrol_a := Vector3.ZERO
+var patrol_b := Vector3.ZERO
 var los_ok := true
 
 
@@ -82,6 +84,14 @@ func do_task(kind: String) -> void:
 	order = kind
 	target = null
 	task_t = 0.0
+
+
+## Devriye: bulunduğu yerle p arasında saldırarak gidip gelir.
+func patrol_to(p: Vector3) -> void:
+	patrol_a = position
+	go(p, true)
+	patrol_b = dest
+	order = "patrol"
 
 
 func enter(house) -> void:
@@ -153,6 +163,13 @@ func _process(dt: float) -> void:
 					garrison = h
 					model.visible = false
 				order = "idle"
+		"patrol":
+			_scan()
+			if target != null:
+				_engage(dt, true)
+			elif _step(dest, dt):
+				dest = patrol_a if dest.distance_to(patrol_b) < 1.0 else patrol_b
+				nav_goal = Vector3.INF
 		"dig", "mine", "obstacle":
 			task_t += dt
 			var need := Defs.DIG_TIME if order == "dig" else (3.0 if order == "mine" else 5.0)

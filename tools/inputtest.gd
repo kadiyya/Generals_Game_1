@@ -73,9 +73,15 @@ func _run() -> void:
 	await _tap(g.hud.actions.get_child(2).get_global_rect().get_center())
 	await _frames(2)
 	_check("bina dugmesi yerlestirme modunu acar", g.placing == "kisla")
+	await _tap(_screen(g.teams[0].hq.position + Vector3(3, 0, 0)))
+	await _frames(3)
+	_check("kurulamayacak yerde onizleme kirmizi ve Onayla kapali", g.ghost != null and g.hud.actions.get_child(0).disabled and _count("kisla") == 0)
 	await _tap(_screen(g.teams[0].hq.position + Vector3(16, 0, -8)))
-	await _frames(2)
-	_check("haritaya dokununca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
+	await _frames(3)
+	_check("uygun yerde onizleme ve Onayla acik", g.ghost != null and not g.hud.actions.get_child(0).disabled)
+	await _tap(g.hud.actions.get_child(0).get_global_rect().get_center())
+	await _frames(3)
+	_check("Onayla'ya basinca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
 
 	# 2b) dağın üstüne bina kurulamaz
 	_check("dagin ustune bina kurulamaz", not g.terrain.is_land(Vector3(-45, 0, -50)) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
@@ -145,6 +151,19 @@ func _run() -> void:
 	_check("iki parmakla acinca yakinlasir", g.cam.dist < d0 - 1.0)
 
 	# 9) grup düğmesi
+	g.clear_selection()
+	await _tap(g.hud.side.get_child(0).get_child(3).get_global_rect().get_center())
+	_check("Hepsi dugmesi butun birimleri secer", g.selected_units().size() >= 2)
+	# 9a) grup: basılı tutunca kaydet, dokununca seç
+	var gb: Button = g.hud.side.get_child(2).get_child(0)
+	_touch(gb.get_global_rect().get_center(), true)
+	await get_tree().create_timer(0.7, true, false, true).timeout
+	_touch(gb.get_global_rect().get_center(), false)
+	await _frames(2)
+	var saved: int = g.groups[0].size()
+	g.clear_selection()
+	await _tap(gb.get_global_rect().get_center())
+	_check("grup basili tutunca kaydedilir, dokununca secilir", saved >= 2 and g.selected_units().size() == saved)
 	g.clear_selection()
 	await _tap(g.hud.side.get_child(0).get_child(3).get_global_rect().get_center())
 	_check("Hepsi dugmesi butun birimleri secer", g.selected_units().size() == 2)

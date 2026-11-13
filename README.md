@@ -17,6 +17,8 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![Birim kartı](docs/ekran/kart.png)
 
+![Bina önizlemesi ve eğitim](docs/ekran/onizleme.png)
+
 ![Binalar](docs/ekran/binalar.png)
 
 ## Şu an oynanabilen
@@ -72,12 +74,21 @@ daha az kayıp). Geri çekilen birlik %25 hızlı gider ve %30 az hasar alır; k
 **Doktrin yetenekleri:** Sürü Saldırısı (İHA), Havada Yakıt İkmali (Hava Üstünlüğü), Topçu Barajı (Zırhlı/Topçu),
 Doyurma Salvosu (Balistik Füze), Seferberlik (Dengeli).
 
-**Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da merkez köyü 6 dakika
+**Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da merkez köyü 8 dakika
 tutmak; İsrail'in 4 stratejik hedefi yok etmesi, İran'ın petrol terminalini tutması; Pakistan'ın 3 üretim tesisini yıkması,
 Hindistan'ın orta geçidi tutması. Ekranın üstünde senin ve düşmanın ilerlemesi görünür.
 
 **Birim kartları:** üretim düğmesinin köşesindeki çevirme simgesine basınca kart arkaya döner; can, kara gücü,
 hava gücü, menzil ve hız görünür, ekranın altında o birimin kullanım ipucu çıkar.
+
+**Yapay zekâ:** üç zorluk (Kolay, Orta, Zor) gelirini, ilk saldırı zamanını ve davranışını değiştirir. Orta ve Zor'da
+düzenli keşif yapar, en zayıf savunulan hedefi seçer, uçaklarla önce hava savunmasını vurur ve İHA'larını o susana kadar
+geride tutar; her zorlukta yaralı birliklerini ve çöken dalgaları geri çeker. Ordusunu doktrinine göre kurar
+(Ukrayna baştan drone ağırlıklı, Rusya topçu ağırlıklı, İsrail uçak ağırlıklı, Hindistan piyade ağırlıklı).
+
+**Arayüz:** eğitim bölümü (11 adım); bina yerleştirmede yeşil/kırmızı önizleme ve Onayla; üretim binalarına toplanma
+noktası (birlikler orada yayılarak durur); devriye emri; üç birlik grubu (basılı tut: kaydet, dokun: seç, iki kez: kamerayı
+götür); otomatik kayıt (dakikada bir, menüye dönüşte ve uygulama arka plana geçince) ve menüde "Devam Et".
 
 Ayrıca: arazi ve yol bulma, serbest bina yerleşimi, vinç, hız düğmesi (duraklatıp emir verme), karargâh yanında onarım, savaş sisi.
 
@@ -155,4 +166,7 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--inputtest`: dokunma hareketlerini taklit edip kontrolleri ve kuralları doğrular; gerçek pencere ister.
 - `--gallery`: senaryodaki bütün modelleri yan yana dizip görüntüsünü alır.
 - `--mechtest --scn=0`: oynanış mekaniklerini tek tek doğrular (arazi, EH, siper, ev, mayın, engel, rütbe, görev, yetenek, kart).
+- `--load --loadtest`: `--mechtest`'in kaydettiği oyunu yükler ve durumun geri geldiğini doğrular.
+- `--tutorial --tuttest`: eğitimi baştan sona oynar.
+- `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).

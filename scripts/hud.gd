@@ -108,6 +108,19 @@ func _ready() -> void:
 	build.focus_mode = Control.FOCUS_NONE
 	build.pressed.connect(_on_build)
 	side.add_child(build)
+	var grp := HBoxContainer.new()
+	grp.add_theme_constant_override("separation", 4)
+	side.add_child(grp)
+	for i in 3:
+		var gb := Button.new()
+		gb.text = "Grup %d" % (i + 1)
+		gb.custom_minimum_size = Vector2(70, 46)
+		gb.focus_mode = Control.FOCUS_NONE
+		gb.add_theme_font_size_override("font_size", 15)
+		gb.tooltip_text = "Dokun: grubu seç (iki kez: kamerayı götür). Basılı tut: seçili birlikleri bu gruba kaydet."
+		gb.button_down.connect(_group_down.bind(i))
+		gb.button_up.connect(_group_up.bind(i))
+		grp.add_child(gb)
 	ab_btn = Button.new()
 	ab_btn.custom_minimum_size = Vector2(220, 62)
 	ab_btn.focus_mode = Control.FOCUS_NONE
@@ -321,8 +334,24 @@ func _rebuild_now() -> void:
 	var g := Game.I
 	bottom.visible = true
 	if g.placing != "":
-		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[Defs.bid(0, g.placing)].name
+		var bname: String = Defs.BUILDINGS[Defs.bid(0, g.placing)].name
+		if g.ghost_pos == Vector3.INF:
+			title.text = "%s: sarı çemberin içinde bir yere dokun" % bname
+		elif g.can_place(0, g.placing, g.ghost_pos):
+			title.text = "%s: yeşil önizleme uygun. Onayla ya da başka yere dokun." % bname
+		else:
+			title.text = "%s: kırmızı önizleme, buraya kurulamaz. Başka yere dokun." % bname
+		var ok := _btn("Onayla", g.confirm_place)
+		ok.disabled = g.ghost_pos == Vector3.INF or not g.can_place(0, g.placing, g.ghost_pos)
 		_btn("İptal", g.cancel_placing)
+		return
+	if g.rally_for != null:
+		title.text = "Toplanma noktası: yeni birliklerin gideceği yere dokun"
+		_btn("İptal", g.cancel_modes)
+		return
+	if g.patrol_pick:
+		title.text = "Devriye: birliklerin gidip geleceği noktaya dokun"
+		_btn("İptal", g.cancel_modes)
 		return
 	if g.targeting != null:
 		title.text = "%s: hedef için haritada görebildiğin bir yere dokun" % g.missile_info(0, g.targeting_i).name
@@ -358,6 +387,7 @@ func _rebuild_now() -> void:
 		title.text = ", ".join(parts)
 		_btn("Dur", _stop)
 		_btn("Geri Çekil", _retreat)
+		_btn("Devriye", g.begin_patrol)
 		var foot := 0
 		for u in units:
 			if u.armor == "inf":
@@ -391,6 +421,8 @@ func _rebuild_now() -> void:
 				for i in ms.size():
 					var mb := _btn(ms[i].name, g.begin_targeting.bind(b, i))
 					refreshers.append(_refresh_missile.bind(mb, b, i))
+			if not b.d.get("produces", []).is_empty():
+				_btn("Toplanma\nNoktası", g.begin_rally.bind(b))
 			for id in b.d.get("produces", []):
 				if flipped.get(id, false):
 					_update_tip(id)
@@ -543,6 +575,24 @@ func _update_ability() -> void:
 	ab_btn.text = "%s\n%s" % [a.name, ("$%d" % int(a.cost)) if why == "" else why]
 	ab_btn.disabled = why != "" and why != "Yetersiz para"
 	ab_btn.modulate = Color(1, 1, 1) if why == "" else Color(0.8, 0.8, 0.8)
+
+
+var _grp_down_ms := 0
+var _grp_last := [-10000, -10000, -10000]
+
+
+func _group_down(_i: int) -> void:
+	_grp_down_ms = Time.get_ticks_msec()
+
+
+## Kısa dokunuş grubu seçer (0,4 sn içinde ikinci dokunuş kamerayı götürür); basılı tutmak kaydeder.
+func _group_up(i: int) -> void:
+	var now := Time.get_ticks_msec()
+	if now - _grp_down_ms >= 500:
+		Game.I.save_group(i)
+		return
+	Game.I.select_group(i, now - _grp_last[i] < 400)
+	_grp_last[i] = now
 
 
 func _task(kind: String) -> void:
@@ -861,5 +911,7 @@ func _restart() -> void:
 
 
 func _to_menu() -> void:
+	if not Game.I.over and not Game.I.tutorial_on and OS.get_cmdline_user_args().is_empty():
+		Game.I.save_game()
 	Engine.time_scale = 1.0
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")

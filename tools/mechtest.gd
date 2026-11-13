@@ -134,7 +134,7 @@ func _run() -> void:
 	var o := Scenarios.objective(0)
 	g.points[o.point].owner_team = 0
 	g._objective(0, 100.0)
-	_check("gorev noktasini tutmak ilerleme saglar", g.teams[0].obj_prog >= 100.0 and g.objective_fraction(0) > 0.25)
+	_check("gorev noktasini tutmak ilerleme saglar", g.teams[0].obj_prog >= 100.0 and g.objective_fraction(0) > 0.2)
 	g.points[o.point].owner_team = Defs.NEUTRAL
 
 	# ---- doktrin yeteneği (Ukrayna: Sürü Saldırısı)
@@ -165,6 +165,89 @@ func _run() -> void:
 		card.pressed.emit()
 		await _wait(0.5)
 		_check("karta tekrar basinca on yuze doner", not card.text.contains("Kara gücü") and not g.hud.tip_panel.visible)
+
+	# ---- toplanma noktası: yeni birlik oraya gider ve üst üste yığılmaz
+	var rp: Vector3 = k.position + Vector3(20, 0, -10)
+	g.begin_rally(k)
+	g.set_rally(rp)
+	_check("toplanma noktasi kaydedilir", k.rally.distance_to(rp) < 0.1)
+	for n in 3:
+		k._spawn(g.unit_of(0, "inf"))
+	await _wait(9.0)
+	var near := 0
+	var spots: Array = []
+	for e in g.entities:
+		if e.team == 0 and e.cls == "inf" and Entity.flat(e.position, rp) < 9.0:
+			near += 1
+			spots.append(e.position)
+	var apart := true
+	for x in spots.size():
+		for y in range(x + 1, spots.size()):
+			if Entity.flat(spots[x], spots[y]) < 1.0:
+				apart = false
+	_check("yeni birlikler toplanma noktasina gider", near >= 3)
+	_check("birlikler ust uste yigilmaz", apart)
+
+	# ---- devriye
+	var pu = g.spawn_unit(g.unit_of(0, "ifv"), 0, Vector3(-80, 0, 30))
+	g.select([pu])
+	g.set_patrol(Vector3(-60, 0, 30))
+	_check("devriye emri verilir", pu.order == "patrol")
+	var turned := false
+	for n in 24:
+		await _wait(0.5)
+		if pu.dest.distance_to(pu.patrol_a) < 1.0:
+			turned = true
+	_check("devriye noktasina varip geri doner", pu.order == "patrol" and turned)
+
+	# ---- yapay zekâ (Orta): keşif, zayıf nokta, önce hava savunması, geri çekilme
+	var ai: EnemyAI = null
+	for ch in g.get_children():
+		if ch is EnemyAI:
+			ai = ch
+	ai.P = Defs.DIFFS[1]
+	ai.home = g.teams[1].hq.position
+	ai.fwd = -signf(ai.home.x)
+	var p_hq: Vector3 = g.teams[0].hq.position
+	# iki oyuncu noktası: biri korunuyor, biri boş
+	g.points[0].owner_team = 0
+	g.points[1].owner_team = 0
+	for n in 4:
+		g.spawn_unit(g.unit_of(0, "tank"), 0, g.points[0].position + Vector3(n * 3.0, 0, 4))
+	var weak: Vector3 = ai._weak_spot(g, p_hq)
+	_check("YZ en zayif savunulan hedefi secer", Entity.flat(weak, g.points[1].position) < 1.0)
+	var sam := g.spawn_building(Defs.bid(0, "sam"), 0, g.points[1].position + Vector3(8, 0, 0), true)
+	var jet = g.spawn_unit(g.unit_of(1, "fighter"), 1, g.points[1].position + Vector3(18, 0, 0))
+	var uav = g.spawn_unit(g.unit_of(1, "uav_strike"), 1, g.points[1].position + Vector3(18, 0, 6))
+	g.fog.recompute()
+	ai._strike_air(g, g.points[1].position)
+	_check("YZ ucaklarla once hava savunmasini vurur", jet.target == sam)
+	_check("YZ IHA'lari hava savunmasi susana kadar geride tutar", Entity.flat(uav.patrol, g.points[1].position) > 20.0)
+	var hurt = g.spawn_unit(g.unit_of(1, "tank"), 1, Vector3(0, 0, 30))
+	hurt.hp = hurt.max_hp * 0.2
+	ai._retreat(g)
+	_check("YZ yarali birligi geri ceker", hurt.retreating)
+	ai._scout(g)
+	_check("YZ kesif birligi atar ya da uretir", ai.scout != null or g.nearest_building(1, "kisla", ai.home) == null)
+	for e in [jet, uav, hurt, sam]:
+		if is_instance_valid(e) and e.alive:
+			e.die()
+	g.points[0].owner_team = Defs.NEUTRAL
+	g.points[1].owner_team = Defs.NEUTRAL
+
+	# ---- kayıt
+	g.order_task([b], "dig")
+	await _wait(Defs.DIG_TIME + 0.6)
+	g.save_game()
+	var info := Game.saved_info()
+	var alive := 0
+	for e in g.entities:
+		if e.alive:
+			alive += 1
+	_check("oyun kaydedilir", not info.is_empty() and info.ents.size() == alive and int(info.scn) == 0)
+	var f := FileAccess.open("user://mechtest_sayi.txt", FileAccess.WRITE)
+	f.store_string("%d %d %d" % [alive, int(g.teams[0].money), int(g.time)])
+	f = null
 
 	print("MECHTEST BITTI  hata=%d" % fails)
 	get_tree().quit(1 if fails > 0 else 0)

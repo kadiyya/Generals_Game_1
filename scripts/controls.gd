@@ -113,6 +113,12 @@ func _tap(pos: Vector2) -> void:
 	if g.ab_targeting:
 		g.try_ability(world)
 		return
+	if g.rally_for != null:
+		g.set_rally(world)
+		return
+	if g.patrol_pick:
+		g.set_patrol(world)
+		return
 	var e = g.pick_entity(pos)
 	if e != null and e.team == Defs.PLAYER:
 		if dbl and not e.is_building:

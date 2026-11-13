@@ -13,6 +13,8 @@ var crane: Node3D = null
 var research_id := ""
 var research_t := 0.0
 var missile_ready: Array = []   # her füze tipi için kalan bekleme süresi
+var rally := Vector3.INF       # yeni birliklerin toplanacağı yer
+var spawn_n := 0
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -124,13 +126,17 @@ func _spawn(id: String) -> void:
 	var dir := Vector3(-signf(position.x), 0, 0)
 	if dir.x == 0.0:
 		dir = Vector3(1, 0, 0)
+	var goal: Vector3 = rally if rally != Vector3.INF else position + dir * (radius + 9.0)
 	for i in int(ud.get("count", 1)):
-		var jit := Vector3(randf_range(-2.5, 2.5), 0, randf_range(-3.5, 3.5))
-		var u = g.spawn_unit(id, team, g.terrain.nearest_free(position + dir * (radius + 2.5) + jit * 0.3))
+		# Birlikler toplanma noktasının çevresine sarmal düzende yayılır, üst üste yığılmaz.
+		spawn_n += 1
+		var ang := spawn_n * 2.4
+		var off := Vector3(cos(ang), 0, sin(ang)) * (2.0 + 1.1 * sqrt(float(spawn_n % 24)))
+		var u = g.spawn_unit(id, team, g.terrain.nearest_free(position + dir * (radius + 2.5) + off * 0.3))
 		if u is Unit:
-			u.go(position + dir * (radius + 8.0) + jit, false)
+			u.go(goal + off, false)
 		elif u is AirUnit:
-			u.set_patrol(position + dir * 14.0 + jit)
+			u.set_patrol(goal + off)
 	g.recalc()
 
 

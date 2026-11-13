@@ -182,6 +182,9 @@ func _process(dt: float) -> void:
 					dug[e.team] += 1
 		print("AUTOTEST BITTI  t=%d  kazanan=%d  uretilen_tur=%d  sinif=%d  arastirma=%d  fuze=%d" % [
 			int(g.time), g.winner, made.size(), kinds.size(), g.teams[0].researched.size(), launched])
+		for c in g.get_children():
+			if c is EnemyAI:
+				print("YZ  zorluk=%s  dalga=%d  %s" % [Defs.DIFFS[Scenarios.difficulty].name, c.wave, c.stats])
 		print("MEKANIK  denenen=%s  rutbe=%s  evde=%s  siperde=%s  mayin=[%d,%d]  gorev=[%d%%,%d%%]" % [
 			used, ranks, garr, dug, g.team_mines(0), g.team_mines(1),
 			int(g.objective_fraction(0) * 100.0), int(g.objective_fraction(1) * 100.0)])
