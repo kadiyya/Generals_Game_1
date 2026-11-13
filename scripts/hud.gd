@@ -315,6 +315,10 @@ func _rebuild_now() -> void:
 	bottom.visible = true
 	if g.placing != "":
 		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[Defs.bid(0, g.placing)].name
+		if g.placing == "maden":
+			title.text = "Maden Ocağı: bir kaynak yatağına dokun (yanında birliğin olmalı)"
+		elif g.placing == "ileri":
+			title.text = "İleri Harekât Üssü: birliklerinin yanında görebildiğin bir yere dokun"
 		_btn("İptal", g.cancel_placing)
 		return
 	if g.rally_for != null:
@@ -690,7 +694,14 @@ func _refresh_building_title(b: Building) -> void:
 	elif b.kind == "havaalani":
 		s += "  |  Uçak: %d/%d pist" % [Game.I.plane_count(0), Defs.PLANES_PER_AIRFIELD * Game.I.count_kind(0, "havaalani")]
 	elif b.kind == "maden":
-		s += "  |  +$%d/sn" % int(b.d.income)
+		if b.deposit == null or b.deposit.depleted():
+			s += "  |  Yatak tükendi"
+		else:
+			s += "  |  +$%.1f/sn  |  Rezerv $%d" % [b.mine_income(), int(b.deposit.reserve)]
+			if b.hp < b.max_hp:
+				s += "  |  Hasarlı: verim düştü" + (" (onarılıyor)" if b.repairing else " — yanına birlik gönder ki onarılsın")
+	elif b.kind == "ileri":
+		s += "  |  İkmal sağlar, birlikleri onarır. Çevresine kışla, santral ve hava savunma kurulabilir."
 	if b.built and int(b.d.get("power", 0)) < 0 and not b.powered():
 		s += "  |  ENERJİ YETERSİZ: Santral kur"
 	title.text = s
@@ -783,6 +794,26 @@ func _draw_overlay() -> void:
 			var f2: float = clampf(pt.cap_t / pt.cap_time, 0.0, 1.0)
 			overlay.draw_rect(Rect2(p2.x - 41, p2.y + 5, 82, 9), Color(0, 0, 0, 0.7))
 			overlay.draw_rect(Rect2(p2.x - 40, p2.y + 6, 80 * f2, 7), Defs.TEAM_COLORS[pt.cap_team])
+	for dp in g.deposits:
+		if not is_instance_valid(dp) or dp.mine != null:
+			continue
+		var wp3: Vector3 = dp.position + Vector3(0, 4.0, 0)
+		if cam.is_position_behind(wp3):
+			continue
+		var p3 := cam.unproject_position(wp3)
+		var dl := "Kaynak yatağı  +$%.1f/sn  ($%d)" % [dp.rich, int(dp.reserve)]
+		overlay.draw_string_outline(font, p3 + Vector2(-80, 0), dl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0, 0.8))
+		overlay.draw_string(font, p3 + Vector2(-80, 0), dl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.85, 0.35))
+	# ikmal hattı dışındaki kendi birliklerin: turuncu uyarı
+	for e in g.entities:
+		if e is Unit and e.alive and e.team == Defs.PLAYER and not e.supplied:
+			var wp4: Vector3 = e.global_position + Vector3(0, 3.2, 0)
+			if cam.is_position_behind(wp4):
+				continue
+			var p4 := cam.unproject_position(wp4)
+			overlay.draw_rect(Rect2(p4 + Vector2(-7, -7), Vector2(14, 14)), Color(0.95, 0.5, 0.1, 0.9))
+			overlay.draw_line(p4 + Vector2(-5, -5), p4 + Vector2(5, 5), Color.BLACK, 2.0)
+			overlay.draw_line(p4 + Vector2(-5, 5), p4 + Vector2(5, -5), Color.BLACK, 2.0)
 	if g.controls != null and g.controls.mode == "box":
 		var r: Rect2 = g.controls.box_rect()
 		overlay.draw_rect(r, Color(0.3, 1.0, 0.4, 0.15))
@@ -822,6 +853,22 @@ func _draw_minimap() -> void:
 	minimap.draw_texture_rect(_mm_tex(), Rect2(Vector2.ZERO, minimap.size), false)
 	for br in g.bridges:
 		minimap.draw_line(_mm(br.a), _mm(br.b), Color(0.85, 0.82, 0.7) if br.alive else Color(0.9, 0.2, 0.15), 3.0)
+	# kendi tarafının ikmal alanı
+	var sc := Color(1.0, 1.0, 1.0, 0.18)
+	for src in g.supply_sources(Defs.SIDE[Defs.PLAYER]):
+		minimap.draw_arc(_mm(src[0]), src[1] / Defs.MAP_W * MM_W, 0.0, TAU, 24, sc, 1.0)
+	for dp in g.deposits:
+		if not is_instance_valid(dp) or dp.depleted():
+			continue
+		var dc := Color(1.0, 0.82, 0.25)
+		if dp.mine != null:
+			dc = Defs.TEAM_COLORS[dp.mine.team].lightened(0.4)
+		var q := _mm(dp.position)
+		minimap.draw_colored_polygon(PackedVector2Array([q + Vector2(0, -5), q + Vector2(5, 0), q + Vector2(0, 5), q + Vector2(-5, 0)]), dc)
+	for pg in g.pings:
+		if g.time < pg[1]:
+			var rr := 4.0 + fmod(g.time * 14.0, 14.0)
+			minimap.draw_arc(_mm(pg[0]), rr, 0.0, TAU, 20, Color(1.0, 0.85, 0.3, 1.0 - (rr - 4.0) / 14.0), 2.0)
 	for pt in g.points:
 		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:

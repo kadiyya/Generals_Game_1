@@ -41,7 +41,22 @@ const HEAL_RADIUS := 16.0         # karargâhın yanındaki birimler onarılır
 const HEAL_RATE := 0.015          # saniyede azami canın oranı
 const INTERCEPT_CHANCE := 0.4     # menzildeki her hava savunmanın füzeyi önleme olasılığı
 
-const BUILD_KINDS: Array[String] = ["santral", "maden", "kisla", "fabrika", "havaalani", "sam", "teknoloji", "fuze"]
+const BUILD_KINDS: Array[String] = ["santral", "kisla", "fabrika", "maden", "ileri", "havaalani", "sam", "teknoloji", "fuze"]
+# Lojistik: ikmal kaynaklarının yarıçapı. İkmal hattı dışındaki kara birliği %30 az hasar verir, %10 yavaş gider
+# ve onarılmaz. Kaynaklar: karargâh, ileri harekât üssü, sağlam ikmal noktaları.
+const SUPPLY_HQ := 75.0
+const SUPPLY_FOB := 55.0
+const OOS_DMG := 0.7
+const OOS_SPEED := 0.9
+const FOB_ZONE := 26.0                                   # ileri üssün çevresinde kurulabilecek binalar
+const FOB_KINDS: Array[String] = ["kisla", "santral", "sam"]
+const PRESENCE_R := 28.0                                 # maden / ileri üs için yakında gereken birlik
+# Kaynak yatakları: başta kaç tane, en çok kaç tane, kaç saniyede bir yenisi belirir, verim ve rezerv aralığı.
+const DEPOSIT_FIRST := 3
+const DEPOSIT_MAX := 7
+const DEPOSIT_EVERY := Vector2(100.0, 170.0)
+const DEPOSIT_RICH := Vector2(5.5, 9.0)
+const DEPOSIT_RESERVE := Vector2(5000.0, 9000.0)
 const PLANE_CLASSES: Array[String] = ["fighter", "striker", "stealth"]
 const MAX_LANDMINES := 10
 const MINE_COST := 100

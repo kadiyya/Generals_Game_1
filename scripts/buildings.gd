@@ -5,7 +5,7 @@ extends RefCounted
 ## Not: bu dosya yalnızca Kit çağrıları ve düz hesap içerir; geliştirme önizleme aracı da aynı kodu okur.
 
 const IDS := ["hq", "santral", "maden", "kisla", "fabrika", "havaalani", "teknoloji", "fuze", "sam_box", "sam_tube",
-	"crane", "supply_oil", "supply_crates", "obstacle", "house", "trench", "mine", "block", "ruin_factory"]
+	"crane", "supply_oil", "supply_crates", "obstacle", "house", "trench", "mine", "block", "ruin_factory", "deposit", "ileri"]
 
 
 static func has(id: String) -> bool:
@@ -61,6 +61,10 @@ static func design(id: String, k: Kit) -> void:
 		_apartment(k)
 	elif id == "ruin_factory":
 		_ruin_factory(k)
+	elif id == "deposit":
+		_deposit(k)
+	elif id == "ileri":
+		_fob(k)
 	elif id == "trench":
 		_trench(k)
 	elif id == "mine":
@@ -659,3 +663,44 @@ static func _ruin_factory(k: Kit) -> void:
 	for i in 9:
 		k.box("conc2", Vector3(0.6, 0.35, 0.5), Vector3(1.0 + (i % 3) * 0.9, 0.2 + (i / 3) * 0.2, 1.0 + (i % 4) * 0.6), Vector3(0, i * 41.0, i * 9.0))
 	_crates(k, Vector3(-3.0, 0.08, 1.0))
+
+
+## Kaynak yatağı: toprağın üstüne çıkmış cevher kayaları, parlayan damarlar, sondaj kazıkları ve işaret direkleri.
+static func _deposit(k: Kit) -> void:
+	k.lathe("ore", [Vector2(3.2, 0.0), Vector2(2.9, 0.06), Vector2(0, 0.06)], Vector3.ZERO, Vector3.ZERO, 14)
+	var rocks := [[Vector3(-0.9, 0, -0.6), 1.2, 1.3], [Vector3(0.9, 0, 0.3), 1.0, 1.0], [Vector3(-0.1, 0, 1.2), 0.8, 0.8], [Vector3(1.4, 0, -1.3), 0.7, 0.7]]
+	for i in rocks.size():
+		var r: Array = rocks[i]
+		k.lathe("ore", [Vector2(r[1], 0), Vector2(r[1] * 0.8, r[2] * 0.6), Vector2(r[1] * 0.3, r[2]), Vector2(0, r[2] * 1.05)], r[0], Vector3(0, i * 40.0, 0), 6)
+		for j in 3:
+			k.box("yellow", Vector3(0.14, 0.5 + j * 0.15, 0.14), r[0] + Vector3(cos(j * 2.1) * r[1] * 0.55, r[2] * 0.45, sin(j * 2.1) * r[1] * 0.55), Vector3(25 - j * 20, j * 50, 15))
+	for i in 4:
+		var a := i * PI * 0.5 + 0.4
+		var p := Vector3(cos(a) * 2.7, 0, sin(a) * 2.7)
+		k.box("wood", Vector3(0.08, 1.1, 0.08), p + Vector3(0, 0.55, 0))
+		k.box("red" if i % 2 == 0 else "white", Vector3(0.1, 0.25, 0.1), p + Vector3(0, 1.0, 0))
+	# sondaj kulesi (küçük üçayak)
+	for i in 3:
+		k.box("steel", Vector3(0.07, 2.4, 0.07), Vector3(1.9, 1.1, 1.6) + Vector3(cos(i * 2.1) * 0.35, 0, sin(i * 2.1) * 0.35), Vector3(cos(i * 2.1) * 9.0, 0, -sin(i * 2.1) * 9.0))
+	k.box("hull2", Vector3(0.3, 0.3, 0.3), Vector3(1.9, 2.3, 1.6))
+
+
+## İleri harekât üssü: kum torbası çemberi, çadırlar, kamuflaj ağı, telsiz direği, mühimmat sandıkları ve bayrak.
+static func _fob(k: Kit) -> void:
+	k.lathe("sand", [Vector2(3.6, 0.0), Vector2(3.5, 0.05), Vector2(0, 0.05)], Vector3.ZERO, Vector3.ZERO, 16)
+	for i in 8:
+		var a := TAU * i / 8.0
+		if i == 2:
+			continue    # giriş
+		_sandbags(k, Vector3(cos(a) * 3.3, 0, sin(a) * 3.3), -rad_to_deg(a), 3)
+	_gable(k, "canvas2", 1.6, 2.4, 1.0, Vector3(-1.2, 0.05, -0.8))
+	_gable(k, "canvas2", 1.4, 2.0, 0.9, Vector3(1.0, 0.05, -1.4))
+	k.box("canvas", Vector3(2.6, 0.04, 1.9), Vector3(0.7, 1.35, 1.0), Vector3(4, 10, -3))
+	for p in [Vector3(-0.5, 0, 0.2), Vector3(1.9, 0, 0.2), Vector3(-0.5, 0, 1.8), Vector3(1.9, 0, 1.8)]:
+		k.box("wood", Vector3(0.07, 1.35, 0.07), p + Vector3(0, 0.68, 0))
+	_crates(k, Vector3(0.2, 0.05, 0.9))
+	_mast(k, Vector3(-2.0, 0.05, 1.2), 3.4)
+	_flag(k, Vector3(2.3, 0.05, -2.2), 3.0)
+	for i in 3:
+		k.box("sand", Vector3(0.8, 0.9, 0.8), Vector3(-2.6 + i * 0.85, 0.5, -2.6))
+	k.box("team", Vector3(1.2, 0.03, 0.8), Vector3(-1.2, 1.08, -0.8))

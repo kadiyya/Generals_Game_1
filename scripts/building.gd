@@ -16,6 +16,9 @@ var missile_ready: Array = []   # her füze tipi için kalan bekleme süresi
 var rally := Vector3.INF       # yeni birliklerin toplanacağı yer
 var spawn_n := 0
 var smoke_t := 0.0
+var deposit = null          # Maden Ocağının üstünde durduğu kaynak yatağı
+var repairing := false
+var _rep_t := 0.0
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -63,6 +66,30 @@ func prod_fraction() -> float:
 	return clampf(prod_t / float(Defs.UNITS[queue[0]].time), 0.0, 1.0)
 
 
+## Maden geliri: yatağın verimi x binanın sağlamlığı. Yatak tükenince sıfır.
+func mine_income() -> float:
+	if deposit == null or not is_instance_valid(deposit) or deposit.depleted():
+		return 0.0
+	return float(deposit.rich) * clampf(hp / max_hp, 0.0, 1.0)
+
+
+## Kaynak binası (maden) yalnızca yanında kendi tarafının silahlı kara birliği varken ve çevrede düşman
+## yokken onarılır.
+func _repair_tick() -> void:
+	repairing = false
+	if hp >= max_hp:
+		return
+	for e in Game.I.nearby(global_position, 20.0):
+		if not e.alive or e.is_air or e.is_building or Entity.flat(e.global_position, global_position) > 18.0:
+			continue
+		if Defs.foe(team, e.team):
+			return
+		if e.has_weapon() and Defs.ally(team, e.team):
+			repairing = true
+	if repairing:
+		hp = minf(max_hp, hp + max_hp * 0.02)
+
+
 func research_def() -> Dictionary:
 	for r in Scenarios.RESEARCH:
 		if r.id == research_id:
@@ -98,6 +125,11 @@ func _process(dt: float) -> void:
 			Game.I.fx_puff(top, Color(0.18, 0.17, 0.16), 1.6, 2.2, 4.0)
 			if hp < max_hp * 0.25:
 				Game.I.fx_puff(top - Vector3(0, 0.8, 0), Color(1.0, 0.5, 0.12), 0.9, 0.5, 0.8)
+	if kind == "maden":
+		_rep_t -= dt
+		if _rep_t <= 0.0:
+			_rep_t = 1.0
+			_repair_tick()
 	var ok := powered()
 	var rate := 1.0 if ok else 0.4
 	if not queue.is_empty():

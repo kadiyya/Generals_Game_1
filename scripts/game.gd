@@ -66,6 +66,13 @@ var _save_t := 60.0
 const SAVE_PATH := "user://kayit.json"
 const SAVE_V := 2
 var _tick_t := 0.0
+var _zone_rings: Array = []
+var deposits: Array = []
+var _dep_t := 90.0
+var _supply_t := 0.0
+var _supply_src: Array = [[], []]   # [taraf] -> [[konum, yarıçap], ...]
+var _oos_note := -100.0
+var pings: Array = []               # küçük haritada yanıp sönen yerler: [konum, bitiş zamanı]
 var _puff: SphereMesh = null
 
 
@@ -101,6 +108,8 @@ func _ready() -> void:
 	if not loading:
 		for t in Defs.N:
 			_setup_base(t, Defs.MAP.team_bases[t])
+		for i in Defs.DEPOSIT_FIRST:
+			spawn_deposit(false)
 	for h in terrain.house_data:
 		var g := Garrison.new()
 		add_child(g)
@@ -268,10 +277,15 @@ func _process(dt: float) -> void:
 			inc += Defs.HQ_INCOME
 		for p in points:
 			if p.owner_team == t:
-				inc += p.income
+				inc += p.current_income()
 		for e in entities:
-			if e.is_building and e.team == t and e.built and e.d.has("income"):
-				inc += float(e.d.income)
+			if e.is_building and e.team == t and e.built and e.kind == "maden":
+				var mi: float = e.mine_income()
+				inc += mi
+				if mi > 0.0:
+					e.deposit.reserve -= mi * dt
+					if e.deposit.reserve <= 0.0:
+						_msg(t, "Maden Ocağının yatağı tükendi. Yeni yataklar haritada belirecek.")
 		if Defs.foe(Defs.PLAYER, t):
 			inc *= float(Defs.DIFFS[Scenarios.difficulty].income)
 		ts.income = inc
@@ -303,6 +317,14 @@ func _process(dt: float) -> void:
 		_tick_t = 0.25
 		_ew_tick(0.25)
 		_mine_tick()
+	_supply_t -= dt
+	if _supply_t <= 0.0:
+		_supply_t = 1.0
+		_supply_tick()
+	_dep_t -= dt
+	if _dep_t <= 0.0:
+		_dep_t = randf_range(Defs.DEPOSIT_EVERY.x, Defs.DEPOSIT_EVERY.y)
+		spawn_deposit(true)
 	_separate()
 
 
@@ -335,15 +357,107 @@ func recalc() -> void:
 			ts.pop += int(e.d.get("pop", 1))
 
 
+## Karargâhın ve ileri üslerin yanındaki birlikler onarılır.
 func _heal(dt: float) -> void:
+	var bases: Array = []
+	for e in entities:
+		if e.is_building and e.alive and e.built and (e.kind == "hq" or e.kind == "ileri"):
+			bases.append(e)
 	for e in entities:
 		if e.is_building or not e.alive or e.hp >= e.max_hp:
 			continue
-		var hq: Building = teams[e.team].hq
-		if hq != null and is_instance_valid(hq) and hq.alive and Entity.flat(e.global_position, hq.position) <= Defs.HEAL_RADIUS:
-			e.hp = minf(e.max_hp, e.hp + e.max_hp * Defs.HEAL_RATE * dt)
-			if e is Unit:
-				e.update_figures()
+		for b in bases:
+			if b.team == e.team and Entity.flat(e.global_position, b.position) <= Defs.HEAL_RADIUS:
+				e.hp = minf(e.max_hp, e.hp + e.max_hp * Defs.HEAL_RATE * dt)
+				if e is Unit:
+					e.update_figures()
+				break
+
+
+# ---------------------------------------------------------------- lojistik ve kaynak yatakları
+
+## İkmal kaynaklarını tarafa göre toplar ve her kara birliğinin ikmal hattında olup olmadığını işaretler.
+func _supply_tick() -> void:
+	_supply_src = [[], []]
+	for e in entities:
+		if e.is_building and e.alive:
+			if e.kind == "hq":
+				_supply_src[Defs.SIDE[e.team]].append([e.position, Defs.SUPPLY_HQ])
+			elif e.kind == "ileri" and e.built:
+				_supply_src[Defs.SIDE[e.team]].append([e.position, Defs.SUPPLY_FOB])
+	for p in points:
+		if p.owner_team >= 0 and p.integrity() > 0.3:
+			_supply_src[Defs.SIDE[p.owner_team]].append([p.position, SupplyPoint.SUPPLY_R])
+	var oos := 0
+	for e in entities:
+		if e is Unit and e.alive:
+			e.supplied = supplied(e.team, e.global_position)
+			if not e.supplied and e.team == Defs.PLAYER:
+				oos += 1
+	if oos > 0 and time - _oos_note > 90.0:
+		_oos_note = time
+		hud.toast("%d birliğin ikmal hattının dışında: %%30 az hasar verir, yavaşlar ve onarılmaz. İleri Harekât Üssü kur ya da nokta al." % oos, 7.0)
+
+
+func supplied(team: int, pos: Vector3) -> bool:
+	for s in _supply_src[Defs.SIDE[team]]:
+		if Entity.flat(pos, s[0]) <= s[1]:
+			return true
+	return false
+
+
+func supply_sources(side: int) -> Array:
+	return _supply_src[side]
+
+
+## Kara biriminin bir yatağın üstünde Maden Ocağı kurabileceği, rastgele boş bir düz arazi yeri.
+func spawn_deposit(announce: bool) -> Deposit:
+	var live := 0
+	for dp in deposits:
+		if is_instance_valid(dp) and not dp.depleted():
+			live += 1
+	if live >= Defs.DEPOSIT_MAX:
+		return null
+	for tries in 200:
+		var p := Vector3(randf_range(-Defs.MAP_W * 0.44, Defs.MAP_W * 0.44), 0, randf_range(-Defs.MAP_H * 0.42, Defs.MAP_H * 0.42))
+		var ok := true
+		for off in [Vector3.ZERO, Vector3(5, 0, 0), Vector3(-5, 0, 0), Vector3(0, 0, 5), Vector3(0, 0, -5)]:
+			if terrain.kind_at(p + off) != Terrain.LAND or terrain.solid(p + off):
+				ok = false
+		if not ok:
+			continue
+		for t in Defs.N:
+			if Entity.flat(p, Defs.MAP.team_bases[t]) < 75.0:
+				ok = false
+		for pt in points:
+			if Entity.flat(p, pt.position) < 22.0:
+				ok = false
+		for dp in deposits:
+			if Entity.flat(p, dp.position) < 55.0:
+				ok = false
+		for e in entities:
+			if e.is_building and Entity.flat(p, e.position) < 12.0:
+				ok = false
+		if not ok:
+			continue
+		var d := Deposit.new()
+		add_child(d)
+		d.setup(p, snappedf(randf_range(Defs.DEPOSIT_RICH.x, Defs.DEPOSIT_RICH.y), 0.5), snappedf(randf_range(Defs.DEPOSIT_RESERVE.x, Defs.DEPOSIT_RESERVE.y), 100.0))
+		terrain.block_circle(p, 1.6, true)
+		deposits.append(d)
+		if announce:
+			pings.append([p, time + 12.0])
+			sfx.play("alert")
+			hud.toast("Yeni kaynak yatağı belirdi (+$%.1f/sn)! Küçük haritada yanıp sönüyor. İlk Maden Ocağını kuran alır." % d.rich, 7.0)
+		return d
+	return null
+
+
+func deposit_at(pos: Vector3):
+	for dp in deposits:
+		if is_instance_valid(dp) and Entity.flat(pos, dp.position) <= Deposit.SNAP:
+			return dp
+	return null
 
 
 ## Uzamsal ızgara: hedef arama, itişme, alan hasarı ve EH yalnızca yakın hücrelere bakar.
@@ -600,23 +714,67 @@ func buy_crane(team: int) -> bool:
 
 # ---------------------------------------------------------------- inşa
 
-func can_place(team: int, kind: String, pos: Vector3) -> bool:
+## Boş metin: buraya kurulabilir. Aksi hâlde nedeni.
+## Binalar karargâhın çevresine; kışla, santral ve hava savunma ileri harekât üssünün çevresine de kurulur.
+## Maden Ocağı yalnızca boş bir kaynak yatağına, İleri Harekât Üssü her yere kurulur; ikisi için de yakında
+## kendi birliğin olmalı (karargâh bölgesinde gerekmez).
+func place_reason(team: int, kind: String, pos: Vector3) -> String:
 	var hq: Building = teams[team].hq
-	if hq == null or not is_instance_valid(hq) or Entity.flat(pos, hq.position) > Defs.BUILD_ZONE:
-		return false
+	if hq == null or not is_instance_valid(hq):
+		return "Karargâh yok"
+	var in_base := Entity.flat(pos, hq.position) <= Defs.BUILD_ZONE
+	if kind == "maden":
+		var dep = deposit_at(pos)
+		if dep == null:
+			return "Maden Ocağı yalnızca bir kaynak yatağına kurulur"
+		if not dep.free_for(team) or dep.depleted():
+			return "Bu yatak dolu ya da tükenmiş"
+		pos = dep.position
+		if not in_base and not presence(team, pos, Defs.PRESENCE_R):
+			return "Yatağın yanında kendi birliğin olmalı"
+	elif kind == "ileri":
+		if not fog.sees(team, pos):
+			return "Burası görülmüyor"
+		if not in_base and not presence(team, pos, Defs.PRESENCE_R):
+			return "Yakında kendi birliğin olmalı"
+		for t in Defs.N:
+			var fh: Building = teams[t].hq
+			if Defs.foe(team, t) and fh != null and is_instance_valid(fh) and Entity.flat(pos, fh.position) < 70.0:
+				return "Düşman karargâhına çok yakın"
+	elif not in_base:
+		var ok := false
+		if kind in Defs.FOB_KINDS:
+			for e in entities:
+				if e.is_building and e.team == team and e.kind == "ileri" and e.built and Entity.flat(pos, e.position) <= Defs.FOB_ZONE:
+					ok = true
+					break
+		if not ok:
+			return "Sarı çemberin içinde bir yer seç" if kind not in Defs.FOB_KINDS else "Karargâhın ya da bir ileri üssün çemberi içinde bir yer seç"
 	var r: float = float(Defs.BUILDINGS[Defs.bid(team, kind)].radius)
 	# Binanın oturacağı alan düz kara olmalı.
 	for off in [Vector3.ZERO, Vector3(r, 0, 0), Vector3(-r, 0, 0), Vector3(0, 0, r), Vector3(0, 0, -r)]:
 		var q: Vector3 = pos + off
 		if absf(q.x) > Defs.MAP_W * 0.5 - 1.0 or absf(q.z) > Defs.MAP_H * 0.5 - 1.0 or not terrain.is_land(q):
-			return false
+			return "Zemin düz ve boş değil"
 	for e in entities:
 		if e.is_building and Entity.flat(pos, e.position) < r + e.radius + 2.0:
-			return false
+			return "Başka bir binaya çok yakın"
 	for p in points:
 		if Entity.flat(pos, p.position) < r + SupplyPoint.RADIUS:
-			return false
-	return true
+			return "İkmal noktasına çok yakın"
+	return ""
+
+
+func can_place(team: int, kind: String, pos: Vector3) -> bool:
+	return place_reason(team, kind, pos) == ""
+
+
+## Takımın pos çevresinde r içinde kara birliği var mı.
+func presence(team: int, pos: Vector3, r: float) -> bool:
+	for e in nearby(pos, r):
+		if e.team == team and e.alive and not e.is_air and not e.is_building and Entity.flat(e.global_position, pos) <= r:
+			return true
+	return false
 
 
 func place_building(team: int, kind: String, pos: Vector3) -> bool:
@@ -626,17 +784,22 @@ func place_building(team: int, kind: String, pos: Vector3) -> bool:
 	if ts.tier < int(bd.get("tier", 1)):
 		_msg(team, "Kademe %d gerekli." % int(bd.tier))
 		return false
-	if kind == "maden" and count_kind(team, "maden", false) >= Defs.MAX_MINES:
-		_msg(team, "En çok %d Maden Ocağı kurulabilir." % Defs.MAX_MINES)
-		return false
 	if ts.money < float(bd.cost):
 		_msg(team, "Yetersiz para.")
 		return false
-	if not can_place(team, kind, pos):
-		_msg(team, "Buraya kurulamaz. Sarı çemberin içinde, düz ve boş bir yer seç.")
+	var why := place_reason(team, kind, pos)
+	if why != "":
+		_msg(team, why + ".")
 		return false
+	var dep = null
+	if kind == "maden":
+		dep = deposit_at(pos)
+		pos = dep.position
 	ts.money -= float(bd.cost)
 	var b := spawn_building(id, team, pos)
+	if dep != null:
+		b.deposit = dep
+		dep.mine = b
 	if team == Defs.PLAYER and not b.crane_active:
 		hud.toast("Vinç meşgul: inşaat sıraya alındı. İnşa menüsünden vinç alabilirsin.")
 	return true
@@ -645,14 +808,29 @@ func place_building(team: int, kind: String, pos: Vector3) -> bool:
 func begin_placing(kind: String) -> void:
 	cancel_modes()
 	placing = kind
-	zone_ring.visible = true
-	hud.toast("Yerleştirmek için sarı çemberin içinde bir yere dokun.", 5.0)
+	if kind == "maden":
+		hud.toast("Bir kaynak yatağına dokun (sarı halkalar). Yanında kendi birliğin olmalı.", 6.0)
+	elif kind == "ileri":
+		hud.toast("Birliklerinin yanında görebildiğin bir yere dokun. İleri üs ikmal sağlar, yanına kışla, santral ve hava savunma kurulabilir.", 7.0)
+	else:
+		zone_ring.visible = true
+		if kind in Defs.FOB_KINDS:
+			for e in entities:
+				if e.is_building and e.team == Defs.PLAYER and e.kind == "ileri" and e.built:
+					var zr := Models.ring(Defs.FOB_ZONE, Color(1.0, 0.85, 0.2))
+					zr.position = e.position + Vector3(0, 0.15, 0)
+					add_child(zr)
+					_zone_rings.append(zr)
+		hud.toast("Yerleştirmek için sarı çemberin içinde bir yere dokun.", 5.0)
 	hud.rebuild()
 
 
 func cancel_placing() -> void:
 	placing = ""
 	zone_ring.visible = false
+	for zr in _zone_rings:
+		zr.queue_free()
+	_zone_rings.clear()
 	hud.rebuild()
 
 
@@ -762,6 +940,19 @@ func select_group(i: int, center: bool) -> void:
 		for u in live:
 			c += u.global_position
 		cam.focus = c / live.size()
+
+
+## Geri çekilme yeri: en yakın karargâh ya da ileri üs.
+func rear_base(team: int, pos: Vector3):
+	var best = null
+	var bd := 1e9
+	for e in entities:
+		if e.is_building and e.team == team and e.alive and e.built and (e.kind == "hq" or e.kind == "ileri"):
+			var dd := Entity.flat(pos, e.position)
+			if dd < bd:
+				bd = dd
+				best = e
+	return best
 
 
 func nearest_building(team: int, kind: String, pos: Vector3):
@@ -1024,10 +1215,10 @@ func order_stop(units: Array) -> void:
 func order_retreat(units: Array) -> void:
 	if units.is_empty():
 		return
-	var hq: Building = teams[units[0].team].hq
-	if hq == null or not is_instance_valid(hq):
+	var base = rear_base(units[0].team, units[0].global_position)
+	if base == null:
 		return
-	var pos := hq.position + Vector3(-signf(hq.position.x) * 12.0, 0, 0)
+	var pos: Vector3 = base.position + Vector3(-signf(base.position.x) * 10.0, 0, 0)
 	order_move(units, pos, false)
 	# Geri çekilen birlik daha hızlı gider ve %30 az hasar alır.
 	for u in units:
@@ -1567,6 +1758,11 @@ func save_game() -> void:
 		data.waves.append(ai.wave)
 	for br in bridges:
 		data.bridges.append([snappedf(br.hp, 1.0), br.down])
+	data.deposits = []
+	for dp in deposits:
+		if is_instance_valid(dp):
+			data.deposits.append([snappedf(dp.position.x, 0.01), snappedf(dp.position.z, 0.01), dp.rich, snappedf(dp.reserve, 1.0)])
+	data.dep_t = _dep_t
 	for ts in teams:
 		data.teams.append({
 			money = ts.money, tier = ts.tier, upgrading = ts.upgrading, upgrade_t = ts.upgrade_t,
@@ -1689,6 +1885,19 @@ func _restore(data: Dictionary) -> void:
 		node.visible = Defs.friendly(int(m.team))
 		add_child(node)
 		mines.append({team = int(m.team), pos = _p(m.p), node = node})
+	for dd in data.get("deposits", []):
+		var dp := Deposit.new()
+		add_child(dp)
+		dp.setup(Vector3(dd[0], 0, dd[1]), float(dd[2]), float(dd[3]))
+		terrain.block_circle(dp.position, 1.6, true)
+		deposits.append(dp)
+	_dep_t = float(data.get("dep_t", 90.0))
+	for e in entities:
+		if e is Building and e.kind == "maden":
+			var dp = deposit_at(e.position)
+			if dp != null:
+				e.deposit = dp
+				dp.mine = e
 	for i in mini(ais.size(), data.waves.size()):
 		ais[i].wave = int(data.waves[i])
 	recalc()

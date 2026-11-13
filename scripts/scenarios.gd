@@ -141,7 +141,8 @@ const CLASSES := {
 const BUILDING_KINDS := {
 	"hq": {name = "Karargâh", hp = 8000, vision = 20.0, radius = 5.5, power = 2},
 	"santral": {name = "Santral", cost = 300, time = 15.0, tier = 1, hp = 900, vision = 10.0, radius = 3.0, power = 3},
-	"maden": {name = "Maden Ocağı", cost = 600, time = 25.0, tier = 1, hp = 900, vision = 10.0, radius = 3.2, income = 4.0},
+	"maden": {name = "Maden Ocağı", cost = 1600, time = 40.0, tier = 1, hp = 1400, vision = 12.0, radius = 3.2, field = true, deposit = true},
+	"ileri": {name = "İleri Harekât Üssü", cost = 900, time = 25.0, tier = 1, hp = 1500, vision = 16.0, radius = 3.6, field = true},
 	"kisla": {name = "Kışla", cost = 300, time = 15.0, tier = 1, hp = 1200, vision = 12.0, radius = 3.2},
 	"fabrika": {name = "Fabrika", cost = 600, time = 22.0, tier = 1, hp = 1500, vision = 12.0, radius = 3.6, power = -1},
 	"havaalani": {name = "Hava Alanı", cost = 900, time = 30.0, tier = 2, hp = 1600, vision = 14.0, radius = 6.0, power = -2},

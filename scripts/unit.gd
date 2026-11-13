@@ -35,6 +35,7 @@ var stuck_n := 0
 var stuck_pos := Vector3.INF
 var patrol_b := Vector3.ZERO
 var los_ok := true
+var supplied := true       # ikmal hattında mı (Game her saniye günceller)
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -60,6 +61,10 @@ func muzzle_pos() -> Vector3:
 
 func _on_fired() -> void:
 	recoil = 1.0
+
+
+func damage_base() -> float:
+	return super.damage_base() * (1.0 if supplied else Defs.OOS_DMG)
 
 
 func wrange() -> float:
@@ -327,7 +332,7 @@ func _step(p: Vector3, dt: float) -> bool:
 		return false
 	var dir := to / l
 	var ter := Game.I.terrain
-	var sp := speed * ter.speed_mult(position, armor) * (1.25 if retreating else 1.0)
+	var sp := speed * ter.speed_mult(position, armor) * (1.25 if retreating else 1.0) * (1.0 if supplied else Defs.OOS_SPEED)
 	position += dir * minf(sp * dt, l)
 	position.y = lerpf(position.y, ter.height(position), minf(1.0, dt * 6.0))
 	position.x = clampf(position.x, -Defs.MAP_W * 0.5 + 1.0, Defs.MAP_W * 0.5 - 1.0)
