@@ -19,14 +19,14 @@ const MODES := [
 
 const POP_CAP := 40
 const START_MONEY := 1500.0
-const HQ_INCOME := 6.0
+const HQ_INCOME := 8.0
 # Yapay zekâ zorluğu. income: gelir çarpanı (1.0 = oyuncuyla eşit), first: ilk saldırı (sn),
 # tier: kademe atlama aralığı (sn), wave: ilk dalga büyüklüğü, retreat: geri çekilme can eşiği,
 # scout: keşif aralığı (sn), smart: zayıf noktayı seçme ve hava savunmasını önce vurma.
 const DIFFS := [
-	{name = "Kolay", income = 0.8, first = 520.0, tier = 300.0, wave = 5, retreat = 0.2, scout = 60.0, smart = false, think = 2.0, raid = false, expand = 1},
-	{name = "Orta", income = 1.1, first = 380.0, tier = 220.0, wave = 7, retreat = 0.3, scout = 30.0, smart = true, think = 1.2, raid = true, expand = 2},
-	{name = "Zor", income = 1.45, first = 280.0, tier = 160.0, wave = 8, retreat = 0.35, scout = 18.0, smart = true, think = 0.8, raid = true, expand = 3},
+	{name = "Kolay", income = 0.8, first = 520.0, tier = 300.0, wave = 4, retreat = 0.2, scout = 60.0, smart = false, think = 2.0, raid = false, expand = 1},
+	{name = "Orta", income = 1.1, first = 380.0, tier = 220.0, wave = 5, retreat = 0.3, scout = 30.0, smart = true, think = 1.2, raid = true, expand = 2},
+	{name = "Zor", income = 1.45, first = 280.0, tier = 160.0, wave = 6, retreat = 0.35, scout = 18.0, smart = true, think = 0.8, raid = true, expand = 3},
 ]
 const MAX_TIER := 3
 const TIER_COST := [0, 1000, 2000]     # [bulunulan kademe] -> bir üst kademenin bedeli

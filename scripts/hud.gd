@@ -792,6 +792,7 @@ func _draw_overlay() -> void:
 	var g := Game.I
 	var cam := g.cam.camera
 	var font := ThemeDB.fallback_font
+	var view := get_viewport().get_visible_rect().grow(60.0)
 	for e in g.entities:
 		if not e.alive or not e.seen:
 			continue
@@ -804,6 +805,8 @@ func _draw_overlay() -> void:
 		if cam.is_position_behind(wp):
 			continue
 		var p := cam.unproject_position(wp)
+		if not view.has_point(p):
+			continue
 		var w := 46.0 if not e.is_building else 80.0
 		var f: float = clampf(e.hp / e.max_hp, 0.0, 1.0)
 		var col := Color(0.25, 0.9, 0.3)
@@ -825,6 +828,8 @@ func _draw_overlay() -> void:
 		if cam.is_position_behind(wp2):
 			continue
 		var p2 := cam.unproject_position(wp2)
+		if not view.has_point(p2):
+			continue
 		var label := "+$%.1f/sn" % pt.income if pt.owner_team == Defs.NEUTRAL else "+$%.1f/sn" % pt.current_income()
 		if pt.pname != "":
 			label = pt.pname + "  " + label
@@ -850,6 +855,8 @@ func _draw_overlay() -> void:
 		if cam.is_position_behind(wp3):
 			continue
 		var p3 := cam.unproject_position(wp3)
+		if not view.has_point(p3):
+			continue
 		var dl := "Kaynak yatağı  +$%.1f/sn  ($%d)" % [dp.rich, int(dp.reserve)]
 		overlay.draw_string_outline(font, p3 + Vector2(-80, 0), dl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0, 0.8))
 		overlay.draw_string(font, p3 + Vector2(-80, 0), dl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.85, 0.35))
@@ -860,6 +867,8 @@ func _draw_overlay() -> void:
 			if cam.is_position_behind(wp4):
 				continue
 			var p4 := cam.unproject_position(wp4)
+			if not view.has_point(p4):
+				continue
 			overlay.draw_rect(Rect2(p4 + Vector2(-7, -7), Vector2(14, 14)), Color(0.95, 0.5, 0.1, 0.9))
 			overlay.draw_line(p4 + Vector2(-5, -5), p4 + Vector2(5, 5), Color.BLACK, 2.0)
 			overlay.draw_line(p4 + Vector2(-5, 5), p4 + Vector2(5, -5), Color.BLACK, 2.0)
