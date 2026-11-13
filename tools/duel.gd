@@ -39,19 +39,50 @@ func _run() -> void:
 	get_tree().quit()
 
 
+## Sınıfın birimi: önce oyuncunun ülkesinden, yoksa (ör. Ukrayna'nın tankı yok) rakibinkinden.
+func _id(g: Game, cls: String) -> String:
+	var id := g.unit_of(0, cls)
+	return id if id != "" else g.unit_of(1, cls)
+
+
+## Düello alanı: 60 x 16'lık açık düz arazi.
+func _arena(g: Game) -> Vector3:
+	var ter := g.terrain
+	for rr in range(0, 300, 10):
+		for k in 16:
+			var c := Vector3(cos(k * TAU / 16.0), 0, sin(k * TAU / 16.0) * 0.6) * rr
+			var ok := true
+			for x in range(-32, 33, 2):
+				for z in range(-8, 9, 2):
+					var q := c + Vector3(x, 0, z)
+					if ter.kind_at(q) != Terrain.LAND or ter.solid(q):
+						ok = false
+						break
+				if not ok:
+					break
+			if ok:
+				return c
+	return Vector3.ZERO
+
+
+var arena := Vector3.INF
+
+
 func _duel(g: Game, a: String, b: String) -> Array:
-	var ida := g.unit_of(0, a)
-	var idb := g.unit_of(0, b)
+	if arena == Vector3.INF:
+		arena = _arena(g)
+	var ida := _id(g, a)
+	var idb := _id(g, b)
 	var na := maxi(1, int(round(BUDGET / float(Defs.UNITS[ida].cost))))
 	var nb := maxi(1, int(round(BUDGET / float(Defs.UNITS[idb].cost))))
 	var A: Array = []
 	var B: Array = []
 	for k in na:
-		A.append(g.spawn_unit(ida, 0, Vector3(-26, 0, 46 + (k % 4) * 3.0 + (k / 4) * 2.0)))
+		A.append(g.spawn_unit(ida, 0, arena + Vector3(-26, 0, -4 + (k % 4) * 3.0 + (k / 4) * 2.0)))
 	for k in nb:
-		B.append(g.spawn_unit(idb, 1, Vector3(26, 0, 46 + (k % 4) * 3.0 + (k / 4) * 2.0)))
-	g.order_move(A, Vector3(26, 0, 50), true)
-	g.order_move(B, Vector3(-26, 0, 50), true)
+		B.append(g.spawn_unit(idb, 1, arena + Vector3(26, 0, -4 + (k % 4) * 3.0 + (k / 4) * 2.0)))
+	g.order_move(A, arena + Vector3(26, 0, 0), true)
+	g.order_move(B, arena + Vector3(-26, 0, 0), true)
 	var t := 0.0
 	while t < 90.0 and _value(A) > 0.0 and _value(B) > 0.0:
 		await _wait(1.0)

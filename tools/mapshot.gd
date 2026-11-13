@@ -1,6 +1,6 @@
 extends Node
 ## Geliştirme aracı: haritanın tamamını yukarıdan ve birkaç yakın açıdan çekip çıkar.
-## Kullanım: godot --path . -- --mapshot --scn=N --shots=KLASÖR
+## Kullanım: godot --path . -- --mapshot --scn=N --shots=KLASÖR  (--perfonly: yalnızca kare sürelerini ölçer)
 
 var out_dir := "."
 
@@ -24,6 +24,44 @@ func _run() -> void:
 	var t0 := Time.get_ticks_msec()
 	await _frames(3)
 	print("ilk kareler: %d ms" % (Time.get_ticks_msec() - t0))
+	# oyun kamerasıyla ortalama kare süresi
+	g.cam.set_process(true)
+	g.cam.focus = g.teams[0].hq.position
+	g.cam.dist = 60.0
+	await _frames(10)
+	t0 = Time.get_ticks_msec()
+	await _frames(30)
+	print("PERF  oyun kamerasi: %.1f ms/kare" % ((Time.get_ticks_msec() - t0) / 30.0))
+	g.cam.dist = 200.0
+	await _frames(10)
+	t0 = Time.get_ticks_msec()
+	await _frames(30)
+	print("PERF  uzak kamera: %.1f ms/kare" % ((Time.get_ticks_msec() - t0) / 30.0))
+	g.cam.dist = 60.0
+	for step in (["golge_kapali", "agaclar_gizli", "zemin_gizli", "her_sey_gizli"] if OS.get_cmdline_user_args().has("--perfonly") else []):
+		match step:
+			"golge_kapali":
+				for c in g.get_children():
+					if c is DirectionalLight3D:
+						c.shadow_enabled = false
+			"agaclar_gizli":
+				for c in g.terrain.get_children():
+					if c is MultiMeshInstance3D:
+						c.visible = false
+			"zemin_gizli":
+				g.terrain.visible = false
+			"her_sey_gizli":
+				for c in g.get_children():
+					if c is Node3D and not (c is Camera3D or c is CameraRig or c is DirectionalLight3D):
+						c.visible = false
+		await _frames(10)
+		t0 = Time.get_ticks_msec()
+		await _frames(30)
+		print("PERF  %s: %.1f ms/kare" % [step, (Time.get_ticks_msec() - t0) / 30.0])
+	g.cam.set_process(false)
+	if OS.get_cmdline_user_args().has("--perfonly"):
+		get_tree().quit()
+		return
 	cam.far = 2000.0
 	cam.position = Vector3(0, 620, 120)
 	cam.rotation = Vector3(-1.38, 0, 0)

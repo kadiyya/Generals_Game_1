@@ -225,7 +225,9 @@ func _build_world() -> void:
 	sun.rotation_degrees = Vector3(-52, 35, 0)
 	sun.light_energy = 0.8
 	sun.shadow_enabled = Settings.get_v("shadows")
-	sun.directional_shadow_max_distance = 130.0
+	sun.directional_shadow_max_distance = 110.0
+	# Tek geçişli gölge: kuşbakışı kamerada bölmeli gölge gereksiz ve büyük haritada çok pahalı.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	add_child(sun)
 
 	dust_color = (Defs.MAP.ground as Color).lerp(Color(0.75, 0.7, 0.6), 0.55)

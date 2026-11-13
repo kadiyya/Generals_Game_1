@@ -510,6 +510,16 @@ func _army(g: Game, ts, step: float) -> void:
 	goal = _goal(g)
 	if goal == Vector3.INF:
 		return
+	# Karşı taraf tutma görevini bitirmek üzereyse: bütün ordu o noktaya.
+	var their := Defs.leader(1 - Defs.SIDE[T])
+	var to := Scenarios.objective(their)
+	if to.get("type", "") == "hold" and g.objective_fraction(their) > 0.5 and not Defs.ally(T, g.points[to.point].owner_team) and army.size() >= 3:
+		goal = g.points[to.point].position
+		if not attacking:
+			attacking = true
+			wave += 1
+			wave_size = army.size()
+			g.order_move(army, goal, true)
 	var to_goal := goal - home
 	stage = home + to_goal.normalized() * minf(to_goal.length() * 0.35, 90.0)
 	stage = g.terrain.nearest_free(stage)

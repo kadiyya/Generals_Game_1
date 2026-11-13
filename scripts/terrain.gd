@@ -540,7 +540,12 @@ void fragment() {
 	float d = use_detail ? texture(detail, wp.xz / 7.0).r : 0.85;
 	float d2 = use_detail ? texture(detail, wp.xz / 37.0).r : 0.85;
 	vec3 c = k.rgb * (0.8 + 0.28 * d) * (0.92 + 0.14 * d2);
-	float w = smoothstep(0.42, 0.58, k.a);
+	// su maskesi beş örnekle yumuşatılır: kıyılar hücre basamağı yerine yuvarlak görünür
+	vec2 px = 2.2 / vec2(textureSize(kinds, 0));
+	float wa = k.a * 0.2 + 0.2 * (texture(kinds, UV + vec2(px.x, px.y)).a + texture(kinds, UV + vec2(-px.x, px.y)).a
+		+ texture(kinds, UV + vec2(px.x, -px.y)).a + texture(kinds, UV + vec2(-px.x, -px.y)).a);
+	k.a = wa;
+	float w = smoothstep(0.4, 0.6, wa);
 	float r1 = use_detail ? texture(detail, wp.xz / 16.0 + vec2(TIME * 0.012, TIME * 0.007)).r : 0.8;
 	float r2 = use_detail ? texture(detail, wp.xz / 23.0 - vec2(TIME * 0.009, TIME * 0.011)).r : 0.8;
 	vec3 wc = vec3(0.1, 0.25, 0.38) * (0.8 + 0.35 * r1 * r2);
@@ -622,27 +627,33 @@ func _visuals() -> void:
 	outer.material_override = Tex.mat("ground", ground.darkened(0.45), 0.05, true)
 
 
+## Hücrelere ağaç / kaya / moloz dağıtır. Harita 64 birimlik parçalara bölünür: her parça ayrı bir MultiMesh'tir,
+## böylece kameranın ve gölgenin dışında kalan parçalar hiç çizilmez.
 func _scatter(k: int, mesh: Mesh, material: Material, size: Vector2, hgt: Vector2, every := 1) -> void:
-	var cells: Array = []
+	const CHUNK := 32   # hücre (64 birim)
+	var groups := {}
 	for y in gh:
 		for x in gw:
 			if kind[y * gw + x] == k and (every == 1 or (x + y) % every == 0):
-				cells.append(Vector2i(x, y))
-	if cells.is_empty():
-		return
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = cells.size()
+				var key := Vector2i(x / CHUNK, y / CHUNK)
+				if not groups.has(key):
+					groups[key] = []
+				groups[key].append(Vector2i(x, y))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11 + k
-	for i in cells.size():
-		var w := center(cells[i]) + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
-		var s := rng.randf_range(size.x, size.y)
-		var h := rng.randf_range(hgt.x, hgt.y)
-		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, h, s))
-		mm.set_instance_transform(i, Transform3D(b, Vector3(w.x, h * 0.5, w.z)))
-	var mi := MultiMeshInstance3D.new()
-	mi.multimesh = mm
-	mi.material_override = material
-	add_child(mi)
+	for key in groups:
+		var cells: Array = groups[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = cells.size()
+		for i in cells.size():
+			var w := center(cells[i]) + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
+			var s := rng.randf_range(size.x, size.y)
+			var h := rng.randf_range(hgt.x, hgt.y)
+			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, h, s))
+			mm.set_instance_transform(i, Transform3D(b, Vector3(w.x, h * 0.5, w.z)))
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = mm
+		mi.material_override = material
+		add_child(mi)

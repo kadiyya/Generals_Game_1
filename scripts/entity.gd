@@ -101,6 +101,8 @@ func valid_target() -> bool:
 
 
 func can_hit(e) -> bool:
+	if not is_instance_valid(e):
+		return false
 	if not e.alive or not d.has("dmg"):
 		return false
 	if e.team < 0:

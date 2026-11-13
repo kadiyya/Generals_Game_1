@@ -21,10 +21,10 @@ func _run() -> void:
 	var dirx := -signf(g.teams[0].hq.position.x)
 	var mine: Array = []
 	for cls in ["tank", "tank", "ifv", "inf", "inf", "at", "arty"]:
-		mine.append(g.spawn_unit(g.unit_of(0, cls), 0, mid + Vector3(-dirx * 16.0, 0, mine.size() * 3.5 - 10.0)))
+		mine.append(g.spawn_unit(g.unit_of(0, cls) if g.unit_of(0, cls) != "" else g.unit_of(0, "ifv"), 0, mid + Vector3(-dirx * 16.0, 0, mine.size() * 3.5 - 10.0)))
 	var foes: Array = []
 	for cls in ["tank", "tank", "ifv", "inf", "inf"]:
-		foes.append(g.spawn_unit(g.unit_of(1, cls), 1, mid + Vector3(dirx * 10.0, 0, foes.size() * 3.5 - 7.0)))
+		foes.append(g.spawn_unit(g.unit_of(1, cls) if g.unit_of(1, cls) != "" else g.unit_of(1, "ifv"), 1, mid + Vector3(dirx * 10.0, 0, foes.size() * 3.5 - 7.0)))
 	var jet = g.spawn_unit(g.unit_of(1, "fighter"), 1, mid + Vector3(dirx * 14.0, 0, 0))
 	var aa = g.spawn_unit(g.unit_of(0, "spaag"), 0, mid + Vector3(-dirx * 6.0, 0, 12.0))
 	jet.set_patrol(mid)
