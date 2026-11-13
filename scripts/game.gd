@@ -26,8 +26,6 @@ class TeamState:
 
 signal selection_changed
 
-const SPEEDS := [1.0, 0.5, 0.0]
-const SPEED_NAMES := ["Normal", "Yavaş", "Duraklatıldı"]
 const MISSILE_MULT := {inf = 1.0, light = 1.0, heavy = 0.8, bld = 1.3}
 
 var teams: Array = []
@@ -41,7 +39,6 @@ var targeting_i := 0
 var time := 0.0
 var over := false
 var winner := -1
-var speed_i := 0
 var terrain: Terrain
 var fog: Fog
 var hud: Hud
@@ -52,10 +49,11 @@ var _recalc_t := 0.0
 var _alert_t := -100.0
 var dust_color := Color(0.6, 0.55, 0.42)
 var houses: Array = []
+var sfx: Sfx
+const BUCKET := 16.0
+var buckets := {}        # uzamsal ızgara: hücre -> o hücredeki varlıklar (her kare yeniden kurulur)
 var mines: Array = []            # {team, pos, node}
 var ab_targeting := false        # doktrin yeteneği için hedef seçiliyor
-var ghost: Node3D = null         # yerleştirilen binanın önizlemesi
-var ghost_pos := Vector3.INF
 var rally_for: Building = null   # toplanma noktası seçiliyor
 var patrol_pick := false         # devriye noktası seçiliyor
 var rally_flag: Node3D = null
@@ -80,6 +78,8 @@ func _ready() -> void:
 	add_child(terrain)
 	fog = Fog.new()
 	add_child(fog)
+	sfx = Sfx.new()
+	add_child(sfx)
 	cam = CameraRig.new()
 	add_child(cam)
 	for p in Defs.MAP.points:
@@ -141,11 +141,8 @@ func _ready() -> void:
 		add_child(load("res://tools/loadtest.gd").new())
 	elif args.has("--tuttest"):
 		add_child(load("res://tools/tuttest.gd").new())
-
-
-func set_speed(i: int) -> void:
-	speed_i = i % SPEEDS.size()
-	Engine.time_scale = SPEEDS[speed_i]
+	elif args.has("--duel"):
+		add_child(load("res://tools/duel.gd").new())
 
 
 # ---------------------------------------------------------------- çarpanlar
@@ -198,7 +195,7 @@ func _build_world() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, 35, 0)
 	sun.light_energy = 0.8
-	sun.shadow_enabled = true
+	sun.shadow_enabled = Settings.get_v("shadows")
 	sun.directional_shadow_max_distance = 140.0
 	add_child(sun)
 
@@ -261,6 +258,7 @@ func spawn_building(id: String, team: int, pos: Vector3, instant := false) -> Bu
 func _process(dt: float) -> void:
 	if over:
 		return
+	_rebuild_buckets()
 	time += dt
 	for t in 2:
 		var ts: TeamState = teams[t]
@@ -344,15 +342,38 @@ func _heal(dt: float) -> void:
 				e.update_figures()
 
 
-func _separate() -> void:
-	var ground: Array = []
-	var blds: Array = []
+## Uzamsal ızgara: hedef arama, itişme, alan hasarı ve EH yalnızca yakın hücrelere bakar.
+func _rebuild_buckets() -> void:
+	buckets.clear()
 	for e in entities:
 		if not e.alive:
 			continue
-		if e.is_building:
-			blds.append(e)
-		elif not e.is_air:
+		var k := Vector2i(floori(e.global_position.x / BUCKET), floori(e.global_position.z / BUCKET))
+		if buckets.has(k):
+			buckets[k].append(e)
+		else:
+			buckets[k] = [e]
+
+
+## pos çevresinde r yarıçapına giren hücrelerdeki varlıklar (kesin mesafe kontrolü çağırana kalır).
+func nearby(pos: Vector3, r: float) -> Array:
+	var out: Array = []
+	var x0 := floori((pos.x - r) / BUCKET)
+	var x1 := floori((pos.x + r) / BUCKET)
+	var z0 := floori((pos.z - r) / BUCKET)
+	var z1 := floori((pos.z + r) / BUCKET)
+	for x in range(x0, x1 + 1):
+		for z in range(z0, z1 + 1):
+			var k := Vector2i(x, z)
+			if buckets.has(k):
+				out.append_array(buckets[k])
+	return out
+
+
+func _separate() -> void:
+	var ground: Array = []
+	for e in entities:
+		if e.alive and not e.is_building and not e.is_air:
 			ground.append(e)
 	var n := ground.size()
 	var prev: Array = []
@@ -360,8 +381,10 @@ func _separate() -> void:
 		prev.append(u.position)
 	for i in n:
 		var a: Entity = ground[i]
-		for j in range(i + 1, n):
-			var b: Entity = ground[j]
+		for bn in nearby(a.position, 8.0):
+			var b: Entity = bn
+			if b == a or b.is_air or not b.alive or b.is_building or b.get_instance_id() < a.get_instance_id():
+				continue
 			var dx := a.position.x - b.position.x
 			var dz := a.position.z - b.position.z
 			var min_d := (a.radius + b.radius) * 0.85
@@ -369,13 +392,15 @@ func _separate() -> void:
 			if d2 < min_d * min_d:
 				var dd := sqrt(d2)
 				if dd < 0.01:
-					dx = 0.1 * (i - j)
+					dx = randf_range(-0.1, 0.1)
 					dz = 0.1
 					dd = 0.15
 				var push := (min_d - dd) * 0.5 / dd
 				a.position += Vector3(dx, 0, dz) * push
 				b.position -= Vector3(dx, 0, dz) * push
-		for bb in blds:
+		for bb in nearby(a.position, 10.0):
+			if not bb.is_building or not bb.alive:
+				continue
 			var b: Entity = bb
 			var dx := a.position.x - b.position.x
 			var dz := a.position.z - b.position.z
@@ -419,6 +444,7 @@ func on_building_done(b: Building) -> void:
 
 func on_point_captured(p: SupplyPoint) -> void:
 	if p.owner_team == Defs.PLAYER:
+		sfx.play("capture")
 		hud.toast("%s ele geçirildi (+$%d/sn)." % ["Petrol tesisi" if p.is_oil else "İkmal noktası", int(p.income)])
 	elif fog.sees(Defs.PLAYER, p.position):
 		hud.toast("Düşman bir nokta ele geçirdi.")
@@ -431,6 +457,7 @@ func on_missile_intercepted(src_team: int) -> void:
 func alert_base() -> void:
 	if time - _alert_t > 12.0:
 		_alert_t = time
+		sfx.play("alert")
 		hud.toast("Üssün saldırı altında!")
 
 
@@ -594,51 +621,18 @@ func begin_placing(kind: String) -> void:
 	cancel_modes()
 	placing = kind
 	zone_ring.visible = true
-	hud.toast("Yer seçmek için sarı çemberin içinde bir yere dokun, sonra Onayla.", 5.0)
+	hud.toast("Yerleştirmek için sarı çemberin içinde bir yere dokun.", 5.0)
 	hud.rebuild()
 
 
 func cancel_placing() -> void:
 	placing = ""
 	zone_ring.visible = false
-	ghost_pos = Vector3.INF
-	if ghost != null:
-		ghost.queue_free()
-		ghost = null
 	hud.rebuild()
 
 
-## Dokunulan yere binanın yarı saydam önizlemesini koyar: yeşil kurulabilir, kırmızı kurulamaz.
-## Bina "Onayla" ile kurulur; başka bir yere dokunmak önizlemeyi taşır.
 func try_place(world: Vector3) -> void:
-	ghost_pos = Vector3(world.x, 0, world.z)
-	if ghost != null:
-		ghost.queue_free()
-	var bd: Dictionary = Defs.BUILDINGS[Defs.bid(Defs.PLAYER, placing)]
-	ghost = Models.build(bd, Defs.PLAYER)
-	var ok := can_place(Defs.PLAYER, placing, ghost_pos)
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.3, 1.0, 0.4, 0.45) if ok else Color(1.0, 0.25, 0.2, 0.45)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_tint(ghost, m)
-	var r := Models.ring(float(bd.radius) + 0.5, Color(0.3, 1.0, 0.4) if ok else Color(1.0, 0.25, 0.2))
-	ghost.add_child(r)
-	ghost.position = ghost_pos
-	add_child(ghost)
-	hud.rebuild()
-
-
-func _tint(n: Node, m: Material) -> void:
-	if n is GeometryInstance3D:
-		n.material_override = m
-		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	for c in n.get_children():
-		_tint(c, m)
-
-
-func confirm_place() -> void:
-	if ghost_pos != Vector3.INF and place_building(Defs.PLAYER, placing, ghost_pos):
+	if place_building(Defs.PLAYER, placing, world):
 		cancel_placing()
 
 
@@ -821,6 +815,7 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 		hud.toast("%s fırlatıldı." % m.name)
 	else:
 		hud.toast("Düşman füzesi geliyor: %s!" % m.name)
+		sfx.play("alert")
 	return true
 
 
@@ -1046,7 +1041,7 @@ func place_obstacle(team: int, pos: Vector3) -> bool:
 ## Tanksavar mayınları: düşman aracı üstünden geçerse patlar. Piyade tetiklemez.
 func _mine_tick() -> void:
 	for m in mines.duplicate():
-		for e in entities:
+		for e in nearby(m.pos, 4.0):
 			if e.team != m.team and e.alive and not e.is_air and not e.is_building and e.armor != "inf":
 				if Entity.flat(e.global_position, m.pos) <= e.radius + 0.8:
 					fx_explosion(m.pos + Vector3(0, 0.5, 0), 2.4)
@@ -1072,7 +1067,7 @@ func _ew_tick(dt: float) -> void:
 		if not e.alive or e.is_building or not e.d.has("ew"):
 			continue
 		var r: float = e.d.ew
-		for o in entities:
+		for o in nearby(e.global_position, r):
 			if o.team == e.team or not o.is_air or not o.alive:
 				continue
 			if Entity.flat(e.global_position, o.global_position) > r:
@@ -1286,7 +1281,7 @@ func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: 
 # ---------------------------------------------------------------- hasar ve efektler
 
 func splash_damage(pos: Vector3, r: float, base: float, mult: Dictionary, src_team: int, tag := "", attacker = null) -> void:
-	for e in entities.duplicate():
+	for e in nearby(pos, r + 7.0):
 		if e.alive and e.team != src_team and not e.is_air:
 			if Entity.flat(e.global_position, pos) - e.radius <= r:
 				e.take_damage(base * float(mult.get(e.armor, 0.0)), attacker, tag)
@@ -1350,6 +1345,7 @@ func fx_explosion(pos: Vector3, size: float) -> void:
 	add_child(m)
 	m.global_position = pos
 	m.scale = Vector3.ONE * 0.3
+	sfx.play("boom_l" if size >= 3.0 else "boom_s", pos)
 	var tw := create_tween()
 	tw.tween_property(m, "scale", Vector3.ONE * size * 2.0, 0.22)
 	tw.tween_callback(m.queue_free)
@@ -1357,8 +1353,10 @@ func fx_explosion(pos: Vector3, size: float) -> void:
 		fx_puff(pos, Color(0.28, 0.27, 0.26), size * 1.5, 1.1, 1.6)
 
 
-## Duman / toz bulutu: büyür, yükselir, sonra küçülüp kaybolur.
+## Duman / toz bulutu: büyür, yükselir, sonra küçülüp kaybolur. Efektler kapalıysa çizilmez.
 func fx_puff(pos: Vector3, col: Color, size: float, secs: float, rise := 0.6) -> void:
+	if not Settings.get_v("effects"):
+		return
 	var m := MeshInstance3D.new()
 	m.mesh = _puff_mesh()
 	m.material_override = Models.glow(col)
@@ -1616,3 +1614,46 @@ func _restore(data: Dictionary) -> void:
 		if c is EnemyAI:
 			c.wave = int(data.wave)
 	recalc()
+
+
+# ---------------------------------------------------------------- enkaz
+
+var _burnt: StandardMaterial3D = null
+
+
+func tint_tree(n: Node, m: Material) -> void:
+	if n is GeometryInstance3D:
+		n.material_override = m
+	for c in n.get_children():
+		tint_tree(c, m)
+
+
+## Yok edilen araç yanmış enkaz olarak, bina moloz olarak bir süre yerinde kalır.
+func leave_wreck(e: Entity) -> void:
+	if _burnt == null:
+		_burnt = StandardMaterial3D.new()
+		_burnt.albedo_color = Color(0.11, 0.1, 0.09)
+		_burnt.roughness = 1.0
+	var m: Node3D = e.model
+	var xf := m.global_transform
+	e.remove_child(m)
+	add_child(m)
+	m.global_transform = xf
+	tint_tree(m, _burnt)
+	m.visible = e.seen
+	var tw := create_tween()
+	if e.is_building:
+		m.scale.y *= 0.3
+		tw.tween_interval(60.0)
+	else:
+		var turret: Node3D = m.get_node_or_null("turret")
+		if turret != null:
+			turret.rotation.y += randf_range(-0.8, 0.8)
+			turret.rotation.z = randf_range(-0.2, 0.2)
+		m.rotation.z += randf_range(-0.12, 0.12)
+		tw.tween_interval(40.0)
+		for i in 3:
+			get_tree().create_timer(2.0 + i * 3.0, false).timeout.connect(
+				func(): if is_instance_valid(m) and m.visible: fx_puff(m.global_position + Vector3(0, 1.0, 0), Color(0.15, 0.15, 0.15), 1.4, 2.5, 3.5))
+	tw.tween_property(m, "position:y", m.position.y - 1.5, 4.0)
+	tw.tween_callback(m.queue_free)

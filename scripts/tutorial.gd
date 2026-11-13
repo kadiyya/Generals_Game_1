@@ -19,7 +19,7 @@ func _ready() -> void:
 	steps = [
 		["Kamerayı kaydırmak için ekranı parmağınla sürükle. İki parmakla yakınlaştırabilirsin.",
 			func(): return g.cam.focus.distance_to(start_focus) > 6.0],
-		["Sol paneldeki İnşa düğmesine bas, Kışla'yı seç, sarı çemberin içinde bir yere dokun ve Onayla.",
+		["Sol paneldeki İnşa düğmesine bas, Kışla'yı seç, sarı çemberin içinde bir yere dokun.",
 			func(): return g.count_kind(0, "kisla", false) > 0],
 		["Kışla bitince ona dokun ve bir Piyade Mangası üret. Kartın köşesindeki sarı simgeye basarak birimin özelliklerine bakabilirsin.",
 			func(): return _count("inf") >= 3],
@@ -33,10 +33,8 @@ func _ready() -> void:
 			func(): return _count("tank") >= 1],
 		["Birliklerini seçip Grup 1 düğmesine basılı tut: grup kaydedilir. Sonra Grup 1'e dokunarak hepsini bir anda seçebilirsin.",
 			func(): return not g.groups[0].is_empty()],
-		["Sağ üstteki Hız düğmesiyle oyunu yavaşlat ya da duraklat. Duraklatılmışken de emir verebilirsin.",
-			func(): return g.speed_i != 0],
-		["Hız'ı yeniden Normal'e getir ve sol paneldeki doktrin yeteneğini (Sürü Saldırısı) görebildiğin bir düşman bölgesine kullan.",
-			func(): return g.speed_i == 0 and g.teams[0].ab_cd > 0.0],
+		["Sol paneldeki doktrin yeteneğini (Sürü Saldırısı) görebildiğin bir düşman bölgesine kullan.",
+			func(): return g.teams[0].ab_cd > 0.0],
 		["Eğitim bitti! Artık düşman saldıracak. Görevin ekranın üstünde: merkez köyü 8 dakika tut ya da düşman karargâhını yık.",
 			func(): return t > 10.0],
 	]

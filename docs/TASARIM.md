@@ -7,7 +7,7 @@ Bu doküman oyunun hedefini anlatır. Bugün neyin çalıştığı için bölüm
 
 ## 1. İlkeler
 
-1. **Hızlı olan değil, doğru karar veren kazanır.** Oyun yavaş akar, duraklatılıp emir verilebilir.
+1. **Hızlı olan değil, doğru karar veren kazanır.** Oyun yavaş akar; birimler dayanıklıdır.
 2. **Birim üretmek de kaybetmek de kolay değil.** Birimler pahalı ve dayanıklıdır; geri çekilip onarılabilir (Company of Heroes etkisi).
 3. **Görmediğini vuramazsın.** Keşif oyunun merkezindedir.
 4. **Arazi önemlidir.** Dağlar, nehirler, köprüler ve deniz, geçitleri ve taktiği belirler.
@@ -278,7 +278,6 @@ Her ülke son kademede bir ya da iki deneysel sistem açabilir. Pahalı, tek ya 
 ## 10. Tempo ve kontrol
 
 - Varsayılan oyun hızı yavaş; birimler dayanıklı, üretim uzun.
-- **Hız düğmesi:** Normal / Yavaş / Duraklat. Duraklatılmışken emir verilebilir.
 - Karargâhın yanına çekilen birimler onarılır: kaybetmek yerine geri çekmek ödüllendirilir.
 - Yapay zekâ zorluk seviyesi seçilebilir olacak (şimdilik kolay ayarda).
 
@@ -293,7 +292,7 @@ Her ülke son kademede bir ya da iki deneysel sistem açabilir. Pahalı, tek ya 
 | Özellik | Durum |
 |---|---|
 | Yavaş tempo, dayanıklı ve pahalı birimler, karargâh yanında onarım | Yapıldı |
-| Hız düğmesi ve duraklatıp emir verme | Yapıldı |
+| Hız düğmesi | Kaldırıldı (oyuncu isteği) |
 | Büyük haritalar, engeller, yol bulma | Yapıldı (3 harita) |
 | Binaları istenen yere kurma, vinç | Yapıldı |
 | Düğmelerde küçük resimler, dolar, `+$/sn` | Yapıldı |
@@ -318,9 +317,16 @@ Her ülke son kademede bir ya da iki deneysel sistem açabilir. Pahalı, tek ya 
 | Karşı batarya radarı | Sonra |
 | Yapay zekâ: zorluk seçimi, keşif, zayıf nokta, önce hava savunması, geri çekilme, doktrine göre ordu | Yapıldı |
 | Eğitim bölümü | Yapıldı (11 adım) |
-| Bina önizlemesi, toplanma noktası, devriye, birlik grupları | Yapıldı |
+| Toplanma noktası, devriye, birlik grupları | Yapıldı (bina önizlemesi oyuncu isteğiyle kaldırıldı) |
 | Kayıt ve devam | Yapıldı (otomatik kayıt, tek kayıt yuvası) |
-| Ses | Sonra |
+| Ses ve müzik | Yapıldı (kodla sentezlenen) |
+| Pistten kalkış ve iniş, enkaz, yanan binalar | Yapıldı |
+| Dönen palet ve tekerlek | Sonra (modellerin parçalı kurulması gerekir) |
+| Elle yapılmış modeller ve texture'lar | Sonra |
+| Ayarlar: ses, gölge, efekt, texture | Yapıldı |
+| Performans: uzamsal ızgara, sıkışma algılama | Yapıldı |
+| Denge: sınıf düelloları | İlk tur yapıldı (zırhlı ve topçu ayarlandı) |
+| Çok oyunculu mod | En son |
 | Deniz modu ve kilitli senaryolar (ABD, Çin, Türkiye, Yunanistan) | En son |
 
 ## 13. Açık sorular

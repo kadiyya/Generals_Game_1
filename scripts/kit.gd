@@ -305,7 +305,7 @@ static func material(kind: String) -> StandardMaterial3D:
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true
 	var tex: String = d[0]
-	if tex != "":
+	if tex != "" and Settings.get_v("textures"):
 		var k: float = 1.0 / float(d[1])
 		m.albedo_texture = Tex.texture(tex)
 		m.uv1_scale = Vector3(k, k, 1.0)

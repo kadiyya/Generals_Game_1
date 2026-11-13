@@ -18,6 +18,9 @@ var life := -1.0
 var bob_t := randf() * 6.0
 var rotors: Node3D = null   # varsa pervaneler döner
 var tank_t := 0.0
+var phase_t := 0.0
+var rw_start := Vector3.ZERO    # pist başı (iniş / kalkış)
+var rw_dir := Vector3.FORWARD
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -67,7 +70,7 @@ func _process(dt: float) -> void:
 		if tank_t >= 5.0:
 			tank_t = 0.0
 			ammo = mini(int(d.ammo), ammo + 1)
-			if state == "rearm":
+			if state in ["rearm", "landing"]:
 				state = "patrol"
 	if rotors != null and visible:
 		for r in rotors.get_children():
@@ -77,6 +80,9 @@ func _process(dt: float) -> void:
 		if life <= 0.0:
 			die()
 			return
+	if state == "takeoff":
+		_takeoff(dt)
+		return
 	valid_target()
 	if is_kamikaze():
 		_kamikaze(dt)
@@ -85,7 +91,7 @@ func _process(dt: float) -> void:
 		state = "rearm"
 		rearm_t = 0.0
 		target = null
-	if state == "rearm":
+	if state in ["rearm", "landing", "rollout", "parked"]:
 		_rearm(dt)
 		return
 	if has_weapon():
@@ -134,10 +140,47 @@ func _kamikaze(dt: float) -> void:
 		die()
 
 
+## Hava alanının pistinden kalkış: pistte hızlanır, sonra tırmanır.
+func start_takeoff(start: Vector3, dir: Vector3) -> void:
+	state = "takeoff"
+	phase_t = 0.0
+	rw_start = start
+	rw_dir = dir
+	position = Vector3(start.x, 0.35, start.z)
+	yaw = atan2(dir.x, dir.z)
+	rotation.y = yaw
+	if cls in Defs.PLANE_CLASSES:
+		Game.I.sfx.play("jet", global_position)
+
+
+func _takeoff(dt: float) -> void:
+	phase_t += dt
+	var v := speed * clampf(phase_t / 2.5, 0.2, 1.0)
+	position += Vector3(sin(yaw), 0, cos(yaw)) * v * dt
+	var climb := smoothstep(1.6, 4.2, phase_t)
+	position.y = lerpf(0.35, alt, climb)
+	model.rotation.x = -0.22 * climb * (1.0 - climb) * 4.0
+	if phase_t >= 4.2:
+		state = "patrol"
+		model.rotation.x = 0.0
+
+
+## Pist: hava alanı modelinde x = 2.6'da, z boyunca uzanır.
+static func runway(home) -> Array:
+	var a: Vector3 = home.global_transform * Vector3(2.6, 0, -5.0)
+	var b: Vector3 = home.global_transform * Vector3(2.6, 0, 5.0)
+	return [a, (b - a).normalized()]
+
+
 func _rearm(dt: float) -> void:
 	var home = Game.I.nearest_building(team, d.get("home", "havaalani"), global_position)
 	if home == null:
+		# Üs yok: havada bekler (ya da yakıt ikmaliyle yeniden silahlanır).
+		state = "rearm"
 		_orbit(patrol, dt)
+		return
+	if home.kind == "havaalani":
+		_land(home, dt)
 		return
 	_orbit(home.global_position, dt)
 	if flat(global_position, home.global_position) < orbit + 4.0:
@@ -145,6 +188,43 @@ func _rearm(dt: float) -> void:
 		if rearm_t >= float(d.get("rearm", 8.0)) * Game.I.mod(team, "rearm"):
 			ammo = int(d.get("ammo", 0))
 			state = "patrol"
+
+
+## Pistte iniş, park ve yeniden kalkış: yaklaşma noktasına uçar, alçalarak piste konar, durur,
+## silahlanır ve aynı pistten tekrar kalkar.
+func _land(home, dt: float) -> void:
+	var rw := runway(home)
+	var start: Vector3 = rw[0]
+	var dir: Vector3 = rw[1]
+	match state:
+		"rearm":
+			var appr := start - dir * 24.0
+			_fly(appr, dt)
+			if flat(global_position, appr) < 6.0:
+				state = "landing"
+		"landing":
+			var dist := flat(global_position, start)
+			var y := lerpf(0.35, alt, clampf(dist / 24.0, 0.0, 1.0))
+			_fly(start, dt, y, speed * clampf(0.45 + dist / 40.0, 0.45, 1.0))
+			if dist < 2.0:
+				state = "rollout"
+				phase_t = 0.0
+				yaw = atan2(dir.x, dir.z)
+		"rollout":
+			phase_t += dt
+			var v := speed * 0.45 * maxf(0.0, 1.0 - phase_t / 1.6)
+			position += dir * v * dt
+			position.y = 0.35
+			rotation.y = yaw
+			model.rotation.z = 0.0
+			if phase_t >= 1.6:
+				state = "parked"
+				rearm_t = 0.0
+		"parked":
+			rearm_t += dt
+			if rearm_t >= float(d.get("rearm", 8.0)) * Game.I.mod(team, "rearm"):
+				ammo = int(d.get("ammo", 0))
+				start_takeoff(start, dir)
 
 
 func _orbit(center: Vector3, dt: float) -> void:
@@ -156,7 +236,7 @@ func _orbit(center: Vector3, dt: float) -> void:
 		_fly(center + Vector3(cos(ang), 0, sin(ang)) * orbit, dt)
 
 
-func _fly(goal: Vector3, dt: float) -> void:
+func _fly(goal: Vector3, dt: float, y := -1.0, spd := -1.0) -> void:
 	var to := Vector3(goal.x - position.x, 0, goal.z - position.z)
 	var tr := 0.0
 	if to.length() > 0.05:
@@ -164,8 +244,9 @@ func _fly(goal: Vector3, dt: float) -> void:
 		var before := yaw
 		yaw = rotate_toward(yaw, want, turn * dt)
 		tr = angle_difference(before, yaw) / maxf(dt, 0.001)
-	position += Vector3(sin(yaw), 0, cos(yaw)) * speed * (1.2 if tanker() else 1.0) * dt
-	position.y = alt
+	var sp := (spd if spd > 0.0 else speed) * (1.2 if tanker() else 1.0)
+	position += Vector3(sin(yaw), 0, cos(yaw)) * sp * dt
+	position.y = y if y >= 0.0 else lerpf(position.y, alt, minf(1.0, dt * 2.0))
 	rotation.y = yaw
 	model.rotation.z = lerpf(model.rotation.z, -tr * 0.2, minf(1.0, dt * 5.0))
 	if d.get("small", false):

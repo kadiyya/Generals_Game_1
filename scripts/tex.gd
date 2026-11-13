@@ -199,7 +199,9 @@ static func mat(kind: String, c: Color, scale: float, world := false) -> Standar
 	if not _mats.has(k):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = c
-		m.albedo_texture = texture(kind)
+		# Texture'lar ayarlardan kapatılabilir (eski telefonlar için).
+		if Settings.get_v("textures"):
+			m.albedo_texture = texture(kind)
 		m.roughness = 0.9
 		m.uv1_triplanar = true
 		m.uv1_world_triplanar = world

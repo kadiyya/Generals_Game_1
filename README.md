@@ -17,7 +17,8 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![Birim kartı](docs/ekran/kart.png)
 
-![Bina önizlemesi ve eğitim](docs/ekran/onizleme.png)
+![Pistten kalkış](docs/ekran/kalkis.png)
+
 
 ![Binalar](docs/ekran/binalar.png)
 
@@ -86,11 +87,18 @@ düzenli keşif yapar, en zayıf savunulan hedefi seçer, uçaklarla önce hava 
 geride tutar; her zorlukta yaralı birliklerini ve çöken dalgaları geri çeker. Ordusunu doktrinine göre kurar
 (Ukrayna baştan drone ağırlıklı, Rusya topçu ağırlıklı, İsrail uçak ağırlıklı, Hindistan piyade ağırlıklı).
 
-**Arayüz:** eğitim bölümü (11 adım); bina yerleştirmede yeşil/kırmızı önizleme ve Onayla; üretim binalarına toplanma
+**Arayüz:** eğitim bölümü (10 adım); üretim binalarına toplanma
 noktası (birlikler orada yayılarak durur); devriye emri; üç birlik grubu (basılı tut: kaydet, dokun: seç, iki kez: kamerayı
 götür); otomatik kayıt (dakikada bir, menüye dönüşte ve uygulama arka plana geçince) ve menüde "Devam Et".
 
-Ayrıca: arazi ve yol bulma, serbest bina yerleşimi, vinç, hız düğmesi (duraklatıp emir verme), karargâh yanında onarım, savaş sisi.
+**Ses ve görsellik:** atış, top, topçu, füze, lazer, patlama, uyarı, nokta alma ve terfi sesleri ile arka plan müziği
+kodla sentezlenir (ses dosyası yok); sesler kameraya uzaklığa göre kısılır. Uçaklar ve büyük İHA'lar pistten kalkar,
+mühimmatı bitince piste iner, silahlanıp yeniden kalkar. Yok edilen araçlar yanmış enkaz, binalar moloz bırakır;
+ağır hasarlı binalar tüter ve yanar.
+
+**Ayarlar:** menüde ses, müzik, gölge, duman/toz efektleri ve texture'lar ayrı ayrı kapatılabilir (eski telefonlar için).
+
+Ayrıca: arazi ve yol bulma, serbest bina yerleşimi, vinç, karargâh yanında onarım, savaş sisi.
 
 Henüz yok: deniz modu ve kilitli senaryolar, ses, zorluk seçimi, engebeli arazide görüş avantajı.
 
@@ -106,7 +114,6 @@ Henüz yok: deniz modu ve kilitli senaryolar, ses, zorluk seçimi, engebeli araz
 | Küçük harita | Dokunduğun yere kamerayı götürür |
 | Kara / Hava Sav. / Hava / Hepsi | O gruptaki bütün birimleri seçer |
 | İnşa | Bina menüsünü açar; bina seç, sonra haritada yerini göster. Vinç ve Kademe de burada |
-| Hız | Normal / Yavaş / Duraklat |
 | Geri Çekil | Seçili birimler ateş etmeden üsse döner |
 
 ## Çalıştırma
@@ -169,4 +176,5 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--load --loadtest`: `--mechtest`'in kaydettiği oyunu yükler ve durumun geri geldiğini doğrular.
 - `--tutorial --tuttest`: eğitimi baştan sona oynar.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
+- `--duel --scn=0`: denge için aynı bütçeyle sınıf düelloları yapar ve kalan değerleri yazar.
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).

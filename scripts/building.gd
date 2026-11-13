@@ -15,6 +15,7 @@ var research_t := 0.0
 var missile_ready: Array = []   # her füze tipi için kalan bekleme süresi
 var rally := Vector3.INF       # yeni birliklerin toplanacağı yer
 var spawn_n := 0
+var smoke_t := 0.0
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -88,6 +89,15 @@ func _process(dt: float) -> void:
 			crane = null
 			Game.I.on_building_done(self)
 		return
+	# Ağır hasarlı bina tüter, çok hasarlıysa yanar.
+	if seen and hp < max_hp * 0.5:
+		smoke_t -= dt
+		if smoke_t <= 0.0:
+			smoke_t = 0.5
+			var top := global_position + Vector3(randf_range(-radius, radius) * 0.5, 2.0 + radius * 0.3, randf_range(-radius, radius) * 0.5)
+			Game.I.fx_puff(top, Color(0.18, 0.17, 0.16), 1.6, 2.2, 4.0)
+			if hp < max_hp * 0.25:
+				Game.I.fx_puff(top - Vector3(0, 0.8, 0), Color(1.0, 0.5, 0.12), 0.9, 0.5, 0.8)
 	var ok := powered()
 	var rate := 1.0 if ok else 0.4
 	if not queue.is_empty():
@@ -137,6 +147,9 @@ func _spawn(id: String) -> void:
 			u.go(goal + off, false)
 		elif u is AirUnit:
 			u.set_patrol(goal + off)
+			if kind == "havaalani" and not u.d.get("small", false):
+				var rw := AirUnit.runway(self)
+				u.start_takeoff(rw[0], rw[1])
 	g.recalc()
 
 

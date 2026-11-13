@@ -235,6 +235,72 @@ func _run() -> void:
 	g.points[0].owner_team = Defs.NEUTRAL
 	g.points[1].owner_team = Defs.NEUTRAL
 
+	# ---- 4: uçak pistten kalkar, mühimmat bitince piste iner, silahlanıp yeniden kalkar
+	var af := g.spawn_building(Defs.bid(0, "havaalani"), 0, g.teams[0].hq.position + Vector3(10, 0, -24), true)
+	g.teams[0].tier = 3
+	af._spawn(g.unit_of(0, "fighter"))
+	var jet0 = g.entities[g.entities.size() - 1]
+	_check("ucak pistte kalkisa baslar", jet0 is AirUnit and jet0.state == "takeoff" and jet0.position.y < 1.0)
+	g.cam.focus = af.position + Vector3(4, 0, 4)
+	g.cam.dist = 34.0
+	await _wait(2.2)
+	await _shot("kalkis")
+	await _wait(4.6)
+	_check("ucak tirmanip devriyeye gecer", jet0.state == "patrol" and jet0.position.y > float(jet0.alt) * 0.9)
+	jet0.ammo = 0
+	var seen_states := {}
+	for n in 60:
+		await _wait(0.5)
+		seen_states[jet0.state] = true
+		if jet0.state == "takeoff":
+			break
+	_check("mühimmati biten ucak piste iner ve park eder", seen_states.has("landing") and seen_states.has("parked"))
+	_check("silahlanan ucak yeniden kalkar", jet0.state == "takeoff" and jet0.ammo == int(jet0.d.ammo))
+
+	# ---- 4: enkaz ve yanan bina
+	var wt = g.spawn_unit(g.unit_of(1, "tank"), 1, Vector3(-80, 0, -10))
+	var wm: Node3D = wt.model
+	wt.die()
+	await _wait(1.5)
+	_check("yok edilen arac enkaz birakir", is_instance_valid(wm) and wm.get_parent() == g)
+	g.cam.dist = 30.0
+	var burn := g.spawn_building(Defs.bid(0, "santral"), 0, g.teams[0].hq.position + Vector3(-12, 0, 22), true)
+	burn.seen = true
+	burn.hp = burn.max_hp * 0.2
+	var before_n := g.get_child_count()
+	g.cam.focus = burn.position + Vector3(0, 0, 4)
+	await _wait(1.6)
+	await _shot("yangin")
+	_check("agir hasarli bina tuter ve yanar", g.get_child_count() > before_n)
+
+	# ---- 6: sıkışma, uzamsal ızgara, ayarlar, ses
+	var jam = g.spawn_unit(g.unit_of(0, "tank"), 0, Vector3(-70, 0, 0))
+	jam.go(Vector3(-70, 0, 0) + Vector3(30, 0, 0), false)
+	jam.speed = 0.0001
+	var gave_up := false
+	for n in 12:
+		await _wait(0.5)
+		if jam.order == "idle":
+			gave_up = true
+			break
+	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up)
+	var far := 0
+	for e in g.nearby(Vector3.ZERO, 10.0):
+		if Entity.flat(e.global_position, Vector3.ZERO) > 10.0 + Game.BUCKET * 2.0:
+			far += 1
+	var all_near := 0
+	for e in g.entities:
+		if e.alive and Entity.flat(e.global_position, Vector3(-70, 0, 0)) < 12.0:
+			all_near += 1
+	var grid_near := 0
+	for e in g.nearby(Vector3(-70, 0, 0), 12.0):
+		if e.alive and Entity.flat(e.global_position, Vector3(-70, 0, 0)) < 12.0:
+			grid_near += 1
+	_check("uzamsal izgara yakindakilerin hepsini bulur", far == 0 and grid_near == all_near)
+	_check("ayarlar okunur", Settings.get_v("sound") and Settings.KEYS.size() == 5)
+	var st := Sfx.stream("cannon")
+	_check("sesler sentezlenir", st != null and st.data.size() > 10000)
+
 	# ---- kayıt
 	g.order_task([b], "dig")
 	await _wait(Defs.DIG_TIME + 0.6)

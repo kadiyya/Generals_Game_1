@@ -73,25 +73,13 @@ func _run() -> void:
 	await _tap(g.hud.actions.get_child(2).get_global_rect().get_center())
 	await _frames(2)
 	_check("bina dugmesi yerlestirme modunu acar", g.placing == "kisla")
-	await _tap(_screen(g.teams[0].hq.position + Vector3(3, 0, 0)))
-	await _frames(3)
-	_check("kurulamayacak yerde onizleme kirmizi ve Onayla kapali", g.ghost != null and g.hud.actions.get_child(0).disabled and _count("kisla") == 0)
 	await _tap(_screen(g.teams[0].hq.position + Vector3(16, 0, -8)))
-	await _frames(3)
-	_check("uygun yerde onizleme ve Onayla acik", g.ghost != null and not g.hud.actions.get_child(0).disabled)
-	await _tap(g.hud.actions.get_child(0).get_global_rect().get_center())
-	await _frames(3)
-	_check("Onayla'ya basinca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
+	await _frames(2)
+	_check("haritaya dokununca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
 
 	# 2b) dağın üstüne bina kurulamaz
 	_check("dagin ustune bina kurulamaz", not g.terrain.is_land(Vector3(-45, 0, -50)) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
 
-	# 2c) hız düğmesi oyunu duraklatır
-	await _tap(g.hud.speed_btn.get_global_rect().get_center())
-	await _tap(g.hud.speed_btn.get_global_rect().get_center())
-	_check("hiz dugmesi oyunu duraklatir", Engine.time_scale == 0.0)
-	await _tap(g.hud.speed_btn.get_global_rect().get_center())
-	_check("hiz dugmesi normale doner", Engine.time_scale == 1.0)
 
 	# 3) birime dokun -> seçilir
 	g.clear_selection()

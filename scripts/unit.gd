@@ -30,6 +30,9 @@ var retreating := false
 var ew_ring: MeshInstance3D = null
 var los_t := 0.0
 var patrol_a := Vector3.ZERO
+var stuck_t := 0.0
+var stuck_n := 0
+var stuck_pos := Vector3.INF
 var patrol_b := Vector3.ZERO
 var los_ok := true
 
@@ -292,6 +295,25 @@ func _step(p: Vector3, dt: float) -> bool:
 			return true
 	else:
 		near_t = 0.0
+	# Sıkışma: 1,5 saniyede neredeyse hiç ilerlemediyse yolu yeniden hesapla ve yana kay;
+	# üst üste üç kez sıkışırsa vardığını kabul et (kalabalık geçitte sonsuza dek itişmesin).
+	stuck_t += dt
+	if stuck_t >= 1.5:
+		stuck_t = 0.0
+		if stuck_pos != Vector3.INF and flat(position, stuck_pos) < 0.6:
+			stuck_n += 1
+			nav_goal = Vector3.INF
+			nav_t = 0.0
+			var side := Vector3(-(p.z - position.z), 0, p.x - position.x).normalized() * (1.0 if stuck_n % 2 == 0 else -1.0)
+			if not Game.I.terrain.solid(position + side * 1.2):
+				position += side * 0.9
+			if stuck_n >= 3:
+				stuck_n = 0
+				stuck_pos = Vector3.INF
+				return true
+		else:
+			stuck_n = 0
+		stuck_pos = position
 	var wp := _waypoint(p, dt)
 	if not nav_ok:
 		return true

@@ -10,7 +10,6 @@ var root: Control
 var overlay: Control
 var top: PanelContainer
 var lbl_top: Label
-var speed_btn: Button
 var minimap: Control
 var side: VBoxContainer
 var bottom: PanelContainer
@@ -58,25 +57,14 @@ func _ready() -> void:
 	lbl_top.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	top.add_child(lbl_top)
 
-	speed_btn = Button.new()
-	speed_btn.anchor_left = 1.0
-	speed_btn.anchor_right = 1.0
-	speed_btn.offset_left = -208.0
-	speed_btn.offset_right = -8.0
-	speed_btn.offset_top = 48.0
-	speed_btn.offset_bottom = 104.0
-	speed_btn.focus_mode = Control.FOCUS_NONE
-	speed_btn.pressed.connect(_on_speed)
-	root.add_child(speed_btn)
-	_update_speed_btn()
 	var menu_btn := Button.new()
 	menu_btn.text = "Menü"
 	menu_btn.anchor_left = 1.0
 	menu_btn.anchor_right = 1.0
 	menu_btn.offset_left = -208.0
 	menu_btn.offset_right = -8.0
-	menu_btn.offset_top = 110.0
-	menu_btn.offset_bottom = 158.0
+	menu_btn.offset_top = 48.0
+	menu_btn.offset_bottom = 100.0
 	menu_btn.focus_mode = Control.FOCUS_NONE
 	menu_btn.pressed.connect(_to_menu)
 	root.add_child(menu_btn)
@@ -199,7 +187,7 @@ func _ready() -> void:
 	toast_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toast_lbl)
 
-	blockers += [top, speed_btn, minimap, side, bottom]
+	blockers += [top, minimap, side, bottom]
 	Game.I.selection_changed.connect(rebuild)
 	_rebuild_now()
 
@@ -229,15 +217,6 @@ func _on_build() -> void:
 	if g.placing != "":
 		g.cancel_placing()
 	g.open_build_menu()
-
-
-func _on_speed() -> void:
-	Game.I.set_speed(Game.I.speed_i + 1)
-	_update_speed_btn()
-
-
-func _update_speed_btn() -> void:
-	speed_btn.text = "Hız: %s" % Game.SPEED_NAMES[Game.I.speed_i]
 
 
 func _process(_dt: float) -> void:
@@ -334,15 +313,7 @@ func _rebuild_now() -> void:
 	var g := Game.I
 	bottom.visible = true
 	if g.placing != "":
-		var bname: String = Defs.BUILDINGS[Defs.bid(0, g.placing)].name
-		if g.ghost_pos == Vector3.INF:
-			title.text = "%s: sarı çemberin içinde bir yere dokun" % bname
-		elif g.can_place(0, g.placing, g.ghost_pos):
-			title.text = "%s: yeşil önizleme uygun. Onayla ya da başka yere dokun." % bname
-		else:
-			title.text = "%s: kırmızı önizleme, buraya kurulamaz. Başka yere dokun." % bname
-		var ok := _btn("Onayla", g.confirm_place)
-		ok.disabled = g.ghost_pos == Vector3.INF or not g.can_place(0, g.placing, g.ghost_pos)
+		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[Defs.bid(0, g.placing)].name
 		_btn("İptal", g.cancel_placing)
 		return
 	if g.rally_for != null:
@@ -618,6 +589,7 @@ func _btn(text: String, cb: Callable, icon_id := "") -> Button:
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 	b.pressed.connect(cb)
+	b.pressed.connect(func(): Game.I.sfx.play("click"))
 	actions.add_child(b)
 	return b
 

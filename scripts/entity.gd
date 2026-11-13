@@ -113,7 +113,7 @@ func can_hit(e) -> bool:
 func find_target(max_d: float, min_d := 0.0):
 	var best = null
 	var best_s := 1e9
-	for e in Game.I.entities:
+	for e in Game.I.nearby(global_position, max_d + 7.0):
 		if not can_hit(e):
 			continue
 		var dist: float = flat(global_position, e.global_position) - e.radius
@@ -150,6 +150,7 @@ func gain_xp(v: float) -> void:
 		hp = minf(max_hp, hp + max_hp * 0.15)
 		if team == Defs.PLAYER:
 			Game.I.hud.toast("%s terfi etti: %s." % [d.name, Defs.RANK_NAMES[rank]])
+			Game.I.sfx.play("rank")
 
 
 func fire(e) -> void:
@@ -172,6 +173,7 @@ func fire(e) -> void:
 			g.fx_shot(self, e, base, 45.0, 0.0, false)
 	if seen:
 		g.fx_muzzle(muzzle_pos(), d.get("proj", "tracer"))
+		g.sfx.play({"shell": "cannon", "arc": "arty", "missile": "missile", "beam": "beam"}.get(d.get("proj", "tracer"), "rifle"), global_position)
 	reveal_t = 3.0
 	_on_fired()
 
@@ -206,6 +208,8 @@ func die() -> void:
 		Game.I.fx_explosion(aim_pos(), radius * 1.6)
 		if not is_air:
 			Game.I.fx_scorch(global_position, radius * 1.3)
+	if not is_air and armor != "inf":
+		Game.I.leave_wreck(self)
 	Game.I.on_entity_died(self)
 	visible = false
 	set_process(false)

@@ -51,9 +51,7 @@ func _run() -> void:
 		func():
 			g.select_category("")
 			g.save_group(0),
-		func(): g.set_speed(1),
 		func():
-			g.set_speed(0)
 			g.fog.recompute()
 			g.use_ability(0, hq + Vector3(dir * 20, 0, 0)),
 		func(): pass,
@@ -66,12 +64,9 @@ func _run() -> void:
 		await _wait(1.0)
 		g.cam.focus = hq + Vector3(dir * 14, 0, 0)
 		g.cam.dist = 52.0
-		g.begin_placing("kisla")
-		g.try_place(hq + Vector3(dir * 16, 0, -10))
 		for n in 4:
 			await RenderingServer.frame_post_draw
-		get_viewport().get_texture().get_image().save_png(out.path_join("onizleme.png"))
-		g.cancel_placing()
+		get_viewport().get_texture().get_image().save_png(out.path_join("egitim.png"))
 	var last := -1
 	var ai_built := false
 	var t := 0.0

@@ -31,7 +31,7 @@ const CLASSES := {
 		cat = "kara", from = "fabrika", cost = 380, time = 14.0, tier = 1,
 		hp = 620, speed = 5.2, vision = 15.0, radius = 1.4, armor = "light",
 		range = 9.0, dmg = 16.0, cd = 0.4, proj = "tracer",
-		mult = {inf = 1.2, light = 0.8, heavy = 0.2, bld = 0.4, drone = 0.3},
+		mult = {inf = 1.2, light = 0.8, heavy = 0.35, bld = 0.4, drone = 0.3},
 	},
 	"tank": {
 		cat = "kara", from = "fabrika", cost = 700, time = 22.0, tier = 1,
@@ -42,8 +42,8 @@ const CLASSES := {
 	"arty": {
 		cat = "kara", from = "fabrika", cost = 900, time = 28.0, tier = 2,
 		hp = 520, speed = 3.0, vision = 12.0, radius = 1.6, armor = "light",
-		range = 34.0, min_range = 9.0, dmg = 110.0, cd = 5.0, proj = "arc", splash = 4.5, no_chase = true,
-		mult = {inf = 1.0, light = 1.0, heavy = 0.6, bld = 1.6},
+		range = 34.0, min_range = 9.0, dmg = 110.0, cd = 5.0, proj = "arc", splash = 3.5, no_chase = true,
+		mult = {inf = 0.8, light = 0.7, heavy = 0.6, bld = 1.6},
 	},
 	"mlrs": {
 		cat = "kara", from = "fabrika", cost = 1100, time = 30.0, tier = 2,

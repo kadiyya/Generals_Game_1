@@ -20,7 +20,7 @@ func _ready() -> void:
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:
@@ -77,6 +77,14 @@ func _ready() -> void:
 	tut.add_theme_color_override("font_color", Color(1.0, 0.86, 0.45))
 	tut.pressed.connect(_tutorial)
 	list.add_child(tut)
+	var st := Button.new()
+	st.text = "Ayarlar — ses, grafik ve performans"
+	st.custom_minimum_size = Vector2(450, 64)
+	st.focus_mode = Control.FOCUS_NONE
+	st.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	st.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+	st.pressed.connect(_settings)
+	list.add_child(st)
 	for i in Scenarios.LIST.size():
 		var scn: Dictionary = Scenarios.LIST[i]
 		var b := Button.new()
@@ -162,6 +170,30 @@ func _show(i: int) -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(_pick.bind(i, side))
 		hb.add_child(b)
+
+
+## Ayarlar: her biri açılıp kapanır ve hemen kaydedilir. Gölge ve texture bir sonraki maçta geçerli olur.
+func _settings() -> void:
+	for c in detail.get_children():
+		detail.remove_child(c)
+		c.queue_free()
+	var t := Label.new()
+	t.text = "Ayarlar"
+	t.add_theme_font_size_override("font_size", 28)
+	detail.add_child(t)
+	var note := Label.new()
+	note.text = "Oyun eski bir telefonda takılıyorsa gölgeleri, efektleri ve texture'ları kapat. Gölge ve texture değişikliği bir sonraki maçta geçerli olur."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+	detail.add_child(note)
+	for k in Settings.KEYS:
+		var cb := CheckButton.new()
+		cb.text = Settings.KEYS[k][0]
+		cb.button_pressed = Settings.get_v(k)
+		cb.custom_minimum_size = Vector2(0, 56)
+		cb.focus_mode = Control.FOCUS_NONE
+		cb.toggled.connect(func(on: bool): Settings.set_v(k, on))
+		detail.add_child(cb)
 
 
 func _pick(i: int, side: int) -> void:
