@@ -13,6 +13,10 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![Çatışma](docs/ekran/catisma.png)
 
+![Taktik arazi](docs/ekran/arazi.png)
+
+![Birim kartı](docs/ekran/kart.png)
+
 ![Binalar](docs/ekran/binalar.png)
 
 ## Şu an oynanabilen
@@ -51,6 +55,29 @@ doktrininde füzeler ucuzdur ve Füze Üssü bir kademe erken açılır.
 **Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız hedefe döner; ateşte geri tepme, namlu alevi ve duman;
 araçların arkasında toz; piyade yürürken adım atar, ateş ederken çömelir; füzeler duman izi bırakır; vurulan uçak
 duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
+
+**Taktik arazi:** tepede görüş (%30) ve menzil (%15) artar, tepedeki atıcı ağaç ve yıkıntıların üstünden görür;
+ormanda piyade gizlenir (yalnızca 9 birimden yakından görülür) ve araçlar yavaşlar; yolda hız artar.
+Dağ, ağaç hattı, yıkıntı ve binalar doğrudan atışı keser; topçu ve hava etkilenmez.
+
+**Elektronik harp:** her ülkenin EH aracı (Bukovel-AD, Silok, Drone Dome, Kobra V8, D4) çevresindeki küçük dronları
+düşürür, büyük İHA'ların kilidini bozar. "Fiber Optik FPV" araştırmasıyla FPV'ler etkilenmez.
+
+**Siper ve mevzi:** piyade siper kazar (yarı hasar), köy evlerine girer (%60 az hasar, daha uzun menzil),
+tanksavar mayını döşer (araçlar tetikler, düşman yalnızca yakından görür) ve tanksavar engeli kurar (yolu kapatır).
+
+**Tecrübe ve geri çekilme:** hasar veren birimler rütbe kazanır (Er → Çavuş → Kıdemli → Gazi; her rütbe daha çok hasar,
+daha az kayıp). Geri çekilen birlik %25 hızlı gider ve %30 az hasar alır; karargâh yanında onarılır.
+
+**Doktrin yetenekleri:** Sürü Saldırısı (İHA), Havada Yakıt İkmali (Hava Üstünlüğü), Topçu Barajı (Zırhlı/Topçu),
+Doyurma Salvosu (Balistik Füze), Seferberlik (Dengeli).
+
+**Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da merkez köyü 6 dakika
+tutmak; İsrail'in 4 stratejik hedefi yok etmesi, İran'ın petrol terminalini tutması; Pakistan'ın 3 üretim tesisini yıkması,
+Hindistan'ın orta geçidi tutması. Ekranın üstünde senin ve düşmanın ilerlemesi görünür.
+
+**Birim kartları:** üretim düğmesinin köşesindeki çevirme simgesine basınca kart arkaya döner; can, kara gücü,
+hava gücü, menzil ve hız görünür, ekranın altında o birimin kullanım ipucu çıkar.
 
 Ayrıca: arazi ve yol bulma, serbest bina yerleşimi, vinç, hız düğmesi (duraklatıp emir verme), karargâh yanında onarım, savaş sisi.
 
@@ -127,4 +154,5 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
   `--scn` senaryoyu (0-2), `--side` tarafı (0-1) seçer. Ekran görüntüsü için `--headless` olmadan `--shots=KLASÖR` ekle.
 - `--inputtest`: dokunma hareketlerini taklit edip kontrolleri ve kuralları doğrular; gerçek pencere ister.
 - `--gallery`: senaryodaki bütün modelleri yan yana dizip görüntüsünü alır.
+- `--mechtest --scn=0`: oynanış mekaniklerini tek tek doğrular (arazi, EH, siper, ev, mayın, engel, rütbe, görev, yetenek, kart).
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).

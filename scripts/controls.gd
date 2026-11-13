@@ -110,6 +110,9 @@ func _tap(pos: Vector2) -> void:
 	if g.targeting != null:
 		g.try_launch(world)
 		return
+	if g.ab_targeting:
+		g.try_ability(world)
+		return
 	var e = g.pick_entity(pos)
 	if e != null and e.team == Defs.PLAYER:
 		if dbl and not e.is_building:
@@ -119,6 +122,11 @@ func _tap(pos: Vector2) -> void:
 		return
 	var units := g.selected_units()
 	if not units.is_empty():
+		var house = g.pick_house(world) if e == null else null
+		if house != null:
+			g.order_enter(units, house)
+			g.fx_marker(house.position, Color(0.3, 1.0, 0.4))
+			return
 		if e != null:
 			g.order_attack(units, e)
 		else:

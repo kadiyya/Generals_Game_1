@@ -29,6 +29,11 @@ const INTERCEPT_CHANCE := 0.4     # menzildeki her hava savunmanın füzeyi önl
 
 const BUILD_KINDS: Array[String] = ["santral", "maden", "kisla", "fabrika", "havaalani", "sam", "teknoloji", "fuze"]
 const PLANE_CLASSES: Array[String] = ["fighter", "striker", "stealth"]
+const MAX_LANDMINES := 10
+const MINE_COST := 100
+const DIG_TIME := 8.0
+const RANK_XP := [0.8, 2.2, 4.5]   # rütbe eşikleri: birimin kendi maliyetinin katı kadar verilen hasar
+const RANK_NAMES := ["Er", "Çavuş", "Kıdemli", "Gazi"]
 
 # Senaryo yüklenince Scenarios.setup() tarafından doldurulur.
 static var UNITS := {}

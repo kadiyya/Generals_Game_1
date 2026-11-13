@@ -19,6 +19,7 @@ var shot_i := 0
 var attacked := false
 var made := {}
 var launched := 0
+var used := {}       # denenen yeni mekanikler
 
 
 func _ready() -> void:
@@ -101,6 +102,36 @@ func _act() -> void:
 							if g.launch_missile(e, i, t.position):
 								launched += 1
 							break
+	# yeni mekanikler: siper, mayın, engel, eve girme, doktrin yeteneği
+	var inf: Array = []
+	for u in _units("kara"):
+		if u.armor == "inf" and u.order == "idle":
+			inf.append(u)
+	if g.time > 40.0 and not used.has("dig") and inf.size() >= 1:
+		used["dig"] = g.order_task([inf[0]], "dig")
+	if g.time > 60.0 and not used.has("mine") and inf.size() >= 2:
+		used["mine"] = g.order_task([inf[1]], "mine")
+	if g.time > 80.0 and not used.has("engel") and inf.size() >= 2:
+		used["engel"] = g.order_task([inf[1]], "obstacle")
+	if g.time > 100.0 and not used.has("ev") and inf.size() >= 1:
+		var best = null
+		for h in g.houses:
+			if h.has_room(0) and (best == null or Entity.flat(h.position, inf[0].position) < Entity.flat(best.position, inf[0].position)):
+				best = h
+		if best != null:
+			g.order_enter([inf[0]], best)
+			used["ev"] = 1
+	if g.time > 250.0 and g.ability_ready(0) == "":
+		var a := g.ability(0)
+		var pos := Vector3.INF
+		if a.target:
+			for t in g.entities:
+				if t.team == 1 and g.fog.sees(0, t.global_position):
+					pos = t.global_position
+					break
+		if not a.target or pos != Vector3.INF:
+			if g.use_ability(0, pos):
+				used["yetenek"] = int(used.get("yetenek", 0)) + 1
 	if g.time > 320.0 and not attacked:
 		attacked = true
 		g.select_category("")
@@ -139,8 +170,21 @@ func _process(dt: float) -> void:
 		var kinds := {}
 		for id in made:
 			kinds[Defs.UNITS[id].cls] = true
+		var ranks := [0, 0]
+		var garr := [0, 0]
+		var dug := [0, 0]
+		for e in g.entities:
+			ranks[e.team] = maxi(ranks[e.team], e.rank)
+			if e is Unit:
+				if e.garrison != null:
+					garr[e.team] += 1
+				if e.entrenched:
+					dug[e.team] += 1
 		print("AUTOTEST BITTI  t=%d  kazanan=%d  uretilen_tur=%d  sinif=%d  arastirma=%d  fuze=%d" % [
 			int(g.time), g.winner, made.size(), kinds.size(), g.teams[0].researched.size(), launched])
+		print("MEKANIK  denenen=%s  rutbe=%s  evde=%s  siperde=%s  mayin=[%d,%d]  gorev=[%d%%,%d%%]" % [
+			used, ranks, garr, dug, g.team_mines(0), g.team_mines(1),
+			int(g.objective_fraction(0) * 100.0), int(g.objective_fraction(1) * 100.0)])
 		set_process(false)
 		await get_tree().create_timer(0.2, true, false, true).timeout
 		get_tree().quit()

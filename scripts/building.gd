@@ -29,6 +29,10 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 func start(instant: bool) -> void:
 	if instant or build_time <= 0.0:
 		built = true
+	elif d.get("field", false):
+		# Piyadenin kurduğu alan yapısı: vinç gerekmez.
+		hp = max_hp * 0.2
+		model.scale.y = 0.15
 	else:
 		hp = max_hp * 0.2
 		model.scale.y = 0.15
@@ -67,7 +71,8 @@ func _process(dt: float) -> void:
 	if not alive:
 		return
 	if not built:
-		crane.visible = crane_active
+		if crane != null:
+			crane.visible = crane_active
 		if not crane_active:
 			return
 		build_t += dt
@@ -76,7 +81,8 @@ func _process(dt: float) -> void:
 		hp = minf(max_hp, hp + max_hp * 0.8 * dt / build_time)
 		if f >= 1.0:
 			built = true
-			crane.queue_free()
+			if crane != null:
+				crane.queue_free()
 			crane = null
 			Game.I.on_building_done(self)
 		return

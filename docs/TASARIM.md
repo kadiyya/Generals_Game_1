@@ -308,7 +308,14 @@ Her ülke son kademede bir ya da iki deneysel sistem açabilir. Pahalı, tek ya 
 | Doktrin farkları | Yapıldı (maliyet / dayanıklılık / füze çarpanları) |
 | Deneysel silahlar (Kademe 3) | Kısmen: lazer drone katili, görünmez İHA, hipersonik füze. Ravn X, FH-97, Kızılelma kilitli ülkelerle gelecek |
 | Tablodaki bütün sistemler | Kısmen: her ülkede 16-18 birim oyunda; bölüm 7'deki listelerin kalanı sonra |
-| Elektronik harp, fiber optik FPV, karşı batarya radarı | Sonra (şimdilik araştırmalar düz çarpan) |
+| Taktik arazi: tepe, orman, yol, görüş hattı | Yapıldı |
+| Elektronik harp ve fiber optik FPV | Yapıldı |
+| Siper, köy evleri, mayın, tanksavar engeli | Yapıldı |
+| Tecrübe / rütbe, geri çekilme | Yapıldı |
+| Doktrin yetenekleri | Yapıldı (doktrin başına bir yetenek) |
+| Senaryoya özel görev hedefleri | Yapıldı (her tarafa ayrı görev) |
+| Birim kartı: özellikler ve ipucu | Yapıldı |
+| Karşı batarya radarı | Sonra |
 | Zorluk seçimi, ses | Sonra |
 | Deniz modu ve kilitli senaryolar (ABD, Çin, Türkiye, Yunanistan) | En son |
 

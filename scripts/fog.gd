@@ -60,6 +60,12 @@ func recompute() -> void:
 			var v: float = e.vision
 			if e.is_building and not e.built:
 				v = 6.0
+			elif not e.is_air and not e.is_building:
+				# Tepeden daha uzağı görür; evdeki birlik pencereden gözler.
+				if g.terrain.kind_at(e.global_position) == Terrain.HILL:
+					v *= 1.3
+				if e is Unit and e.garrison != null:
+					v += 6.0
 			_stamp(e.team, e.global_position, v)
 	for p in g.points:
 		if p.owner_team != Defs.NEUTRAL:
@@ -69,6 +75,13 @@ func recompute() -> void:
 		if e.team == Defs.PLAYER:
 			continue
 		var s := sees(Defs.PLAYER, e.global_position)
+		if s and e.concealed():
+			# Ormandaki düşman piyadesi yalnızca yakından görülür.
+			s = false
+			for o in g.entities:
+				if o.team == Defs.PLAYER and o.alive and not o.is_air and Entity.flat(o.global_position, e.global_position) <= 9.0:
+					s = true
+					break
 		if e.is_building:
 			if s:
 				e.discovered = true

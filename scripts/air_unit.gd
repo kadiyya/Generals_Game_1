@@ -17,6 +17,7 @@ var rearm_t := 0.0
 var life := -1.0
 var bob_t := randf() * 6.0
 var rotors: Node3D = null   # varsa pervaneler döner
+var tank_t := 0.0
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -59,6 +60,15 @@ func _process(dt: float) -> void:
 		return
 	cd_timer -= dt
 	scan_timer -= dt
+	jammed_t -= dt
+	if tanker() and d.has("ammo"):
+		# Havada yakıt ikmali: mühimmat havada yenilenir, üsse dönmez.
+		tank_t += dt
+		if tank_t >= 5.0:
+			tank_t = 0.0
+			ammo = mini(int(d.ammo), ammo + 1)
+			if state == "rearm":
+				state = "patrol"
 	if rotors != null and visible:
 		for r in rotors.get_children():
 			r.rotate_object_local(Vector3.UP, dt * 38.0)
@@ -91,7 +101,14 @@ func _process(dt: float) -> void:
 	_orbit(patrol, dt)
 
 
+func tanker() -> bool:
+	return cls in Defs.PLANE_CLASSES and Game.I.teams[team].tanker_until > Game.I.time
+
+
 func _acquire() -> void:
+	if jammed_t > 0.0:
+		target = null
+		return
 	if target != null or scan_timer > 0.0:
 		return
 	scan_timer = 0.4
@@ -147,7 +164,7 @@ func _fly(goal: Vector3, dt: float) -> void:
 		var before := yaw
 		yaw = rotate_toward(yaw, want, turn * dt)
 		tr = angle_difference(before, yaw) / maxf(dt, 0.001)
-	position += Vector3(sin(yaw), 0, cos(yaw)) * speed * dt
+	position += Vector3(sin(yaw), 0, cos(yaw)) * speed * (1.2 if tanker() else 1.0) * dt
 	position.y = alt
 	rotation.y = yaw
 	model.rotation.z = lerpf(model.rotation.z, -tr * 0.2, minf(1.0, dt * 5.0))

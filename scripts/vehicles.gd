@@ -6,7 +6,7 @@ extends RefCounted
 ## Not: bu dosya yalnızca Kit çağrıları ve düz hesap içerir; geliştirme önizleme aracı da aynı kodu okur.
 
 const IDS := ["ifv_low", "m113", "ifv_tall", "namer", "gepard", "shilka", "tor", "sph", "tos", "pantsir", "irondome",
-	"truck_gun", "himars", "mlrs_truck", "laser_truck"]
+	"truck_gun", "himars", "mlrs_truck", "laser_truck", "ew_truck"]
 
 
 static func has(id: String) -> bool:
@@ -57,6 +57,8 @@ static func design(id: String, h: Kit, t: Kit) -> float:
 		_himars(h)
 	elif id == "mlrs_truck":
 		_mlrs(h)
+	elif id == "ew_truck":
+		_ew(h)
 	else:
 		_laser(h)
 	return tz * s
@@ -535,3 +537,26 @@ static func _laser(h: Kit) -> void:
 	h.lathe("beam", [Vector2(0, 0), Vector2(0.31, 0), Vector2(0.31, 0.01), Vector2(0, 0.03)], Vector3(0, 4.1, 0.66), Vector3(90, 0, 0), 12)
 	Tanks._sight(h, "hull2", Vector3(0.3, 0.3, 0.4), Vector3(0.62, 4.2, -0.1), 0.0)
 	_radar(h, Vector3(0, 3.9, -3.3), 1.2, 0.6, -10.0)
+
+
+## Elektronik harp aracı (Bukovel-AD, Silok, Drone Dome...): kamyon üstünde konteyner, dört yöne bakan
+## karıştırıcı panel anteni ve katlanır direk üstünde algılama radarı.
+static func _ew(h: Kit) -> void:
+	_truck(h, 7.6, [-2.9, -1.5, 2.4], true)
+	h.box("hull", Vector3(2.5, 1.8, 4.6), Vector3(0, 2.16, -1.6))
+	h.box("team", Vector3(2.52, 0.14, 4.62), Vector3(0, 2.5, -1.6))
+	for sx in [-1.0, 1.0]:
+		Tanks._grille(h, Vector3(0.7 * sx, 3.08, -0.4), 0.8, 0.9, 0.0, 5)
+		h.box("dark", Vector3(0.04, 0.5, 0.9), Vector3(1.27 * sx, 2.0, -2.4))
+	# direk ve radar
+	Tanks._cyl(h, "steel", 0.12, 2.6, Vector3(0, 4.35, -2.6), Vector3.ZERO, 8)
+	_radar(h, Vector3(0, 5.7, -2.6), 1.0, 0.5, 0.0)
+	# dört yöne karıştırıcı panelleri
+	for a in [0.0, 90.0, 180.0, 270.0]:
+		h.push(Vector3(0, 4.7, -2.6), Vector3(0, a, 0))
+		h.box("hull2", Vector3(0.7, 0.9, 0.08), Vector3(0, 0, 0.42), Vector3(-12, 0, 0))
+		h.box("dark", Vector3(0.6, 0.8, 0.02), Vector3(0, 0, 0.47), Vector3(-12, 0, 0))
+		h.pop()
+	# whip antenler
+	for sx in [-1.0, 1.0]:
+		Tanks._cyl(h, "dark", 0.03, 2.2, Vector3(1.0 * sx, 4.1, -3.6), Vector3.ZERO, 6)

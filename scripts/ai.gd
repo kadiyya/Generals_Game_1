@@ -2,18 +2,21 @@ class_name EnemyAI
 extends Node
 ## Basit yapay zekâ rakip. Ülkesinin envanterinden sınıfa göre birim seçer:
 ## sırayla bina kurar, noktaları ele geçirir, dalga dalga saldırır, hava gücü ve füze kullanır.
+## Piyade tuttuğu noktada siper kazar, yakın eve girer, yollara mayın döşer; EH aracı ve doktrin yeteneği kullanır.
+## Görevi "tut" olan senaryoda saldırıları görev noktasına yöneltir.
 
 const T := Defs.ENEMY
 const FIRST_ATTACK := 450.0
 const TIER_TIME := 260.0
 const EXPAND_TIME := 420.0   # bu süreden önce oyuncunun yarısındaki noktalara gitmez
-const ARMY := ["tank", "at", "ifv", "spaag", "arty", "mlrs", "laser"]
+const ARMY := ["tank", "at", "ifv", "spaag", "arty", "mlrs", "laser", "ew"]
 
 var acc := 0.0
 var wave := 0
 var claims := {}   # SupplyPoint -> piyade
 var home := Vector3.ZERO
 var fwd := 1.0     # üsten haritanın ortasına doğru x yönü
+var mine_t := 120.0
 
 
 func _process(dt: float) -> void:
@@ -34,6 +37,8 @@ func _process(dt: float) -> void:
 	_capture(g)
 	_army(g, ts)
 	_missiles(g, ts)
+	_fieldcraft(g, ts)
+	_ability(g, ts)
 
 
 func _units(g: Game, cls: String) -> Array:
@@ -137,8 +142,14 @@ func _produce(g: Game, ts) -> void:
 				_queue(g, k, "loiter")
 	if saving:
 		return
+	var p_small := 0
+	for e in g.entities:
+		if e.team == Defs.PLAYER and e.is_air and e.d.get("small", false):
+			p_small += 1
 	for f in _blds(g, "fabrika"):
-		if p_air > 0 and _units(g, "spaag").size() < 2:
+		if p_small >= 2 and _units(g, "ew").size() < 1:
+			_queue(g, f, "ew")
+		elif p_air > 0 and _units(g, "spaag").size() < 2:
 			_queue(g, f, "spaag")
 		elif ts.tier >= 2 and tanks >= 3 and _units(g, "arty").size() < 2:
 			_queue(g, f, "arty")
@@ -216,13 +227,17 @@ func _army(g: Game, ts) -> void:
 			at_home.append(u)
 		elif u.order == "idle" and u.target == null:
 			away_idle.append(u)
+	var goal: Vector3 = p_hq.position
+	var o := Scenarios.objective(T)
+	if o.get("type", "") == "hold" and g.points[o.point].owner_team != T:
+		goal = g.points[o.point].position
 	if g.time > FIRST_ATTACK and at_home.size() >= mini(5 + wave * 2, 12):
 		wave += 1
-		g.order_move(army, p_hq.position, true)
+		g.order_move(army, goal, true)
 		_air(g, p_hq.position + Vector3(fwd * -18.0, 0, 0))
 		return
 	if not away_idle.is_empty():
-		g.order_move(away_idle, p_hq.position, true)
+		g.order_move(away_idle, goal, true)
 	if wave == 0:
 		_air(g, home + Vector3(fwd * 24.0, 0, 0))
 	elif not away_idle.is_empty():
@@ -258,3 +273,58 @@ func _missiles(g: Game, ts) -> void:
 			if best != null:
 				g.launch_missile(b, i, best.position)
 				return
+
+
+## Piyade: tuttuğu noktada siper kazar ya da yakındaki eve girer; ara sıra yola mayın döşer.
+func _fieldcraft(g: Game, ts) -> void:
+	mine_t -= 1.5
+	for m in _units(g, "inf") + _units(g, "at"):
+		if m.order != "idle" or m.target != null or m.entrenched or m.garrison != null or claims.values().has(m):
+			continue
+		var near_point := false
+		for p in g.points:
+			if p.owner_team == T and Entity.flat(p.position, m.position) < 10.0:
+				near_point = true
+		if not near_point:
+			continue
+		var house = null
+		for h in g.houses:
+			if h.has_room(T) and Entity.flat(h.position, m.position) < 16.0:
+				house = h
+		if house != null and randf() < 0.5:
+			m.enter(house)
+		elif mine_t <= 0.0 and ts.money > 700.0 and g.team_mines(T) < 6:
+			mine_t = 60.0
+			m.rotation.y = PI * 0.5 * fwd
+			m.do_task("mine")
+		else:
+			m.do_task("dig")
+
+
+## Doktrin yeteneği: saldırı başladıktan sonra, hazır olunca kullanır.
+func _ability(g: Game, ts) -> void:
+	if wave == 0 or g.ability_ready(T) != "":
+		return
+	var a := g.ability(T)
+	if not a.target:
+		if a.id == "ikmal" and _units(g, "fighter").size() + _units(g, "striker").size() + _units(g, "stealth").size() == 0:
+			return
+		g.use_ability(T, Vector3.INF)
+		return
+	# Hedef: görülen oyuncu birliklerinin en kalabalık olduğu yer, yoksa görülen bir bina.
+	var best = null
+	var bn := 0
+	for e in g.entities:
+		if e.team != Defs.PLAYER or e.is_air or not g.fog.sees(T, e.global_position):
+			continue
+		var n := 0
+		for o in g.entities:
+			if o.team == Defs.PLAYER and not o.is_air and Entity.flat(o.global_position, e.global_position) < 10.0:
+				n += 1
+		if e.is_building:
+			n += 1
+		if n > bn:
+			bn = n
+			best = e
+	if best != null and bn >= 3:
+		g.use_ability(T, best.global_position)

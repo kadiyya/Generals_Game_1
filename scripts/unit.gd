@@ -1,7 +1,8 @@
 class_name Unit
 extends Entity
-## Kara birimi. Emirler: idle, move (ateş etmeden git), amove (saldırarak ilerle), attack.
-## Engellerin çevresinden Terrain üzerinden yol bulur.
+## Kara birimi. Emirler: idle, move (ateş etmeden git), amove (saldırarak ilerle), attack,
+## dig (siper kaz), mine (mayın döşe), obstacle (engel kur), enter (eve gir).
+## Engellerin çevresinden Terrain üzerinden yol bulur; tepede yükselir, yolda hızlanır, ormanda yavaşlar.
 
 var order := "idle"
 var dest := Vector3.ZERO
@@ -20,6 +21,15 @@ var anim_t := 0.0
 var moving := false
 var dust_t := 0.0
 var _last_pos := Vector3.ZERO
+var task_t := 0.0
+var entrenched := false
+var trench: Node3D = null
+var garrison = null            # içinde bulunduğu ev (Garrison)
+var enter_target = null
+var retreating := false
+var ew_ring: MeshInstance3D = null
+var los_t := 0.0
+var los_ok := true
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -30,6 +40,10 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 	if turret != null:
 		turret_base = turret.position
 	_last_pos = position
+	if d.has("ew"):
+		ew_ring = Models.ring(float(d.ew), Color(0.35, 0.85, 1.0))
+		ew_ring.scale.y = 0.08
+		add_child(ew_ring)
 
 
 func muzzle_pos() -> Vector3:
@@ -43,7 +57,58 @@ func _on_fired() -> void:
 	recoil = 1.0
 
 
+func wrange() -> float:
+	return super.wrange() + (3.0 if garrison != null else 0.0)
+
+
+func concealed() -> bool:
+	return armor == "inf" and reveal_t <= 0.0 and garrison == null and Game.I.terrain.kind_at(global_position) == Terrain.FOREST
+
+
+func damage_taken_mult() -> float:
+	var m := super.damage_taken_mult()
+	if garrison != null:
+		m *= 0.4
+	elif entrenched:
+		m *= 0.5
+	if retreating:
+		m *= 0.7
+	return m
+
+
+## Görev emri: siper, mayın, engel. Birim durur ve görev süresi dolunca iş biter.
+func do_task(kind: String) -> void:
+	_leave()
+	order = kind
+	target = null
+	task_t = 0.0
+
+
+func enter(house) -> void:
+	_leave()
+	enter_target = house
+	go(house.position, false)
+	enter_target = house
+	order = "enter"
+
+
+func _leave() -> void:
+	if garrison != null:
+		garrison.remove(self)
+		garrison = null
+		model.visible = true
+		position = Game.I.terrain.nearest_free(position + Vector3(0, 0, 3.2))
+	if entrenched:
+		entrenched = false
+		if trench != null:
+			trench.queue_free()
+			trench = null
+
+
 func go(p: Vector3, attack_move: bool) -> void:
+	_leave()
+	retreating = false
+	enter_target = null
 	dest = Game.I.terrain.nearest_free(Vector3(p.x, 0, p.z))
 	order = "amove" if attack_move else "move"
 	target = null
@@ -59,6 +124,7 @@ func attack(e) -> void:
 func stop() -> void:
 	order = "idle"
 	target = null
+	retreating = false
 
 
 func weapon_range() -> float:
@@ -70,11 +136,28 @@ func _process(dt: float) -> void:
 		return
 	cd_timer -= dt
 	scan_timer -= dt
+	reveal_t -= dt
 	valid_target()
 	match order:
 		"move":
 			if _step(dest, dt):
 				order = "idle"
+				retreating = false
+		"enter":
+			var h = enter_target
+			if h == null or not h.has_room(team):
+				order = "idle"
+			elif flat(position, h.position) < 4.5 or _step(dest, dt):
+				if flat(position, h.position) < 6.0 and h.has_room(team):
+					h.add(self)
+					garrison = h
+					model.visible = false
+				order = "idle"
+		"dig", "mine", "obstacle":
+			task_t += dt
+			var need := Defs.DIG_TIME if order == "dig" else (3.0 if order == "mine" else 5.0)
+			if task_t >= need:
+				_finish_task()
 		"attack":
 			if target == null:
 				order = "idle"
@@ -104,8 +187,20 @@ func _scan() -> void:
 
 
 func _engage(dt: float, chase: bool) -> void:
+	# Siperdeki ve evdeki birlik mevziini bırakıp kovalamaz.
+	chase = chase and garrison == null and not entrenched
 	var dist: float = flat(position, target.position) - target.radius
-	if dist > weapon_range():
+	los_t -= dt
+	if los_t <= 0.0:
+		los_t = 0.5
+		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position)
+	if not los_ok:
+		# Arada engel var: görüş hattı açılana kadar yaklaş.
+		if chase:
+			_step(target.position, dt)
+		else:
+			target = null
+	elif dist > weapon_range():
 		if chase:
 			_step(target.position, dt)
 		else:
@@ -125,6 +220,21 @@ func _engage(dt: float, chase: bool) -> void:
 			_face(dir, dt)
 		if aimed and cd_timer <= 0.0:
 			fire(target)
+
+
+func _finish_task() -> void:
+	var g := Game.I
+	var fwd := Vector3(sin(rotation.y), 0, cos(rotation.y))
+	match order:
+		"dig":
+			entrenched = true
+			trench = Models.build({"model": "trench"}, team)
+			add_child(trench)
+		"mine":
+			g.place_mine(team, position + fwd * 2.5)
+		"obstacle":
+			g.place_obstacle(team, position + fwd * 4.0)
+	order = "idle"
 
 
 func _waypoint(p: Vector3, dt: float) -> Vector3:
@@ -174,7 +284,10 @@ func _step(p: Vector3, dt: float) -> bool:
 		nav_t = 0.0
 		return false
 	var dir := to / l
-	position += dir * minf(speed * dt, l)
+	var ter := Game.I.terrain
+	var sp := speed * ter.speed_mult(position, armor) * (1.25 if retreating else 1.0)
+	position += dir * minf(sp * dt, l)
+	position.y = lerpf(position.y, ter.height(position), minf(1.0, dt * 6.0))
 	position.x = clampf(position.x, -Defs.MAP_W * 0.5 + 1.0, Defs.MAP_W * 0.5 - 1.0)
 	position.z = clampf(position.z, -Defs.MAP_H * 0.5 + 1.0, Defs.MAP_H * 0.5 - 1.0)
 	_face(dir, dt)
@@ -194,11 +307,17 @@ func _animate(dt: float) -> void:
 	_last_pos = position
 	moving = v > 0.3
 	recoil = maxf(0.0, recoil - dt * 4.0)
+	if ew_ring != null:
+		ew_ring.visible = seen
+		var pulse := 1.0 + 0.04 * sin(Game.I.time * 3.0)
+		ew_ring.scale = Vector3(pulse, 0.08, pulse)
+	if garrison != null:
+		return
 	if armor == "inf":
 		# Yürürken adım atar ve öne eğilir; dururken ateş ediyorsa çömelir.
 		if moving:
 			anim_t += dt * 9.0
-		var crouch := 0.78 if (target != null and not moving) else 1.0
+		var crouch := 0.78 if ((target != null or entrenched or order == "dig") and not moving) else 1.0
 		for i in model.get_child_count():
 			var f: Node3D = model.get_child(i)
 			var hop := absf(sin(anim_t + i * 1.7)) * 0.13 if moving else 0.0

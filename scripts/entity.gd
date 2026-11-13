@@ -19,6 +19,10 @@ var discovered := false   # düşman binası bir kez görüldü mü
 var cd_timer := 0.0
 var scan_timer := 0.0
 var target = null
+var xp := 0.0            # verdiği hasar; rütbe buna göre artar
+var rank := 0
+var jammed_t := 0.0      # elektronik harp: kilitlenemez
+var reveal_t := 0.0      # ateş edince kısa süre gizlenemez
 var model: Node3D
 var ring: MeshInstance3D
 
@@ -65,7 +69,20 @@ func has_weapon() -> bool:
 
 
 func wrange() -> float:
-	return float(d.get("range", 0.0)) * Game.I.mod(team, "range_" + cls)
+	var r := float(d.get("range", 0.0)) * Game.I.mod(team, "range_" + cls)
+	if not is_air and not is_building and Game.I.terrain.kind_at(global_position) == Terrain.HILL:
+		r *= 1.15
+	return r
+
+
+## Doğrudan atış yapan kara birimi mi (görüş hattı gerekir). Topçu ve hava etkilenmez.
+func needs_los() -> bool:
+	return not is_air and not is_building and d.get("proj", "tracer") != "arc"
+
+
+## Ormanda gizlenen piyade: yalnızca yakından görülür ve hedef alınır.
+func concealed() -> bool:
+	return false
 
 
 func valid_target() -> bool:
@@ -88,6 +105,8 @@ func can_hit(e) -> bool:
 			return false
 	elif not Game.I.fog.sees(team, e.global_position):
 		return false
+	elif e.concealed() and flat(global_position, e.global_position) > 9.0:
+		return false
 	return true
 
 
@@ -100,6 +119,8 @@ func find_target(max_d: float, min_d := 0.0):
 		var dist: float = flat(global_position, e.global_position) - e.radius
 		if dist > max_d or dist < min_d:
 			continue
+		if not e.is_air and needs_los() and not Game.I.terrain.los_clear(global_position, e.global_position):
+			continue
 		var s: float = dist / (0.3 + float(d.mult.get(e.armor, 0.0)))
 		# Ateş edebilen hedefler, silahsız binalardan önce gelir.
 		if e.is_building and not e.has_weapon():
@@ -111,7 +132,24 @@ func find_target(max_d: float, min_d := 0.0):
 
 
 func damage_base() -> float:
-	return float(d.dmg) * Game.I.mod(team, "dmg_" + cls)
+	return float(d.dmg) * Game.I.mod(team, "dmg_" + cls) * (1.0 + 0.12 * rank)
+
+
+## Aldığı hasarın çarpanı: rütbe, siper, ev, geri çekilme.
+func damage_taken_mult() -> float:
+	return 1.0 - 0.08 * rank
+
+
+func gain_xp(v: float) -> void:
+	if is_building or rank >= Defs.RANK_XP.size():
+		return
+	xp += v
+	var cost := float(d.get("cost", 300))
+	while rank < Defs.RANK_XP.size() and xp >= cost * Defs.RANK_XP[rank]:
+		rank += 1
+		hp = minf(max_hp, hp + max_hp * 0.15)
+		if team == Defs.PLAYER:
+			Game.I.hud.toast("%s terfi etti: %s." % [d.name, Defs.RANK_NAMES[rank]])
 
 
 func fire(e) -> void:
@@ -134,6 +172,7 @@ func fire(e) -> void:
 			g.fx_shot(self, e, base, 45.0, 0.0, false)
 	if seen:
 		g.fx_muzzle(muzzle_pos(), d.get("proj", "tracer"))
+	reveal_t = 3.0
 	_on_fired()
 
 
@@ -146,6 +185,9 @@ func take_damage(amount: float, attacker = null, tag := "") -> void:
 		return
 	if tag == "drone" and (armor == "heavy" or armor == "light"):
 		amount *= Game.I.mod(team, "drone_resist")
+	amount *= damage_taken_mult()
+	if attacker != null and is_instance_valid(attacker) and attacker.alive and attacker.team != team:
+		attacker.gain_xp(minf(amount, maxf(hp, 0.0)) + (float(d.get("cost", 0)) * 0.3 if amount >= hp else 0.0))
 	hp -= amount
 	_on_damaged(attacker)
 	if hp <= 0.0:

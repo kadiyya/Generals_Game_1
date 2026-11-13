@@ -5,7 +5,7 @@ extends RefCounted
 ## Not: bu dosya yalnızca Kit çağrıları ve düz hesap içerir; geliştirme önizleme aracı da aynı kodu okur.
 
 const IDS := ["hq", "santral", "maden", "kisla", "fabrika", "havaalani", "teknoloji", "fuze", "sam_box", "sam_tube",
-	"crane", "supply_oil", "supply_crates"]
+	"crane", "supply_oil", "supply_crates", "obstacle", "house", "trench", "mine"]
 
 
 static func has(id: String) -> bool:
@@ -53,6 +53,14 @@ static func design(id: String, k: Kit) -> void:
 		_crane(k)
 	elif id == "supply_oil":
 		_supply(k, true)
+	elif id == "obstacle":
+		_obstacle(k)
+	elif id == "house":
+		_house(k)
+	elif id == "trench":
+		_trench(k)
+	elif id == "mine":
+		_mine(k)
 	else:
 		_supply(k, false)
 
@@ -553,3 +561,49 @@ static func _supply(k: Kit, oil: bool) -> void:
 		_sandbags(k, Vector3(-2.3, 0.08, -0.4), 0.0, 4)
 	k.lathe("steel", [Vector2(0.05, 0), Vector2(0.03, 4.0)], Vector3(-1.9, 0.08, 1.6), Vector3.ZERO, 6)
 	k.lathe("white", [Vector2(0.12, 0), Vector2(0.12, 0.25), Vector2(0, 0.3)], Vector3(-1.9, 4.0, 1.6), Vector3.ZERO, 6)
+
+
+## Tanksavar engeli: beton "ejderha dişleri" ve aralarına gerilmiş tel.
+static func _obstacle(k: Kit) -> void:
+	for i in 3:
+		for j in 2:
+			var p := Vector3(-1.4 + i * 1.4 + j * 0.7, 0, -0.5 + j * 1.0)
+			k.lathe("conc", [Vector2(0.55, 0), Vector2(0.5, 0.15), Vector2(0.12, 1.1), Vector2(0, 1.15)], p, Vector3(0, i * 30.0, 0), 4)
+	for sz in [-1.0, 1.0]:
+		k.box("dark", Vector3(4.2, 0.03, 0.03), Vector3(0, 0.6, 1.0 * sz))
+		k.box("dark", Vector3(4.2, 0.03, 0.03), Vector3(0, 0.3, 1.0 * sz))
+	for x in [-2.0, 2.0]:
+		k.box("wood", Vector3(0.08, 0.8, 0.08), Vector3(x, 0.4, 0))
+
+
+## Köy evi: tuğla duvarlar, kırma çatı, pencereler; piyade içine girebilir. Bir köşesi hasarlı.
+static func _house(k: Kit) -> void:
+	_block(k, "conc", Vector3(3.6, 2.2, 3.2), Vector3(0, 1.1, 0))
+	k.box("conc2", Vector3(3.7, 0.2, 3.3), Vector3(0, 0.1, 0))
+	_gable(k, "roof", 4.0, 3.6, 1.2, Vector3(0, 2.2, 0))
+	_win_z(k, -1.2, 1.2, 1.3, 1.62, 2, 0.6)
+	_win_z(k, -1.2, 1.2, 1.3, -1.62, 2, 0.6)
+	_win_x(k, -0.9, 0.9, 1.3, 1.82, 2, 0.6)
+	_door(k, Vector3(-1.82, 0, 0.6), 0.8, 1.5, false)
+	# hasar: çatıda delik ve moloz
+	k.box("dark", Vector3(0.9, 0.05, 0.8), Vector3(0.9, 2.75, -0.7), Vector3(0, 0, 18))
+	for i in 4:
+		k.box("conc2", Vector3(0.4, 0.25, 0.35), Vector3(1.9 + i * 0.25, 0.12, -1.5 + i * 0.3), Vector3(0, i * 25.0, 0))
+	_sandbags(k, Vector3(-2.3, 0, -1.2), 0.0, 4)
+
+
+## Siper: piyadenin çevresinde kum torbası halkası.
+static func _trench(k: Kit) -> void:
+	for i in 6:
+		var a := TAU * i / 6.0
+		k.push(Vector3(cos(a) * 1.5, 0, sin(a) * 1.5), Vector3(0, -rad_to_deg(a), 0))
+		for j in 2:
+			Tanks._bag(k, "sand", Vector3(0.3, 0.2, 0.55), Vector3(0, 0.1 + j * 0.19, j * 0.25 - 0.25), 0.0)
+		Tanks._bag(k, "sand", Vector3(0.3, 0.2, 0.55), Vector3(0, 0.1, 0.35), 0.0)
+		k.pop()
+
+
+## Tanksavar mayını: yere yarı gömülü disk (yalnızca sahibi görür).
+static func _mine(k: Kit) -> void:
+	k.lathe("hull2", [Vector2(0, 0), Vector2(0.45, 0), Vector2(0.45, 0.1), Vector2(0.2, 0.16), Vector2(0, 0.17)], Vector3.ZERO, Vector3.ZERO, 10)
+	k.lathe("team", [Vector2(0, 0.17), Vector2(0.12, 0.17), Vector2(0.12, 0.2), Vector2(0, 0.2)], Vector3.ZERO, Vector3.ZERO, 8)

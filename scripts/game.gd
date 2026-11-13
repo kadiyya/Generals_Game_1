@@ -19,6 +19,10 @@ class TeamState:
 	var hq: Building = null
 	var mods := {}            # doktrin ve araştırmalardan gelen çarpanlar
 	var researched: Array = []
+	var ab_cd := 0.0          # doktrin yeteneği bekleme süresi
+	var tanker_until := -1.0
+	var obj_prog := 0.0       # görev: tutulan süre ya da yok edilen hedef sayısı
+	var obj_note := 0         # duyurulan görev eşiği (%50, %80)
 
 signal selection_changed
 
@@ -47,6 +51,10 @@ var zone_ring: MeshInstance3D
 var _recalc_t := 0.0
 var _alert_t := -100.0
 var dust_color := Color(0.6, 0.55, 0.42)
+var houses: Array = []
+var mines: Array = []            # {team, pos, node}
+var ab_targeting := false        # doktrin yeteneği için hedef seçiliyor
+var _tick_t := 0.0
 var _puff: SphereMesh = null
 
 
@@ -72,6 +80,19 @@ func _ready() -> void:
 		add_child(sp)
 		sp.setup(Vector3(p[0], 0, p[1]), p[2], p[3], p[4])
 		points.append(sp)
+	for h in Defs.MAP.get("houses", []):
+		var g := Garrison.new()
+		add_child(g)
+		g.setup(Vector3(h[0], 0, h[1]))
+		houses.append(g)
+	var marked := {}
+	for t in 2:
+		var o := Scenarios.objective(t)
+		if o.get("type", "") == "hold" and not marked.has(o.point):
+			marked[o.point] = true
+			var r := Models.ring(SupplyPoint.RADIUS + 1.2, Color(1.0, 0.8, 0.2))
+			r.position = points[o.point].position + Vector3(0, 0.1, 0)
+			add_child(r)
 	zone_ring = Models.ring(Defs.BUILD_ZONE, Color(1.0, 0.85, 0.2))
 	zone_ring.position = teams[Defs.PLAYER].hq.position + Vector3(0, 0.15, 0)
 	zone_ring.visible = false
@@ -96,6 +117,8 @@ func _ready() -> void:
 		add_child(load("res://tools/gallery.gd").new())
 	elif args.has("--animtest"):
 		add_child(load("res://tools/animtest.gd").new())
+	elif args.has("--mechtest"):
+		add_child(load("res://tools/mechtest.gd").new())
 
 
 func set_speed(i: int) -> void:
@@ -240,11 +263,19 @@ func _process(dt: float) -> void:
 				_msg(t, "Kademe %d hazır: yeni birim ve binalar açıldı." % ts.tier)
 				if t == Defs.PLAYER:
 					hud.rebuild()
+	for t in 2:
+		teams[t].ab_cd = maxf(0.0, teams[t].ab_cd - dt)
+		_objective(t, dt)
 	_recalc_t -= dt
 	if _recalc_t <= 0.0:
 		_recalc_t = 0.3
 		recalc()
 		_heal(0.3)
+	_tick_t -= dt
+	if _tick_t <= 0.0:
+		_tick_t = 0.25
+		_ew_tick(0.25)
+		_mine_tick()
 	_separate()
 
 
@@ -265,6 +296,8 @@ func recalc() -> void:
 					ts.power_prod += p
 				else:
 					ts.power_used -= p
+			elif e.d.get("field", false):
+				e.crane_active = true
 			else:
 				# Her vinç aynı anda bir inşaat yürütür; fazlası sırada bekler.
 				e.crane_active = building[e.team] < ts.cranes
@@ -343,6 +376,10 @@ func on_entity_died(e: Entity) -> void:
 			cancel_targeting()
 		if e.kind == "hq":
 			_end(1 - e.team)
+		var o := Scenarios.objective(1 - e.team)
+		if o.get("type", "") == "destroy" and e.kind in o.kinds and e.built:
+			teams[1 - e.team].obj_prog += 1.0
+			_objective(1 - e.team, 0.0)
 	recalc()
 
 
@@ -802,6 +839,320 @@ func order_retreat(units: Array) -> void:
 	var hq: Building = teams[units[0].team].hq
 	var pos := hq.position + Vector3(-signf(hq.position.x) * 12.0, 0, 0)
 	order_move(units, pos, false)
+	# Geri çekilen birlik daha hızlı gider ve %30 az hasar alır.
+	for u in units:
+		if u is Unit:
+			u.retreating = true
+
+
+## Piyade görevleri: siper kaz, mayın döşe, engel kur. Yalnızca piyade ve tanksavar timi yapabilir.
+func order_task(units: Array, kind: String) -> int:
+	var n := 0
+	for u in units:
+		if u is Unit and u.armor == "inf" and u.alive:
+			if kind == "dig" and (u.entrenched or u.garrison != null):
+				continue
+			u.do_task(kind)
+			n += 1
+	return n
+
+
+func order_enter(units: Array, house) -> void:
+	for u in units:
+		if u is Unit and u.armor == "inf" and house.has_room(u.team):
+			u.enter(house)
+
+
+func pick_house(world: Vector3):
+	for h in houses:
+		if Entity.flat(world, h.position) < Garrison.RADIUS + 1.2:
+			return h
+	return null
+
+
+func team_mines(team: int) -> int:
+	var n := 0
+	for m in mines:
+		if m.team == team:
+			n += 1
+	return n
+
+
+func place_mine(team: int, pos: Vector3) -> bool:
+	var ts: TeamState = teams[team]
+	if team_mines(team) >= Defs.MAX_LANDMINES:
+		_msg(team, "En çok %d mayın döşenebilir." % Defs.MAX_LANDMINES)
+		return false
+	if ts.money < Defs.MINE_COST:
+		_msg(team, "Yetersiz para.")
+		return false
+	pos = terrain.nearest_free(pos)
+	ts.money -= Defs.MINE_COST
+	var node := Models.build({"model": "mine"}, team)
+	node.position = pos
+	node.visible = team == Defs.PLAYER
+	add_child(node)
+	mines.append({team = team, pos = pos, node = node})
+	_msg(team, "Mayın döşendi (%d/%d)." % [team_mines(team), Defs.MAX_LANDMINES])
+	return true
+
+
+func place_obstacle(team: int, pos: Vector3) -> bool:
+	var id := Defs.bid(team, "engel")
+	var bd: Dictionary = Defs.BUILDINGS[id]
+	var ts: TeamState = teams[team]
+	if ts.money < float(bd.cost):
+		_msg(team, "Yetersiz para.")
+		return false
+	pos = terrain.nearest_free(pos)
+	for e in entities:
+		if e.is_building and Entity.flat(pos, e.position) < bd.radius + e.radius + 0.5:
+			_msg(team, "Engel için yer yok.")
+			return false
+	ts.money -= float(bd.cost)
+	spawn_building(id, team, pos)
+	return true
+
+
+## Tanksavar mayınları: düşman aracı üstünden geçerse patlar. Piyade tetiklemez.
+func _mine_tick() -> void:
+	for m in mines.duplicate():
+		for e in entities:
+			if e.team != m.team and e.alive and not e.is_air and not e.is_building and e.armor != "inf":
+				if Entity.flat(e.global_position, m.pos) <= e.radius + 0.8:
+					fx_explosion(m.pos + Vector3(0, 0.5, 0), 2.4)
+					fx_scorch(m.pos, 1.6)
+					splash_damage(m.pos, 3.0, 420.0, {light = 1.0, heavy = 1.0, inf = 0.4}, m.team)
+					m.node.queue_free()
+					mines.erase(m)
+					if e.team == Defs.PLAYER:
+						hud.toast("Birliğin mayına çarptı!")
+					break
+		# Düşman mayını, yanına gelen birliğe görünür olur.
+		if m.team != Defs.PLAYER and not m.node.visible:
+			for e in entities:
+				if e.team == Defs.PLAYER and not e.is_air and not e.is_building and Entity.flat(e.global_position, m.pos) < 5.0:
+					m.node.visible = true
+					break
+
+
+## Elektronik harp: EH aracının çevresindeki düşman küçük dronları hasar alıp düşer
+## (fiber optik FPV hariç); büyük İHA'lar kilitlenemez.
+func _ew_tick(dt: float) -> void:
+	for e in entities:
+		if not e.alive or e.is_building or not e.d.has("ew"):
+			continue
+		var r: float = e.d.ew
+		for o in entities:
+			if o.team == e.team or not o.is_air or not o.alive:
+				continue
+			if Entity.flat(e.global_position, o.global_position) > r:
+				continue
+			if o.d.get("small", false):
+				if o.cls == "sdrone_fpv" and teams[o.team].researched.has("fiber"):
+					continue
+				o.take_damage(o.max_hp * 1.2 * dt, e)
+				if o.seen and randf() < 0.5:
+					fx_puff(o.global_position, Color(0.4, 0.9, 1.0), 0.6, 0.3, 0.0)
+			else:
+				o.jammed_t = 1.0
+				o.target = null
+
+
+# ---------------------------------------------------------------- görev hedefleri
+
+func _objective(t: int, dt: float) -> void:
+	var o := Scenarios.objective(t)
+	if o.is_empty() or over:
+		return
+	var ts: TeamState = teams[t]
+	var need := 1.0
+	if o.type == "hold":
+		need = float(o.secs)
+		if points[o.point].owner_team == t:
+			ts.obj_prog += dt
+	else:
+		need = float(o.count)
+	var f := ts.obj_prog / need
+	var steps := [0.5, 0.8]
+	if ts.obj_note < steps.size() and f >= steps[ts.obj_note]:
+		ts.obj_note += 1
+		hud.toast(("Görev: %%%d tamamlandı." if t == Defs.PLAYER else "Uyarı: düşman görevinin %%%d'ini tamamladı!") % int(f * 100.0), 6.0)
+	if f >= 1.0:
+		_end(t)
+
+
+func objective_fraction(t: int) -> float:
+	var o := Scenarios.objective(t)
+	if o.is_empty():
+		return 0.0
+	var need := float(o.secs) if o.type == "hold" else float(o.count)
+	return clampf(teams[t].obj_prog / need, 0.0, 1.0)
+
+
+# ---------------------------------------------------------------- doktrin yeteneği
+
+func ability(team: int) -> Dictionary:
+	return Scenarios.doctrine(team).get("ability", {})
+
+
+## Boş metin: kullanılabilir. Aksi hâlde nedeni.
+func ability_ready(team: int) -> String:
+	var a := ability(team)
+	var ts: TeamState = teams[team]
+	if a.is_empty():
+		return "Yok"
+	if ts.tier < int(a.tier):
+		return "Kademe %d" % int(a.tier)
+	if ts.ab_cd > 0.0:
+		return "%d sn" % int(ceil(ts.ab_cd))
+	if ts.money < float(a.cost):
+		return "Yetersiz para"
+	return ""
+
+
+func begin_ability() -> void:
+	var a := ability(Defs.PLAYER)
+	var why := ability_ready(Defs.PLAYER)
+	if why != "":
+		hud.toast("%s: %s." % [a.get("name", "Yetenek"), why])
+		return
+	if not a.target:
+		use_ability(Defs.PLAYER, Vector3.INF)
+		return
+	cancel_placing()
+	cancel_targeting()
+	ab_targeting = true
+	hud.toast("%s: hedef için görebildiğin bir yere dokun." % a.name, 5.0)
+	hud.rebuild()
+
+
+func cancel_ability() -> void:
+	if ab_targeting:
+		ab_targeting = false
+		hud.rebuild()
+
+
+func try_ability(world: Vector3) -> void:
+	if use_ability(Defs.PLAYER, world):
+		cancel_ability()
+
+
+func use_ability(team: int, pos: Vector3) -> bool:
+	var a := ability(team)
+	var why := ability_ready(team)
+	if why != "":
+		return false
+	if a.target and not fog.sees(team, pos):
+		_msg(team, "Hedef görülmüyor. Önce keşif yap.")
+		return false
+	var ts: TeamState = teams[team]
+	match a.id:
+		"suru":
+			var id := unit_of(team, "sdrone_fpv")
+			if id == "":
+				id = unit_of(team, "loiter")
+			var from := _nearest_own(team, pos)
+			for i in 8:
+				var u = spawn_unit(id, team, from + Vector3(randf_range(-3, 3), 0, randf_range(-3, 3)))
+				u.set_patrol(pos + Vector3(randf_range(-5, 5), 0, randf_range(-5, 5)))
+		"ikmal":
+			ts.tanker_until = time + 60.0
+		"baraj":
+			for i in 14:
+				get_tree().create_timer(0.5 * i, false).timeout.connect(
+					_sky_shell.bind(team, pos + Vector3(randf_range(-9, 9), 0, randf_range(-9, 9))))
+		"salvo":
+			var src = nearest_building(team, "fuze", pos)
+			var start: Vector3 = (src.muzzle_pos() if src != null else ts.hq.position + Vector3(0, 6, 0))
+			var m := missile_info(team, 0)
+			var sams: Array = []
+			for e in entities:
+				if e.is_building and e.team != team and e.kind == "sam" and e.built and e.powered() and Entity.flat(e.position, pos) <= e.wrange():
+					sams.append(e)
+			for i in 4:
+				# Her batarya en çok bir füzeyi önleyebilir: doyurma saldırısı.
+				var stop := i < sams.size() and randf() < Defs.INTERCEPT_CHANCE + 0.3
+				_missile_shot(team, start, pos + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)), float(m.dmg) * 0.8, float(m.splash), stop, src)
+		"seferberlik":
+			var id := unit_of(team, "inf")
+			var hq: Building = ts.hq
+			var n := 0
+			for i in 4:
+				if ts.pop + 1 > ts.pop_cap:
+					break
+				spawn_unit(id, team, terrain.nearest_free(hq.position + Vector3(-signf(hq.position.x) * 9.0, 0, -6.0 + i * 4.0)))
+				ts.pop += 1
+				n += 1
+			if n == 0:
+				_msg(team, "Birlik sınırı dolu.")
+				return false
+	ts.money -= float(a.cost)
+	ts.ab_cd = float(a.cd)
+	if team == Defs.PLAYER:
+		hud.toast("%s başladı." % a.name)
+	elif fog.sees(Defs.PLAYER, pos) or not a.target:
+		hud.toast("Düşman %s kullandı!" % a.name)
+	return true
+
+
+func _nearest_own(team: int, pos: Vector3) -> Vector3:
+	var best: Vector3 = teams[team].hq.position
+	var bd := Entity.flat(best, pos)
+	for e in entities:
+		if e.team == team and e.alive and not e.is_air:
+			var dd := Entity.flat(e.global_position, pos)
+			if dd < bd:
+				bd = dd
+				best = e.global_position
+	return best
+
+
+func _sky_shell(team: int, pos: Vector3) -> void:
+	if over:
+		return
+	var s := Shot.new()
+	s.mesh = _puff_mesh()
+	s.material_override = Models.glow(Color(1.0, 0.75, 0.3))
+	s.scale = Vector3.ONE * 0.5
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.src_team = team
+	s.start = pos + Vector3(-signf(pos.x - teams[team].hq.position.x) * 20.0, 40.0, 0)
+	s.end = Vector3(pos.x, 0.3, pos.z)
+	s.speed = 55.0
+	s.base = 100.0
+	s.mult = {inf = 1.0, light = 1.0, heavy = 0.6, bld = 1.3}
+	s.splash = 4.5
+	s.boom = 2.0
+	add_child(s)
+	s.launch()
+
+
+func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: float, intercepted: bool, src = null) -> void:
+	var s := Shot.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.0
+	cm.bottom_radius = 0.35
+	cm.height = 2.4
+	cm.radial_segments = 6
+	s.mesh = cm
+	s.material_override = Models.glow(Color(1.0, 0.9, 0.7))
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.src = src
+	s.src_team = team
+	s.start = start
+	s.end = Vector3(pos.x, 0.3, pos.z)
+	s.speed = 38.0
+	s.arc = 38.0
+	s.base = dmg
+	s.mult = MISSILE_MULT
+	s.splash = splash
+	s.boom = 6.0
+	s.trail = true
+	if intercepted:
+		s.intercept_at = randf_range(0.6, 0.85)
+	add_child(s)
+	s.launch()
 
 
 # ---------------------------------------------------------------- hasar ve efektler
