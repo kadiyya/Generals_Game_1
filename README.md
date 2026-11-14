@@ -15,6 +15,10 @@ Tasarım dokümanı: [docs/TASARIM.md](docs/TASARIM.md) (hedef ve yol haritası)
 
 ![Taktik arazi](docs/ekran/arazi.png)
 
+![Köy ve yollar](docs/ekran/arazi_koy.png)
+
+![Nehir kıyısı](docs/ekran/arazi_su.png)
+
 ![Birim kartı](docs/ekran/kart.png)
 
 ![Pistten kalkış](docs/ekran/kalkis.png)
@@ -62,6 +66,13 @@ duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
 **Taktik arazi:** tepede görüş (%30) ve menzil (%15) artar, tepedeki atıcı ağaç ve yıkıntıların üstünden görür;
 ormanda piyade gizlenir (yalnızca 9 birimden yakından görülür) ve araçlar yavaşlar; yolda hız artar.
 Dağ, ağaç hattı, yıkıntı ve binalar doğrudan atışı keser; topçu ve hava etkilenmez.
+
+**Harita görüntüsü:** arazi tek parça bir yükseklik alanıdır: yuvarlak tepeler, sırtlı kayalık dağlar, kumsallı su
+yatağı, toprak yollar ve harita dışında ufka uzanan tepeler. Su dalgalanır, kıyıya köpük vurur; ağaçlar (kavak, çam,
+yapraklı, hurma), çalılar, ot öbekleri ve sazlar rüzgârda salınır; kuş sürüleri haritanın üstünden geçer, yırtıcılar
+tepelerin üstünde süzülür; bulut gölgeleri araziyi yavaşça geçer. Dar köprüler korkuluklu ve ayaklıdır, yıkıntılar
+duvar kalıntısı ve molozdur. Hepsi kodla üretilir. Ayarlardaki "Doğa ayrıntıları" kapatılınca ot, çalı, kuş, rüzgâr
+ve bulut gölgesi çizilmez (eski telefonlar için).
 
 **Elektronik harp:** her ülkenin EH aracı (Bukovel-AD, Silok, Drone Dome, Kobra V8, D4) çevresindeki küçük dronları
 düşürür, büyük İHA'ların kilidini bozar. "Fiber Optik FPV" araştırmasıyla FPV'ler etkilenmez.
@@ -142,9 +153,11 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/buildings.gd` | Bina modelleri, hava savunma bataryaları, vinç ve ikmal noktaları: beton ve oluklu sac dokular, pencereler, bacalar, antenler, bayrak ve çatı şeridiyle takım rengi |
 | `scripts/aircraft.gd` | Ayrıntılı uçak ve İHA modelleri: jetler `AIRFRAMES` tablosundan (gövde istasyonları, hava alığı, nasel, kokpit camı, füze/bomba, milli işaret), İHA'lar gerçek ölçüyle; dönen pervaneler |
 | `scripts/kit.gd` | Araç mesh kurucusu: parçaları malzeme başına tek yüzeyde birleştirir, çamur/toz/gölgeyi köşe rengine işler |
-| `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda, uçak boyası, beton, oluklu sac) |
-| `scripts/terrain.gd` | Arazi ve yol bulma |
-| `scripts/fog.gd` | Savaş sisi |
+| `scripts/tex.gd` | Kodla üretilen texture'lar (arazi, gürültü, zemin pürüzü, su, kaya, kamuflaj, panel, boyalı zırh, metal, palet, branda, uçak boyası, beton, oluklu sac) |
+| `scripts/terrain.gd` | Arazi ve yol bulma; yükseklik alanı, arazi ağı, su, köprü, bitki ve yıkıntı yerleşimi |
+| `scripts/scenery.gd` | Doğa görselleri: arazi, su, bitki ve kuş shader'ları; ağaç, çalı, ot, kaya ve kuş modelleri |
+| `scripts/birds.gd` | Kuş sürüleri ve süzülen yırtıcılar |
+| `scripts/fog.gd` | Savaş sisi (araziye oturur) ve bulut gölgeleri |
 | `scripts/controls.gd`, `camera_rig.gd` | Dokunmatik kontroller ve kamera |
 | `scripts/hud.gd`, `menu.gd` | Oyun içi arayüz ve senaryo seçim ekranı |
 | `scripts/ai.gd` | Yapay zekâ rakip |
@@ -172,6 +185,7 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
   `--scn` senaryoyu (0-2), `--side` tarafı (0-1) seçer. Ekran görüntüsü için `--headless` olmadan `--shots=KLASÖR` ekle.
 - `--inputtest`: dokunma hareketlerini taklit edip kontrolleri ve kuralları doğrular; gerçek pencere ister.
 - `--gallery`: senaryodaki bütün modelleri yan yana dizip görüntüsünü alır.
+- `--maptest --scn=N --shots=KLASÖR`: haritanın tepe, su, dağ, orman, köprü ve üs görüntülerini alır (`--fog` ile savaş sisi açık).
 - `--mechtest --scn=0`: oynanış mekaniklerini tek tek doğrular (arazi, EH, siper, ev, mayın, engel, rütbe, görev, yetenek, kart).
 - `--load --loadtest`: `--mechtest`'in kaydettiği oyunu yükler ve durumun geri geldiğini doğrular.
 - `--tutorial --tuttest`: eğitimi baştan sona oynar.

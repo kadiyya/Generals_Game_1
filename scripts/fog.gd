@@ -1,16 +1,26 @@
 class_name Fog
 extends Node3D
 ## Savaş sisi. Her takım için bir görüş ızgarası tutar; oyuncununki haritaya çizilir.
+## Sis yüzeyi araziye oturur (tepe ve dağların üstünü de örter) ve bulut gölgelerini de taşır.
 
 const CELL := 2.0
 const SHADER := """
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
 uniform sampler2D vis : filter_linear, repeat_disable;
+uniform sampler2D cloud : filter_linear, repeat_enable;
+uniform float clouds = 1.0;
+varying vec2 wxz;
+void vertex() {
+	wxz = VERTEX.xz;
+}
 void fragment() {
 	float v = texture(vis, UV).r;
+	// süzülen bulut gölgeleri: sisle aynı yüzeyde, ek çizim maliyeti yok
+	float c = texture(cloud, wxz * 0.0037 + TIME * vec2(0.0045, 0.0017)).r;
+	float sh = smoothstep(0.5, 0.72, c) * 0.26 * clouds;
 	ALBEDO = vec3(0.02, 0.03, 0.05);
-	ALPHA = (1.0 - v) * 0.6;
+	ALPHA = max((1.0 - v) * 0.6, sh);
 }
 """
 
@@ -34,12 +44,15 @@ func _ready() -> void:
 	var sm := ShaderMaterial.new()
 	sm.shader = sh
 	sm.set_shader_parameter("vis", tex)
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(Defs.MAP_W, Defs.MAP_H)
+	sm.set_shader_parameter("cloud", Tex.texture("noise"))
+	sm.set_shader_parameter("clouds", 1.0 if Settings.get_v("nature") else 0.0)
+	sm.render_priority = 1
+	var ter: Terrain = Game.I.terrain
+	for pm in ter.fog_mats:
+		pm.set_shader_parameter("vis", tex)
 	var mi := MeshInstance3D.new()
-	mi.mesh = pm
+	mi.mesh = ter.drape_mesh(0.22)
 	mi.material_override = sm
-	mi.position.y = 0.2
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 

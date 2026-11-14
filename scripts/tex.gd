@@ -17,6 +17,19 @@ static func texture(kind: String) -> ImageTexture:
 	n.seed = kind.hash() % 1000
 	var img: Image
 	match kind:
+		"noise":
+			# arazi ve su shader'ları için tam aralıklı (0..1) döşenebilir gürültü
+			n.frequency = 0.018
+			n.fractal_octaves = 5
+			img = n.get_seamless_image(256, 256)
+			img.convert(Image.FORMAT_RGB8)
+		"bump":
+			# zemin pürüzü: gürültüden üretilen normal haritası
+			n.frequency = 0.03
+			n.fractal_octaves = 4
+			img = n.get_seamless_image(256, 256)
+			img.bump_map_to_normal_map(7.0)
+			img.convert(Image.FORMAT_RGB8)
 		"camo":
 			# üç tonlu kamuflaj lekeleri
 			n.frequency = 0.022

@@ -78,6 +78,8 @@ func _ready() -> void:
 	add_child(terrain)
 	fog = Fog.new()
 	add_child(fog)
+	if Settings.get_v("nature"):
+		add_child(Birds.new())
 	sfx = Sfx.new()
 	add_child(sfx)
 	cam = CameraRig.new()
@@ -133,6 +135,8 @@ func _ready() -> void:
 		add_child(load("res://tools/inputtest.gd").new())
 	elif args.has("--gallery"):
 		add_child(load("res://tools/gallery.gd").new())
+	elif args.has("--maptest"):
+		add_child(load("res://tools/maptest.gd").new())
 	elif args.has("--animtest"):
 		add_child(load("res://tools/animtest.gd").new())
 	elif args.has("--mechtest"):
@@ -183,40 +187,32 @@ func unit_cost(team: int, id: String) -> int:
 # ---------------------------------------------------------------- dünya
 
 func _build_world() -> void:
+	# Hafif puslu gün ışığı: sıcak güneş, serin gölge, uzakta incelen pus. Zemin ve doğa Terrain'dedir.
+	var ground: Color = Defs.MAP.ground
+	var haze := Color(0.62, 0.7, 0.76).lerp(ground, 0.2)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.05, 0.07, 0.09)
+	env.background_color = haze.darkened(0.45)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.78, 0.8, 0.86)
-	env.ambient_light_energy = 0.45
+	env.ambient_light_color = Color(0.72, 0.8, 0.92)
+	env.ambient_light_energy = 0.5
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_white = 1.6
+	env.fog_enabled = true
+	env.fog_light_color = haze
+	env.fog_density = 0.0007
+	env.fog_sun_scatter = 0.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-52, 35, 0)
-	sun.light_energy = 0.8
+	sun.rotation_degrees = Vector3(-48, 38, 0)
+	sun.light_color = Color(1.0, 0.95, 0.84)
+	sun.light_energy = 1.0
 	sun.shadow_enabled = Settings.get_v("shadows")
 	sun.directional_shadow_max_distance = 140.0
 	add_child(sun)
-
-	var deco := Node3D.new()
-	add_child(deco)
-	var w := Defs.MAP_W
-	var h := Defs.MAP_H
-	var ground: Color = Defs.MAP.ground
 	dust_color = ground.lerp(Color(0.75, 0.7, 0.6), 0.55)
-	var outer := Models.box(deco, Vector3(w + 80, 0.2, h + 80), Vector3(0, -0.2, 0), ground)
-	outer.material_override = Tex.mat("ground", ground.darkened(0.45), 0.05, true)
-	var land := Models.box(deco, Vector3(w, 0.2, h), Vector3(0, -0.1, 0), ground)
-	land.material_override = Tex.mat("ground", ground, 0.07, true)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for i in 46:
-		var r := rng.randf_range(4.0, 10.0)
-		var c: Color = Defs.MAP.patch if i % 2 == 0 else ground.darkened(0.1)
-		var m := Models.cyl(deco, r, r, 0.03, Vector3(rng.randf_range(-w * 0.47, w * 0.47), -0.005, rng.randf_range(-h * 0.45, h * 0.45)), c, Vector3.ZERO, 10)
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.material_override = Tex.mat("ground", c, 0.11, true)
 
 
 func _setup_base(team: int, pos: Vector3) -> void:

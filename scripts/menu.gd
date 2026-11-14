@@ -20,7 +20,7 @@ func _ready() -> void:
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--maptest") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:

@@ -54,6 +54,7 @@ func _run() -> void:
 	var hill_tank = g.spawn_unit(g.unit_of(0, "tank"), 0, Vector3(-28, 0, -29))
 	_check("tepede menzil artar", hill_tank.wrange() > flat_tank.wrange() * 1.1)
 	_check("tepe yuksektir", ter.height(Vector3(-28, 0, -29)) > 0.5)
+	_check("duz arazi ve kopru zemini sifirdadir", is_zero_approx(ter.height(Vector3(-80, 0, 30))) and ter.height(Vector3(0, 0, -68)) == 0.0)
 
 	# ---- orman gizlenmesi
 	var hider = g.spawn_unit(g.unit_of(1, "inf"), 1, Vector3(-29, 0, 32))
@@ -297,7 +298,7 @@ func _run() -> void:
 		if e.alive and Entity.flat(e.global_position, Vector3(-70, 0, 0)) < 12.0:
 			grid_near += 1
 	_check("uzamsal izgara yakindakilerin hepsini bulur", far == 0 and grid_near == all_near)
-	_check("ayarlar okunur", Settings.get_v("sound") and Settings.KEYS.size() == 5)
+	_check("ayarlar okunur", Settings.get_v("sound") and Settings.KEYS.size() == 6 and Settings.get_v("nature"))
 	var st := Sfx.stream("cannon")
 	_check("sesler sentezlenir", st != null and st.data.size() > 10000)
 
