@@ -200,7 +200,7 @@ func _process(dt: float) -> void:
 		_:
 			_scan()
 			if target != null:
-				_engage(dt, not d.get("no_chase", false))
+				_engage(dt, not d.get("no_chase", false) and not guard)
 	_animate(dt)
 
 

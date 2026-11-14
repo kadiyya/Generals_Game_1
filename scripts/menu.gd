@@ -21,11 +21,13 @@ func _ready() -> void:
 			Scenarios.difficulty = int(a.trim_prefix("--diff="))
 		elif a.begins_with("--mode="):
 			Scenarios.mode = int(a.trim_prefix("--mode="))
+		elif a.begins_with("--goal="):
+			Scenarios.goal = int(a.trim_prefix("--goal="))
 	Scenarios.tutorial = args.has("--tutorial")
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--maptest") or args.has("--uishot"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--maptest") or args.has("--uishot") or args.has("--objtest"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:
@@ -206,6 +208,33 @@ func _show(i: int) -> void:
 	mdesc.add_theme_font_size_override("font_size", 14)
 	mdesc.add_theme_color_override("font_color", Color(0.75, 0.8, 0.85))
 	col.add_child(mdesc)
+	var glbl := Label.new()
+	glbl.text = "Görev"
+	glbl.add_theme_font_size_override("font_size", 16)
+	col.add_child(glbl)
+	var gl := HFlowContainer.new()
+	gl.add_theme_constant_override("h_separation", 6)
+	gl.add_theme_constant_override("v_separation", 6)
+	col.add_child(gl)
+	for k in Scenarios.GOALS.size():
+		var gb := Button.new()
+		gb.text = Scenarios.GOALS[k].name
+		gb.toggle_mode = true
+		gb.button_pressed = k == Scenarios.goal
+		gb.custom_minimum_size = Vector2(0, 44)
+		gb.focus_mode = Control.FOCUS_NONE
+		gb.add_theme_font_size_override("font_size", 16)
+		gb.tooltip_text = Scenarios.GOALS[k].desc
+		gb.pressed.connect(func():
+			Scenarios.goal = k
+			_show(i))
+		gl.add_child(gb)
+	var gdesc := Label.new()
+	gdesc.text = Scenarios.GOALS[Scenarios.goal].desc + "\n" + _goal_detail(scn)
+	gdesc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	gdesc.add_theme_font_size_override("font_size", 14)
+	gdesc.add_theme_color_override("font_color", Color(0.75, 0.8, 0.85))
+	col.add_child(gdesc)
 	var dlbl := Label.new()
 	dlbl.text = "Zorluk"
 	dlbl.add_theme_font_size_override("font_size", 16)
@@ -259,6 +288,18 @@ func _show(i: int) -> void:
 		b.draw.connect(func(): WorldMap.draw_flag(b, Rect2(14, b.size.y * 0.5 - 20, 60, 40), cc))
 		b.pressed.connect(_pick.bind(i, side))
 		hb.add_child(b)
+
+
+## Seçilen görevin bu senaryodaki somut hâli (iki ülke için).
+func _goal_detail(scn: Dictionary) -> String:
+	var id: String = Scenarios.GOALS[Scenarios.goal].id
+	if id == "imha":
+		return ""
+	if id == "tut":
+		return "Kilit nokta: %s." % Scenarios.MAPS[scn.map].points[0][5]
+	var ca: String = Scenarios.COUNTRIES[scn.a].name
+	var cb: String = Scenarios.COUNTRIES[scn.b].name
+	return "%s: %s.\n%s: %s." % [ca, scn.obj.a.text, cb, scn.obj.b.text]
 
 
 ## Ayarlar: her biri açılıp kapanır ve hemen kaydedilir. Gölge ve texture bir sonraki maçta geçerli olur.
@@ -315,6 +356,7 @@ func _continue() -> void:
 	Scenarios.side = int(info.side)
 	Scenarios.difficulty = int(info.diff)
 	Scenarios.mode = int(info.get("mode", 0))
+	Scenarios.goal = int(info.get("goal", 0))
 	Scenarios.tutorial = false
 	Scenarios.load_data = info
 	_start()

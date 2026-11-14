@@ -3,10 +3,12 @@ extends Entity
 ## Köprü: yolun nehri kestiği yerde kendiliğinden kurulur. Kimseye ait değildir ama her taraf yıkabilir
 ## (topçu, füze, uçak ya da "Köprü Yık" emri). Yıkılınca nehir orada geçilmez olur, üstündeki araçlar suya düşer.
 ## Yıkık köprü, yanında yalnızca bir tarafın askerî birlikleri bulunduğu sürece onarılır (40 sn).
-## Hasarlı ama ayakta olan köprü de aynı şekilde yavaşça onarılır.
+## Hasarlı ama ayakta olan köprü de aynı şekilde yavaşça onarılır; ama son 30 saniyede vurulduysa onarılmaz
+## (yoksa köprüye ateş eden birlikler onu aynı anda onarıyordu). Köprünün yeri herkesçe bilinir: görmeden vurulur.
 
 const REPAIR_TIME := 40.0
 const REPAIR_R := 16.0
+const HIT_PAUSE := 30.0
 
 var cells: Array = []
 var a := Vector3.ZERO
@@ -18,6 +20,7 @@ var repair_side := -1
 var intact: Node3D
 var broken: Node3D
 var _tick := 0.0
+var last_hit := -100.0
 
 
 func setup_bridge(data: Dictionary) -> void:
@@ -32,7 +35,7 @@ func setup_bridge(data: Dictionary) -> void:
 	cells = data.cells
 	var length := a.distance_to(b)
 	position = (a + b) * 0.5
-	max_hp = 2200.0 + length * 60.0
+	max_hp = 900.0 + length * 25.0
 	hp = max_hp
 	radius = minf(length * 0.5, 7.0)
 	vision = 0.0
@@ -105,6 +108,10 @@ func aim_pos() -> Vector3:
 	return global_position + Vector3(0, 0.8, 0)
 
 
+func known_target() -> bool:
+	return true
+
+
 func has_weapon() -> bool:
 	return false
 
@@ -113,6 +120,7 @@ func take_damage(amount: float, attacker = null, _tag := "") -> void:
 	if down or amount <= 0.0:
 		return
 	hp -= amount
+	last_hit = Game.I.time
 	if attacker != null and is_instance_valid(attacker) and attacker.alive:
 		attacker.gain_xp(minf(amount, maxf(hp, 0.0)) * 0.3)
 	if hp <= 0.0:
@@ -158,6 +166,9 @@ func _process(dt: float) -> void:
 	if g == null or g.over:
 		return
 	if not down and hp >= max_hp:
+		return
+	if g.time - last_hit < HIT_PAUSE:
+		repair_t = 0.0
 		return
 	# Hangi tarafın askerî birliği köprünün yanında?
 	var sides := {}

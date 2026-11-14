@@ -88,6 +88,9 @@ func _open_pair(d: float) -> Array:
 				if ter.kind_at(q) != Terrain.LAND or ter.solid(q):
 					ok = false
 					break
+			for e in Game.I.entities:
+				if e.alive and e.team != 0 and (Entity.flat(e.global_position, a) < 30.0 or Entity.flat(e.global_position, b) < 30.0):
+					ok = false
 			if ok:
 				return [a, b]
 	return [hq, hq + Vector3(d, 0, 0)]
@@ -284,6 +287,8 @@ func _run() -> void:
 		if pu.dest.distance_to(pu.patrol_a) < 1.0:
 			turned = true
 	_check("devriye noktasina varip geri doner", pu.order == "patrol" and turned)
+	if not turned:
+		print("  devriye: a=%s b=%s pos=%s dest=%s pa=%s pb=%s tgt=%s near=%s nav=%s sel=%s" % [pp[0], pp[1], pu.position, pu.dest, pu.patrol_a, pu.patrol_b, [pu.target.cls, pu.target.team, pu.target.position, pu.target.alive], pu.near_t, pu.nav_ok, g.selection.size()])
 
 	# ---- yapay zekâ (Orta): keşif, zayıf nokta, önce hava savunması, geri çekilme
 	var ai: EnemyAI = g.ais[0]
@@ -425,7 +430,14 @@ func _run() -> void:
 	_check("hasarli madenin verimi duser", mine.mine_income() < full * 0.6)
 	var mh: float = mine.hp
 	mine._repair_tick()
+	_check("vurulan maden bir sure onarilmaz", is_equal_approx(mine.hp, mh))
+	mine.last_hit = -100.0
+	mine._repair_tick()
 	_check("yaninda birlik varken maden onarilir", mine.hp > mh)
+	var inc_now: float = mine.mine_income()
+	mine.held_t = Defs.MINE_HOLD_TIME
+	_check("elde tutulan madenin verimi %20 artar", absf(mine.mine_income() / inc_now - 1.2) < 0.01)
+	mine.held_t = 0.0
 	var foe_near = g.spawn_unit(g.unit_of(1, "inf"), 1, g.terrain.nearest_free(mine.position + Vector3(-6, 0, 0)))
 	g._rebuild_buckets()
 	mh = mine.hp
@@ -441,6 +453,9 @@ func _run() -> void:
 	_check("hasarli noktanin geliri duser", sp.current_income() < inc0 * 0.6)
 	sp.take_damage(sp.max_hp)
 	_check("tahrip edilen nokta kimsesiz kalir", sp.owner_team == Defs.NEUTRAL)
+	_check("tahrip edilen nokta bir sure tahrip kalir", sp.ruined() and sp.ruin_left() > Defs.RUIN_TIME - 2.0)
+	sp.ruined_until = -1.0
+	sp.last_hit = -100.0
 	sp.claim(0)
 	var guard = g.spawn_unit(g.unit_of(0, "ifv"), 0, g.terrain.nearest_free(sp.position + Vector3(5, 0, 0)))
 	g._rebuild_buckets()
@@ -478,8 +493,55 @@ func _run() -> void:
 	br.take_damage(br.max_hp * 2.0)
 	_check("kopru yikilir ve nehri kapatir", br.down and ter.solid(bc))
 	var fixer = g.spawn_unit(g.unit_of(0, "ifv"), 0, g.terrain.nearest_free(br.a))
+	await _wait(3.0)
+	_check("yeni vurulan kopru onarilmaz", br.down and br.repair_t == 0.0)
+	br.last_hit = -100.0
 	await _wait(Bridge.REPAIR_TIME + 3.0)
 	_check("yanindaki birlikler kopruyu onarir", not br.down and not ter.solid(bc))
+	_check("kopru tabliyesinin ustu yuksektir", absf(ter.height(bc) - Terrain.DECK_H) < 0.01)
+	var foe_tank = g.spawn_unit(g.unit_of(1, "tank"), 1, g.terrain.nearest_free(br.b + (br.b - br.a).normalized() * 6.0))
+	g.fog.recompute()
+	_check("kopru gormeden de hedef alinir", foe_tank.can_hit(br))
+	foe_tank.die()
+
+	# ---- inşa alanı büyür
+	var circles0: int = g.zone_circles(0).size()
+	var edge := Vector3.INF
+	for kk in 24:
+		var q: Vector3 = hq + Vector3(cos(kk * TAU / 24.0), 0, sin(kk * TAU / 24.0)) * (Defs.BUILD_ZONE - 4.0)
+		if g.can_place(0, "santral", q):
+			edge = q
+			break
+	_check("alanin kenarina bina kurulur", edge != Vector3.INF)
+	if edge != Vector3.INF:
+		var outer: Vector3 = hq + (edge - hq).normalized() * (Defs.BUILD_ZONE + 10.0)
+		_check("disaridaki nokta once alanda degil", not g.in_zone(0, outer))
+		var sb := g.spawn_building(Defs.bid(0, "santral"), 0, edge, true)
+		_check("kenardaki bina alani buyutur", g.zone_circles(0).size() == circles0 + 1 and g.in_zone(0, outer))
+		g.fog.recompute()
+		_check("insa alani sisle ortulmez", g.fog.sees(0, outer))
+		sb.die()
+
+	# ---- birlik listeleri
+	for cc in Scenarios.COUNTRIES:
+		var cnt := {}
+		for u in Scenarios.COUNTRIES[cc].units:
+			var ud: Dictionary = Scenarios.CLASSES[u[2]]
+			if int(u[4].get("tier", 1)) >= 3:
+				continue
+			cnt[u[2]] = int(cnt.get(u[2], 0)) + 1
+		var arty: int = int(cnt.get("arty", 0)) + int(cnt.get("mlrs", 0))
+		var doc: String = Scenarios.COUNTRIES[cc].doctrine
+		_check("%s: uzun menzilli zirhli sayisi" % cc, arty <= (2 if doc == "zirh" else 1))
+		_check("%s: tek dron savar" % cc, int(cnt.get("spaag", 0)) + int(cnt.get("laser", 0)) == 1)
+		_check("%s: zirhli hava savunma var" % cc, int(cnt.get("ads", 0)) == 1)
+		_check("%s: ayni turden iki ucak yok" % cc, int(cnt.get("fighter", 0)) <= 1 and int(cnt.get("striker", 0)) <= 1 and int(cnt.get("stealth", 0)) <= 1)
+	var ads_id := g.unit_of(0, "ads")
+	var adsd: Dictionary = Defs.UNITS[ads_id]
+	_check("zirhli hava savunma ucaga sert, yere zayif vurur", float(adsd.mult.air) >= 1.5 and float(adsd.mult.heavy) < 0.1 and float(adsd.mult.inf) < 0.1)
+	_check("IHA gorusu genis", float(Defs.UNITS[g.unit_of(0, "uav_strike")].vision) >= 30.0)
+	for r in Scenarios.RESEARCH:
+		_check("arastirma aciklamasi: %s" % r.id, String(r.desc).length() > 20)
 	fixer.die()
 	lone.die()
 	esc.die()

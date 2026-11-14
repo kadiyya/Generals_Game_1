@@ -24,6 +24,8 @@ var rank := 0
 var jammed_t := 0.0      # elektronik harp: kilitlenemez
 var reveal_t := 0.0      # ateş edince kısa süre gizlenemez
 var neutral_target := false   # tarafsız ama vurulabilir (köprü)
+var guard := false            # stratejik hedefin bağımsız savunucusu: yerinden ayrılmaz, yapay zekâ kullanmaz
+var strategic := false        # senaryonun stratejik hedefi (bina): haritada hep işaretli
 var model: Node3D
 var ring: MeshInstance3D
 
@@ -86,6 +88,11 @@ func concealed() -> bool:
 	return false
 
 
+## Yeri herkesçe bilinen hedef (kaynaklar: ikmal noktaları ve maden ocakları): görmeden de vurulabilir.
+func known_target() -> bool:
+	return false
+
+
 ## Gizlenmiş birliğin fark edildiği uzaklık.
 func reveal_dist() -> float:
 	return 9.0 if armor == "inf" else 14.0
@@ -116,7 +123,7 @@ func can_hit(e) -> bool:
 		# Hava hedefleri radarla görülür. Görünmez uçak ancak yakından tespit edilir.
 		if e.d.get("stealth", false) and flat(global_position, e.global_position) > maxf(8.0, wrange() * 0.45):
 			return false
-	elif not Game.I.fog.sees(team, e.global_position):
+	elif not Game.I.fog.sees(team, e.global_position) and not e.known_target():
 		return false
 	elif e.concealed() and flat(global_position, e.global_position) > e.reveal_dist():
 		return false

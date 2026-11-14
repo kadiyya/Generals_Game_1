@@ -18,6 +18,7 @@ const FOREST := 6
 const ROAD := 7
 const BRIDGE := 8
 const HILL_H := 2.0
+const DECK_H := 0.72     # köprü tabliyesinin üstü: araçlar köprünün üstünden geçer
 const PASSABLE := [LAND, HILL, FOREST, ROAD, TREES, BRIDGE]
 const KIND_COLORS := {
 	1: Color(0.42, 0.39, 0.35), 2: Color(0.14, 0.3, 0.45), 3: Color(0.16, 0.3, 0.13), 4: Color(0.44, 0.41, 0.38),
@@ -33,6 +34,7 @@ var bridge_data: Array = []      # {a, b, w, cells}
 var house_data: Array = []       # [x, z, tür]
 var ground_tex: ImageTexture
 var ground_img: Image
+var deck := {}                   # köprü tabliyesinin altındaki hücreler (kıyıdaki uçlar dahil)
 
 
 func _ready() -> void:
@@ -59,6 +61,16 @@ func _ready() -> void:
 				astar.set_point_weight_scale(c, 1.7)
 			elif k == TREES or k == HILL:
 				astar.set_point_weight_scale(c, 1.25)
+	for br in bridge_data:
+		var a3 := Vector3(br.a.x, 0, br.a.y)
+		var b3 := Vector3(br.b.x, 0, br.b.y)
+		var lo: Vector2 = Vector2(minf(a3.x, b3.x), minf(a3.z, b3.z)) - Vector2.ONE * br.w
+		var hi: Vector2 = Vector2(maxf(a3.x, b3.x), maxf(a3.z, b3.z)) + Vector2.ONE * br.w
+		for y in range(maxi(0, int((lo.y + Defs.MAP_H * 0.5) / CELL)), mini(gh, int((hi.y + Defs.MAP_H * 0.5) / CELL) + 1)):
+			for x in range(maxi(0, int((lo.x + Defs.MAP_W * 0.5) / CELL)), mini(gw, int((hi.x + Defs.MAP_W * 0.5) / CELL) + 1)):
+				var c3 := center(Vector2i(x, y))
+				if Bridge.seg_dist(c3, a3, b3) <= br.w * 0.5:
+					deck[y * gw + x] = true
 	ground_img = make_image(Defs.MAP, gd)
 	# Zemin için üç kat büyütülüp yumuşatılır: kıyılar ve orman kenarları basamaklı görünmez.
 	var big := ground_img.duplicate()
@@ -399,7 +411,13 @@ func kind_at(p: Vector3) -> int:
 
 
 func height(p: Vector3) -> float:
-	return HILL_H if kind_at(p) == HILL else 0.0
+	var c := cell(p)
+	var k := kind[c.y * gw + c.x]
+	if k == HILL:
+		return HILL_H
+	if k == BRIDGE or (k != WATER and deck.has(c.y * gw + c.x)):
+		return DECK_H
+	return 0.0
 
 
 ## Kara birimi hız çarpanı: yol hızlandırır, orman ve ağaç hattı araçları çok, piyadeyi az yavaşlatır, tepe yokuştur.

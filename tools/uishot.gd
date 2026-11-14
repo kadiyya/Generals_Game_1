@@ -36,6 +36,38 @@ func _run() -> void:
 		await _shot(b[1])
 	g.open_build_menu()
 	await _shot("panel_insa")
+	var tk := g.spawn_building(Defs.bid(0, "teknoloji"), 0, hq + Vector3(dx * 4, 0, 26), true)
+	g.select([tk])
+	await _shot("panel_arastirma")
+	# inşa alanı: binalarla büyümüş sarı alan
+	g.clear_selection()
+	g.cam.dist = 120.0
+	g.cam.focus = hq + Vector3(dx * 20, 0, 0)
+	g.begin_placing("santral")
+	await _shot("insa_alani")
+	g.cancel_placing()
+	# köprü: üstündeki birlikler ve can çubuğu
+	var br: Bridge = g.bridges[0]
+	br.hp = br.max_hp * 0.55
+	var bdir: Vector3 = (br.b - br.a).normalized()
+	for i in 3:
+		var u = g.spawn_unit(g.unit_of(0, ["ifv", "inf", "spaag"][i]), 0, br.position + bdir * (i * 3.0 - 3.0))
+		u.position.y = g.terrain.height(u.position)
+	var ads = g.spawn_unit(g.unit_of(0, "ads"), 0, g.terrain.nearest_free(br.a - bdir * 8.0))
+	ads.position.y = 0.0
+	g.cam.focus = br.position
+	g.cam.dist = 45.0
+	g.fog.recompute()
+	await _shot("kopru")
+	# görev hedefleri ve saldırı uyarısı
+	g.cam.dist = 90.0
+	for e in g.entities:
+		if e.strategic:
+			g.cam.focus = e.position
+			break
+	g.alert_base(k.position, k.d.name)
+	k.take_damage(10.0)
+	await _shot("hedef")
 	get_tree().quit()
 
 

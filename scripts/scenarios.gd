@@ -7,6 +7,7 @@ static var chosen := 0     # seçilen senaryo
 static var side := 0       # oyuncunun tarafı: 0 = a ülkesi, 1 = b ülkesi
 static var difficulty := 0   # Defs.DIFFS içindeki sıra
 static var mode := 0         # Defs.MODES içindeki sıra (teke tek, iki düşman üssü, takım)
+static var goal := 0         # GOALS içindeki sıra: senaryo görevi, bölgeyi tut, tam imha
 static var tutorial := false
 static var load_data := {}  # boş değilse kayıtlı oyun yüklenir
 
@@ -64,6 +65,14 @@ const CLASSES := {
 		range = 18.0, dmg = 60.0, cd = 0.6, proj = "beam",
 		mult = {air = 0.5, drone = 3.0},
 	},
+	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları çok sert vurur,
+	# küçük dronlara ve yerdeki hedeflere neredeyse etkisizdir.
+	"ads": {
+		cat = "hs", from = "fabrika", cost = 950, time = 24.0, tier = 2,
+		hp = 950, speed = 3.9, vision = 20.0, radius = 1.7, armor = "heavy",
+		range = 25.0, dmg = 150.0, cd = 2.6, proj = "missile",
+		mult = {air = 1.6, drone = 0.15, inf = 0.06, light = 0.08, heavy = 0.04, bld = 0.04},
+	},
 	"ew": {
 		cat = "hs", from = "fabrika", cost = 650, time = 20.0, tier = 1,
 		hp = 480, speed = 4.0, vision = 16.0, radius = 1.5, armor = "light", ew = 16.0,
@@ -71,7 +80,7 @@ const CLASSES := {
 	# ---- küçük İHA'lar: kışladan çıkar, elden atılır
 	"sdrone_recon": {
 		cat = "hava", from = "kisla", cost = 120, time = 8.0, tier = 1, air = true, small = true, alt = 4.0,
-		hp = 40, speed = 6.0, vision = 19.0, radius = 0.6, armor = "drone", icon_r = 1.1,
+		hp = 40, speed = 6.0, vision = 30.0, radius = 0.6, armor = "drone", icon_r = 1.1,
 	},
 	"sdrone_fpv": {
 		cat = "hava", from = "kisla", cost = 200, time = 10.0, tier = 1, air = true, small = true, alt = 3.5,
@@ -82,7 +91,7 @@ const CLASSES := {
 	"sdrone_bomb": {
 		cat = "hava", from = "kisla", cost = 320, time = 14.0, tier = 1, air = true, small = true, alt = 4.5,
 		home = "kisla", tag = "drone",
-		hp = 70, speed = 5.0, vision = 13.0, radius = 0.8, armor = "drone", icon_r = 1.5,
+		hp = 70, speed = 5.0, vision = 20.0, radius = 0.8, armor = "drone", icon_r = 1.5,
 		range = 3.0, dmg = 90.0, cd = 2.0, proj = "arc", splash = 2.5, ammo = 2, rearm = 8.0,
 		mult = {inf = 1.2, light = 1.0, heavy = 0.6, bld = 0.5},
 	},
@@ -95,17 +104,17 @@ const CLASSES := {
 	# ---- büyük İHA'lar: hava alanı gerekir
 	"uav_recon": {
 		cat = "hava", from = "havaalani", cost = 450, time = 18.0, tier = 2, air = true, alt = 9.0,
-		hp = 260, speed = 8.0, vision = 30.0, radius = 1.6, armor = "air", icon_r = 3.4,
+		hp = 260, speed = 8.0, vision = 50.0, radius = 1.6, armor = "air", icon_r = 3.4,
 	},
 	"uav_strike": {
 		cat = "hava", from = "havaalani", cost = 800, time = 26.0, tier = 2, air = true, alt = 9.0, tag = "drone",
-		hp = 220, speed = 7.0, vision = 17.0, radius = 1.4, armor = "air", icon_r = 2.9,
+		hp = 220, speed = 7.0, vision = 32.0, radius = 1.4, armor = "air", icon_r = 2.9,
 		range = 11.0, dmg = 160.0, cd = 3.5, proj = "missile", ammo = 2, rearm = 10.0,
 		mult = {inf = 0.6, light = 1.2, heavy = 1.0, bld = 0.8},
 	},
 	"uav_heavy": {
 		cat = "hava", from = "havaalani", cost = 1300, time = 34.0, tier = 2, air = true, alt = 9.5, tag = "drone",
-		hp = 340, speed = 7.5, vision = 21.0, radius = 1.6, armor = "air", icon_r = 3.6,
+		hp = 340, speed = 7.5, vision = 36.0, radius = 1.6, armor = "air", icon_r = 3.6,
 		range = 13.0, dmg = 190.0, cd = 3.0, proj = "missile", ammo = 4, rearm = 14.0,
 		mult = {inf = 0.6, light = 1.2, heavy = 1.1, bld = 1.0},
 	},
@@ -118,20 +127,20 @@ const CLASSES := {
 	# ---- uçaklar: hava alanı gerekir, pist sayısı sınırlar
 	"fighter": {
 		cat = "hava", from = "havaalani", cost = 1500, time = 35.0, tier = 2, air = true, alt = 11.0,
-		hp = 420, speed = 13.0, turn = 2.4, vision = 22.0, radius = 1.8, armor = "air", icon_r = 3.2,
-		range = 15.0, dmg = 130.0, cd = 2.0, proj = "missile", ammo = 4, rearm = 14.0,
+		hp = 380, speed = 13.0, turn = 2.4, vision = 22.0, radius = 1.8, armor = "air", icon_r = 3.2,
+		range = 15.0, dmg = 100.0, cd = 2.0, proj = "missile", ammo = 4, rearm = 14.0,
 		mult = {air = 1.2, drone = 0.3, inf = 0.4, light = 1.0, heavy = 0.9, bld = 0.9},
 	},
 	"striker": {
 		cat = "hava", from = "havaalani", cost = 1800, time = 40.0, tier = 2, air = true, alt = 11.0,
-		hp = 520, speed = 12.0, turn = 2.2, vision = 22.0, radius = 1.9, armor = "air", icon_r = 3.5,
-		range = 14.0, dmg = 260.0, cd = 2.5, proj = "missile", splash = 3.0, ammo = 3, rearm = 16.0,
+		hp = 470, speed = 12.0, turn = 2.2, vision = 22.0, radius = 1.9, armor = "air", icon_r = 3.5,
+		range = 14.0, dmg = 195.0, cd = 2.5, proj = "missile", splash = 3.0, ammo = 3, rearm = 16.0,
 		mult = {inf = 0.8, light = 1.2, heavy = 1.1, bld = 1.4},
 	},
 	"stealth": {
 		cat = "hava", from = "havaalani", cost = 2600, time = 50.0, tier = 3, air = true, alt = 11.5, stealth = true,
-		hp = 450, speed = 14.0, turn = 2.4, vision = 24.0, radius = 1.8, armor = "air", icon_r = 3.2,
-		range = 16.0, dmg = 220.0, cd = 2.0, proj = "missile", ammo = 4, rearm = 16.0,
+		hp = 400, speed = 14.0, turn = 2.4, vision = 24.0, radius = 1.8, armor = "air", icon_r = 3.2,
+		range = 16.0, dmg = 165.0, cd = 2.0, proj = "missile", ammo = 4, rearm = 16.0,
 		mult = {air = 1.3, drone = 0.3, inf = 0.5, light = 1.1, heavy = 1.0, bld = 1.3},
 	},
 }
@@ -201,13 +210,13 @@ const DOCTRINES := {
 
 # ---------------------------------------------------------------- araştırmalar (Teknoloji Merkezi)
 const RESEARCH := [
-	{id = "fiber", name = "Fiber Optik FPV", cost = 600, time = 30.0, desc = "FPV dronları elektronik harpten etkilenmez", mods = {}},
-	{id = "kafes", name = "Drone Kafesi", cost = 600, time = 30.0, desc = "Araçlar İHA hasarını %40 az alır", mods = {drone_resist = 0.6}},
-	{id = "eh", name = "Elektronik Harp", cost = 700, time = 35.0, desc = "Hava savunma araçları %40 daha çok hasar verir", mods = {dmg_spaag = 1.4, dmg_laser = 1.4}},
-	{id = "gudum", name = "Güdümlü Mermi", cost = 700, time = 35.0, desc = "Topçu hasarı +%25", mods = {dmg_arty = 1.25, dmg_mlrs = 1.25}},
-	{id = "yz", name = "YZ Hedef Tanıma", cost = 700, time = 35.0, desc = "İHA hasarı +%25", mods = {dmg_uav_strike = 1.25, dmg_uav_heavy = 1.25, dmg_sdrone_fpv = 1.25, dmg_loiter = 1.25, dmg_uav_kami = 1.25}},
-	{id = "aps", name = "Aktif Koruma", cost = 800, time = 40.0, desc = "Tank canı +%20", mods = {hp_tank = 1.2}},
-	{id = "aesa", name = "AESA Radar", cost = 800, time = 40.0, desc = "Uçak ve hava savunma menzili +%20", mods = {range_sam = 1.2, range_fighter = 1.2, range_stealth = 1.2}},
+	{id = "fiber", name = "Fiber Optik FPV", cost = 600, time = 30.0, desc = "FPV dronların düşmanın elektronik harp araçlarınca karıştırılıp düşürülemez.", mods = {}},
+	{id = "kafes", name = "Drone Kafesi", cost = 600, time = 30.0, desc = "Tank ve zırhlı araçların dron ve İHA saldırılarından %40 az hasar alır.", mods = {drone_resist = 0.6}},
+	{id = "eh", name = "Elektronik Harp", cost = 700, time = 35.0, desc = "Hava savunma araçlarının (dron savar ve zırhlı) hasarı +%40.", mods = {dmg_spaag = 1.4, dmg_laser = 1.4, dmg_ads = 1.4}},
+	{id = "gudum", name = "Güdümlü Mermi", cost = 700, time = 35.0, desc = "Topçu ve roketatarların hasarı +%25.", mods = {dmg_arty = 1.25, dmg_mlrs = 1.25}},
+	{id = "yz", name = "YZ Hedef Tanıma", cost = 700, time = 35.0, desc = "İHA, FPV, dolanan mühimmat ve kamikaze İHA hasarı +%25.", mods = {dmg_uav_strike = 1.25, dmg_uav_heavy = 1.25, dmg_sdrone_fpv = 1.25, dmg_loiter = 1.25, dmg_uav_kami = 1.25}},
+	{id = "aps", name = "Aktif Koruma", cost = 800, time = 40.0, desc = "Tankların canı +%20 (sahadaki tanklar dahil).", mods = {hp_tank = 1.2}},
+	{id = "aesa", name = "AESA Radar", cost = 800, time = 40.0, desc = "Hava savunma binası, zırhlı hava savunma ve savaş uçaklarının menzili +%20.", mods = {range_sam = 1.2, range_ads = 1.2, range_fighter = 1.2, range_stealth = 1.2}},
 ]
 
 # ---------------------------------------------------------------- ülkeler
@@ -227,13 +236,12 @@ const COUNTRIES := {
 			["sb600", "Switchblade 600", "loiter", "xwing", {}],
 			["bradley", "M2 Bradley", "ifv", "ifv_tall", {}],
 			["gepard", "Gepard", "spaag", "gepard", {}],
-			["bohdana", "2S22 Bohdana", "arty", "truck_gun", {}],
+			["buk", "Buk-M1", "ads", "buk", {}],
 			["himars", "M142 HIMARS", "mlrs", "himars", {}],
 			["tb2", "Bayraktar TB2", "uav_strike", "tb2", {}],
 			["liutyi", "AN-196 Liutyi", "uav_kami", "liutyi", {}],
 			["f16", "F-16", "fighter", "f16", {}],
-			["mirage", "Mirage 2000-5", "fighter", "mirage", {}],
-			["tryzub", "Tryzub Lazer", "laser", "laser_truck", {}],
+			["su24", "Su-24M (Storm Shadow)", "striker", "su34", {}],
 			["peklo", "Peklo Füze-Drone", "uav_kami", "liutyi", {tier = 3, dmg = 420.0, speed = 10.0, hp = 110, cost = 700}],
 		],
 	},
@@ -252,8 +260,8 @@ const COUNTRIES := {
 			["t72", "T-72B3", "tank", "tank_ru", {}],
 			["t90", "T-90M", "tank", "tank_ru2", {cost = 850, hp = 1300, tier = 2}],
 			["pantsir", "Pantsir-S1", "spaag", "pantsir", {}],
+			["buk", "Buk-M3", "ads", "buk", {}],
 			["msta", "2S19 Msta-S", "arty", "sph", {}],
-			["tos", "TOS-1A", "mlrs", "tos", {range = 22.0, min_range = 6.0, dmg = 150.0, splash = 8.5, cost = 1000}],
 			["tornado", "Tornado-S", "mlrs", "mlrs_truck", {}],
 			["orion", "Orion", "uav_strike", "vtail", {}],
 			["geran", "Geran-2", "uav_kami", "shahed", {}],
@@ -277,6 +285,7 @@ const COUNTRIES := {
 			["namer", "Namer", "ifv", "namer", {hp = 760, cost = 440}],
 			["merkava", "Merkava Mk 4", "tank", "tank_merkava", {hp = 1250, cost = 780}],
 			["irondome", "Iron Dome", "spaag", "irondome", {speed = 3.2, dmg = 65.0, cd = 1.0, proj = "missile", range = 17.0}],
+			["machbet", "Machbet", "ads", "buk", {}],
 			["atmos", "ATMOS 2000", "arty", "truck_gun", {}],
 			["eitan", "Heron TP", "uav_recon", "twinboom", {}],
 			["hermes", "Hermes 900", "uav_strike", "vtail", {}],
@@ -284,7 +293,6 @@ const COUNTRIES := {
 			["f16i", "F-16I Sufa", "fighter", "f16", {}],
 			["f15i", "F-15I Ra'am", "striker", "f15", {}],
 			["f35i", "F-35I Adir", "stealth", "f35", {}],
-			["ironbeam", "Iron Beam", "laser", "laser_truck", {}],
 			["barak", "Merkava Barak", "tank", "tank_merkava", {tier = 3, hp = 1450, cost = 1100}],
 		],
 	},
@@ -306,13 +314,13 @@ const COUNTRIES := {
 			["boragh", "Boragh", "ifv", "m113", {}],
 			["karrar", "Karrar", "tank", "tank_ru2", {}],
 			["tor", "Tor-M1", "spaag", "tor", {proj = "missile", dmg = 60.0, cd = 1.0}],
-			["raad", "Raad-2", "arty", "sph", {}],
+			["herz", "Herz-9", "ads", "buk", {}],
 			["fajr", "Fajr-5", "mlrs", "mlrs_truck", {}],
 			["mohajer6", "Mohajer-6", "uav_strike", "mohajer6", {}],
 			["shahed129", "Shahed-129", "uav_heavy", "vtail", {}],
 			["shahed136", "Shahed-136", "uav_kami", "shahed", {}],
 			["f14", "F-14A Tomcat", "fighter", "f14", {}],
-			["mig29", "MiG-29", "fighter", "mig29", {}],
+			["su24ir", "Su-24MK", "striker", "su34", {}],
 			["shahed238", "Shahed-238 (jet)", "uav_kami", "shahed", {tier = 3, dmg = 440.0, speed = 11.0, hp = 110, cost = 700}],
 		],
 	},
@@ -333,15 +341,13 @@ const COUNTRIES := {
 			["alkhalid", "Al-Khalid", "tank", "tank_ru2", {}],
 			["vt4", "VT-4 Haider", "tank", "tank_leo", {cost = 850, hp = 1300, tier = 2}],
 			["fm90", "FM-90", "spaag", "tor", {proj = "missile", dmg = 60.0, cd = 1.0}],
-			["sh15", "SH-15", "arty", "truck_gun", {}],
+			["hq16", "HQ-16FE", "ads", "buk", {}],
 			["a100", "A-100", "mlrs", "mlrs_truck", {}],
 			["shahpar", "Shahpar-II", "uav_recon", "vtail", {}],
 			["burraq", "Burraq", "uav_strike", "vtail", {}],
 			["akinci", "Akıncı", "uav_heavy", "akinci", {}],
-			["f7", "Chengdu F-7", "fighter", "mig21", {cost = 950, hp = 300, dmg = 95.0, time = 26.0}],
-			["jf17", "JF-17 Thunder", "fighter", "jf17", {}],
-			["j10c", "J-10C", "fighter", "j10", {cost = 1650, dmg = 145.0}],
-			["f16", "F-16", "fighter", "f16", {}],
+			["j10c", "J-10C", "fighter", "j10", {cost = 1650, dmg = 110.0}],
+			["jf17", "JF-17 Block III", "striker", "jf17", {}],
 			["j35", "J-35", "stealth", "f35", {}],
 		],
 	},
@@ -362,23 +368,20 @@ const COUNTRIES := {
 			["t90s", "T-90S Bhishma", "tank", "tank_ru2", {}],
 			["arjun", "Arjun Mk1A", "tank", "tank_leo", {cost = 880, hp = 1350, tier = 2}],
 			["shilka", "ZSU-23-4 Shilka", "spaag", "shilka", {}],
-			["k9", "K9 Vajra", "arty", "sph", {}],
+			["akash", "Akash", "ads", "buk", {}],
 			["pinaka", "Pinaka", "mlrs", "mlrs_truck", {}],
 			["heron", "Heron", "uav_recon", "twinboom", {}],
 			["harop", "Harop", "uav_kami", "harop", {}],
 			["mq9b", "MQ-9B", "uav_heavy", "vtail", {}],
-			["tejas", "Tejas", "fighter", "tejas", {cost = 1100, hp = 330, dmg = 105.0, time = 28.0}],
-			["mirage", "Mirage 2000", "fighter", "mirage", {}],
-			["su30", "Su-30MKI", "fighter", "su30", {cost = 1650, hp = 480}],
-			["rafale", "Rafale", "fighter", "rafale", {cost = 1750, dmg = 150.0}],
+			["rafale", "Rafale", "fighter", "rafale", {cost = 1750, dmg = 115.0}],
+			["su30", "Su-30MKI", "striker", "su30", {hp = 520}],
 			["ghatak", "Ghatak", "uav_heavy", "flyingwing", {tier = 3, stealth = true, cost = 1900, hp = 420}],
-			["durga", "DURGA-II Lazer", "laser", "laser_truck", {}],
 		],
 	},
 }
 
 # ---------------------------------------------------------------- haritalar
-# Her harita 720 x 440 birimdir (x: -360..360 batı-doğu, z: -220..220 kuzey-güney).
+# Her harita 720 x 440 birim olarak yazılır (x: -360..360 batı-doğu, z: -220..220 kuzey-güney); oyunda MAP_SCALE ile küçültülür.
 # Şekiller: dikdörtgen [x0, z0, x1, z1], elips {e = [cx, cz, rx, rz]}, kalın çizgi {p = [[x, z], ...], w = genişlik},
 # çokgen {poly = [[x, z], ...]}. rivers/water: su; rock: dağ (geçilmez); hills: tepe (görüş, menzil, hasar);
 # forest: orman (gizlenme); trees: ağaç hattı; ruins: yıkıntı; roads: yol (nehri kestiği yerde köprü kurulur).
@@ -464,6 +467,8 @@ const MAPS := {
 			{e = [90, 140, 30, 14]}, {e = [-100, 150, 25, 15]},
 		],
 		trees = [], ruins = [],
+		# İsrail'in hedefi olan dört stratejik tesis: İran tarafında hazır kurulu, çevrelerinde bağımsız savunma birlikleri.
+		strategic = [[185, -75, "fuze"], [205, 80, "sam"], [150, -12, "santral"], [275, 15, "teknoloji"]],
 		roads = [
 			{p = [[-360, 100], [-250, 125], [-150, 120], [-60, 135], [60, 125], [200, 120], [360, 100]], w = 6.0, asphalt = true},
 			{p = [[-360, -20], [-250, -15], [-150, 10], [-60, 20], [40, 30], [120, 10], [180, 60], [270, 70], [360, 60]], w = 5.0, asphalt = true},
@@ -541,6 +546,64 @@ const MAPS := {
 	},
 }
 
+# Haritalar yukarıdaki ölçülerle yazılır, oyunda MAP_SCALE ile küçültülür (yolların genişliği aynı kalır; dağlar ve nehirler orantılı incelir).
+const MAP_SCALE := 0.85
+static var _scaled := {}
+
+
+## Ölçeklenmiş harita verisi (önbellekli kopya). Oyun, önizleme ve testler bunu kullanır.
+static func map_def(key: String) -> Dictionary:
+	if _scaled.has(key):
+		return _scaled[key]
+	var k := MAP_SCALE
+	var m: Dictionary = MAPS[key].duplicate(true)
+	m.size = m.size * k
+	for bk in ["bases_a", "bases_b"]:
+		var arr: Array = []
+		for b in m[bk]:
+			arr.append(b * k)
+		m[bk] = arr
+	for layer in ["rivers", "water", "rock", "hills", "forest", "trees", "ruins", "roads"]:
+		var out: Array = []
+		for sh in m.get(layer, []):
+			var ns = _scale_shape(sh, k)
+			if layer in ["rock", "rivers"] and ns is Dictionary and ns.has("w"):
+				ns.w = float(ns.w) * k   # dağlar ve nehirler orantılı incelir; geçitler kapanmaz
+			out.append(ns)
+		m[layer] = out
+	for list in ["towns", "big", "points", "strategic"]:
+		for row in m.get(list, []):
+			row[0] = float(row[0]) * k
+			row[1] = float(row[1]) * k
+			if list == "towns":
+				row[3] = float(row[3]) * 0.92
+	if m.has("windbreaks"):
+		m.windbreaks.sp = float(m.windbreaks.sp) * k
+	_scaled[key] = m
+	return m
+
+
+static func _scale_shape(sh, k: float):
+	if sh is Array:
+		var r: Array = []
+		for v in sh:
+			r.append(float(v) * k)
+		return r
+	var d: Dictionary = sh.duplicate(true)
+	if d.has("e"):
+		var e: Array = []
+		for v in d.e:
+			e.append(float(v) * k)
+		d.e = e
+	for pk in ["p", "poly"]:
+		if d.has(pk):
+			var pts: Array = []
+			for q in d[pk]:
+				pts.append([float(q[0]) * k, float(q[1]) * k])
+			d[pk] = pts
+	return d
+
+
 # ---------------------------------------------------------------- birim kartı ipuçları
 const TIPS := {
 	inf = "Noktaları ele geçirir. Siper kazarak ya da bir eve girerek dayanıklılığını artır; tanklardan uzak tut.",
@@ -550,6 +613,7 @@ const TIPS := {
 	arty = "Uzak menzilli ama hedefi başka bir birimin görmesi gerekir. Önüne keşif dronu ya da piyade sür.",
 	mlrs = "Geniş alana hasar verir; siperleri ve toplu piyadeyi dağıtır. Yakın savunması yok, geride tut.",
 	spaag = "Dronları ve İHA'ları düşürür. Ordunun içinde ilerlet; tek başına tanklara yem olur.",
+	ads = "Zırhlı hava savunma: uçakları ve büyük İHA'ları uzaktan düşürür. Yerdeki hedeflere ve küçük dronlara neredeyse etkisiz.",
 	laser = "Mühimmatsız drone katili. Sürü saldırılarına karşı en iyi savunma; uçaklara karşı zayıf.",
 	ew = "Silahı yok. Çevresindeki küçük dronları karıştırıp düşürür, büyük İHA'ların kilidini bozar. Fiber optik FPV etkilenmez.",
 	sdrone_recon = "Ucuz gözcü. Topçunun ve füzelerin görebilmesi için hedefin üstüne gönder.",
@@ -564,6 +628,14 @@ const TIPS := {
 	striker = "Ağır bomba yükü: binaları ve toplu birlikleri vurur. Hava savunması bastırılmadan gönderme.",
 	stealth = "Hava savunması onu ancak yakından görür. Füze üssü, santral gibi stratejik hedefleri vur.",
 }
+
+
+# ---------------------------------------------------------------- görev seçimi (menüden)
+const GOALS := [
+	{id = "senaryo", name = "Senaryo Görevi", desc = "Her ülkenin senaryoya özel görevi (bölge tutma ya da hedef yok etme). Karargâhı yıkılan kaybeder."},
+	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı toplam 10 dakika elinde tutmaya çalışır. Karargâhı yıkılan kaybeder."},
+	{id = "imha", name = "Tam İmha", desc = "Düşmanın bütün binalarını ve birliklerini yok et. Karargâh yıkılsa da savaş sürer."},
+]
 
 
 # ---------------------------------------------------------------- senaryolar
@@ -582,7 +654,7 @@ const LIST := [
 		geo = {c = Vector2(42.0, 31.8), zoom = 6.0, a = Vector2(35.0, 31.6), b = Vector2(49.5, 31.5), col = Color(0.3, 0.85, 0.75), label = "Huzistan – Zagros"},
 		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir.",
 		obj = {
-			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, text = "4 stratejik hedefi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
+			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, strategic = true, text = "Haritada işaretli 4 stratejik tesisi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
 			b = {type = "hold", point = 0, secs = 600.0, text = "Ahvaz petrol terminalini toplam 10 dakika elinde tut"},
 		},
 	},
@@ -609,7 +681,7 @@ static func setup() -> void:
 	if tutorial:
 		md = Defs.MODES[0]
 	var codes: Array = [scn.a, scn.b] if side == 0 else [scn.b, scn.a]
-	var map: Dictionary = MAPS[scn.map].duplicate(true)
+	var map: Dictionary = map_def(scn.map).duplicate(true)
 	if side == 1:
 		var tmp = map.bases_a
 		map.bases_a = map.bases_b
@@ -654,6 +726,8 @@ static func setup() -> void:
 			d.cls = u[2]
 			d.model = u[3]
 			d.cc = cc
+			if not d.get("air", false) and d.armor != "inf":
+				d.radius = float(d.radius) * 1.15   # araç modelleri büyütüldü
 			if int(d.get("tier", 1)) >= 3:
 				# Deneysel silah: pahalı ama çok etkili.
 				d.exp = true
@@ -690,7 +764,7 @@ static func setup() -> void:
 # en çok birimi olan ülkeye göre belirlenir; ülkede olmayan birimin yuvası boş kalır, diğerleri kaymaz.
 const SLOT_ORDER := {
 	kisla = ["inf", "at", "sdrone_recon", "sdrone_fpv", "sdrone_bomb", "loiter"],
-	fabrika = ["ifv", "tank", "arty", "mlrs", "spaag", "ew", "laser"],
+	fabrika = ["ifv", "tank", "arty", "mlrs", "spaag", "ads", "ew", "laser"],
 	havaalani = ["uav_recon", "uav_strike", "uav_heavy", "uav_kami", "fighter", "striker", "stealth"],
 }
 
@@ -731,4 +805,15 @@ static func objective(team: int) -> Dictionary:
 	var scn: Dictionary = Defs.SCN
 	if not scn.has("obj") or (tutorial and Game.I != null and Game.I.tutorial_on):
 		return {}
+	match GOALS[clampi(goal, 0, GOALS.size() - 1)].id:
+		"tut":
+			var pt: Array = MAPS[scn.map].points[0]
+			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını toplam 10 dakika elinde tut" % pt[5]}
+		"imha":
+			return {type = "annihilate", text = "Düşmanı tamamen yok et: bütün binalarını ve birliklerini"}
 	return scn.obj.a if Defs.COUNTRY[team] == scn.a else scn.obj.b
+
+
+## Görev tam imha mı (karargâh kaybı savaşı bitirmez).
+static func annihilation() -> bool:
+	return not tutorial and GOALS[clampi(goal, 0, GOALS.size() - 1)].id == "imha" and Defs.SCN.has("obj")

@@ -14,7 +14,7 @@ extends Node
 ## Yaralı birlikleri ve çöken dalgaları geri çeker; keşif yapar, füze ve doktrin yeteneği kullanır.
 
 var T := Defs.ENEMY
-const ARMY := ["tank", "at", "ifv", "spaag", "arty", "mlrs", "laser", "ew", "inf"]
+const ARMY := ["tank", "at", "ifv", "spaag", "ads", "arty", "mlrs", "laser", "ew", "inf"]
 const FAST := ["ifv", "tank"]
 # Doktrine göre hedeflenen ordu (orta oyun): sınıf -> adet.
 const MIX := {
@@ -72,9 +72,17 @@ func _process(dt: float) -> void:
 	if g.over or g.tutorial_on:
 		return
 	var ts = g.teams[T]
-	if ts.hq == null or not is_instance_valid(ts.hq) or not ts.hq.alive:
-		return
-	home = ts.hq.position
+	var base = ts.hq
+	if base == null or not is_instance_valid(base) or not base.alive:
+		# Karargâh yıkıldı (tam imhada savaş sürer): kalan herhangi bir binayı merkez al.
+		base = null
+		for e in g.entities:
+			if e.team == T and e.is_building and e.alive and not e.strategic and e.kind != "engel":
+				base = e
+				break
+		if base == null:
+			return
+	home = base.position
 	var fh = _foe_hq(g)
 	if fh != null:
 		fwd = signf(fh.position.x - home.x)
@@ -106,7 +114,7 @@ func _foe(t: int) -> bool:
 func _units(g: Game, cls: String) -> Array:
 	var out: Array = []
 	for e in g.entities:
-		if e.team == T and not e.is_building and e.cls == cls and e.alive:
+		if e.team == T and not e.is_building and e.cls == cls and e.alive and not e.guard:
 			out.append(e)
 	return out
 
@@ -114,7 +122,7 @@ func _units(g: Game, cls: String) -> Array:
 func _count(g: Game, cls: String) -> int:
 	var n := 0
 	for e in g.entities:
-		if e.team == T and not e.is_building and e.cls == cls and e.alive:
+		if e.team == T and not e.is_building and e.cls == cls and e.alive and not e.guard:
 			n += 1
 	for e in g.entities:
 		if e.team == T and e.is_building:
@@ -127,7 +135,7 @@ func _count(g: Game, cls: String) -> int:
 func _blds(g: Game, kind: String) -> Array:
 	var out: Array = []
 	for e in g.entities:
-		if e.team == T and e.is_building and e.kind == kind and e.built and e.alive:
+		if e.team == T and e.is_building and e.kind == kind and e.built and e.alive and not e.strategic:
 			out.append(e)
 	return out
 
@@ -178,7 +186,7 @@ func _player_air(g: Game) -> int:
 
 func _site(g: Game, kind: String) -> Vector3:
 	# Karargâhın çevresinde, halkalar hâlinde boş bir yer ara; düşmana bakan tarafı tercih etme (arka taraf önce).
-	for r in [15.0, 24.0, 33.0, 40.0]:
+	for r in [15.0, 24.0, 33.0, 40.0, 50.0, 58.0]:
 		for k in 12:
 			var ang: float = k * TAU / 12.0 + r * 0.07
 			var p: Vector3 = home + Vector3(cos(ang), 0, sin(ang)) * r
@@ -186,7 +194,7 @@ func _site(g: Game, kind: String) -> Vector3:
 				continue
 			if g.can_place(T, kind, p):
 				return p
-	for r in [24.0, 33.0, 40.0]:
+	for r in [24.0, 33.0, 40.0, 50.0, 58.0, 66.0]:
 		for k in 12:
 			var p: Vector3 = home + Vector3(cos(k * TAU / 12.0), 0, sin(k * TAU / 12.0)) * r
 			if g.can_place(T, kind, p):
@@ -356,7 +364,7 @@ func _guards(g: Game) -> void:
 func _free_army(g: Game) -> Array:
 	var out: Array = []
 	for e in g.entities:
-		if e.team == T and e is Unit and e.alive and not roles.has(e) and not claims.values().has(e) and e.cls in ARMY and e.cls != "inf":
+		if e.team == T and e is Unit and e.alive and not e.guard and not roles.has(e) and not claims.values().has(e) and e.cls in ARMY and e.cls != "inf":
 			out.append(e)
 	return out
 
@@ -396,7 +404,9 @@ func _wants(g: Game) -> Dictionary:
 	var small := _seen(["sdrone_fpv", "sdrone_bomb", "loiter", "sdrone_recon"])
 	var armor := _seen(["tank", "ifv"])
 	var foot := _seen(["inf", "at"])
-	W.spaag = maxf(float(W.spaag), 1.0 + air * 0.5 + small * 0.2)
+	var planes := _seen(["fighter", "striker", "stealth", "uav_strike", "uav_heavy"])
+	W.spaag = maxf(float(W.spaag), 1.0 + small * 0.3 + air * 0.15)
+	W.ads = (0.5 + planes * 0.6) if g.teams[T].tier >= 2 else 0.0
 	W.ew = 1.0 if small >= 3 else 0.0
 	W.laser = 1.0 + small * 0.15 if small >= 4 else 0.0
 	W.at = float(W.at) + armor * 0.5
@@ -483,7 +493,7 @@ func _capture(g: Game) -> void:
 func _army_units(g: Game) -> Array:
 	var out: Array = []
 	for e in g.entities:
-		if e.team == T and e is Unit and e.alive and e.cls in ARMY and not roles.has(e) and not claims.values().has(e):
+		if e.team == T and e is Unit and e.alive and not e.guard and e.cls in ARMY and not roles.has(e) and not claims.values().has(e):
 			if e.cls == "inf" and (e.entrenched or e.garrison != null):
 				continue
 			out.append(e)
@@ -570,9 +580,24 @@ func _army(g: Game, ts, step: float) -> void:
 ## Saldırı hedefi: tutulacak görev noktası, akıllıysa en zayıf savunulan değerli hedef, yoksa düşman karargâhı.
 func _goal(g: Game) -> Vector3:
 	var fh = _foe_hq(g)
-	if fh == null:
-		return Vector3.INF
 	var o := Scenarios.objective(T)
+	if fh == null:
+		# Tam imha: karargâh yoksa kalan en yakın düşman.
+		if o.get("type", "") != "annihilate":
+			return Vector3.INF
+		var best = null
+		var bd := 1e9
+		for e in g.entities:
+			if e.alive and _foe(e.team) and not e.is_air:
+				var dd := Entity.flat(e.global_position, home)
+				if dd < bd:
+					bd = dd
+					best = e
+		return best.global_position if best != null else Vector3.INF
+	if o.get("type", "") == "destroy":
+		var tg = _obj_target(g, o)
+		if tg != null:
+			return tg.position
 	if o.get("type", "") == "hold":
 		var op = g.points[o.point]
 		if not Defs.ally(T, op.owner_team):
@@ -584,6 +609,24 @@ func _goal(g: Game) -> Vector3:
 	if P.smart:
 		return _weak_spot(g, fh.position)
 	return fh.position
+
+
+## Yok etme görevinin en yakın hedefi (stratejik tesisler baştan, diğerleri 2. dakikadan sonra bilinir).
+func _obj_target(g: Game, o: Dictionary):
+	var best = null
+	var bd := 1e9
+	for e in g.entities:
+		if not e.is_building or not e.alive or not _foe(e.team) or e.kind not in o.kinds:
+			continue
+		if o.get("strategic", false) and not e.strategic:
+			continue
+		if not e.strategic and g.time < Game.REVEAL_AT:
+			continue
+		var dd := Entity.flat(e.position, home)
+		if dd < bd:
+			bd = dd
+			best = e
+	return best
 
 
 ## Odaklı ateş: grubun yakınındaki en zayıf düşmanı, ona ateş edebilen birlikler birlikte vurur.
@@ -652,7 +695,7 @@ func _nearest_aa(g: Game, pos: Vector3):
 	for e in g.entities:
 		if not _foe(e.team) or not e.alive or not g.fog.sees(T, e.global_position):
 			continue
-		var is_aa: bool = (e.is_building and e.kind == "sam") or e.cls in ["spaag", "laser"]
+		var is_aa: bool = (e.is_building and e.kind == "sam") or e.cls in ["spaag", "laser", "ads"]
 		if is_aa:
 			var dd := Entity.flat(e.global_position, pos)
 			if dd < bd:

@@ -39,7 +39,7 @@ Logo ve menüdeki oyun adı ("CEPHE HATTI") bir öneridir; `scripts/logo.gd` iç
 Menünün arkasında taktik bir dünya haritası vardır: senaryo seçilince harita o bölgeye yaklaşır, renk teması değişir,
 iki tarafın birlik simgeleri ve cephe okları çizilir; yanda savaş alanının gerçek önizlemesi görünür.
 
-| Senaryo | Taraflar ve doktrinleri | Harita (720 x 440) |
+| Senaryo | Taraflar ve doktrinleri | Harita (612 x 374) |
 |---|---|---|
 | Rusya – Ukrayna | Ukrayna (İHA) / Rusya (Zırhlı-Topçu) | Harkiv – Severski Donets: Donets, Oskil ve Udy nehirleri, Peçenihi barajı, köprüler, geniş ormanlar, ağaç hatlarıyla bölünmüş tarlalar, Çuhuiv, Kupiansk, İzyum, Vovçansk |
 | İran – İsrail | İsrail (Hava Üstünlüğü) / İran (Balistik Füze) | Huzistan – Zagros: Karun ve Kerhe nehirleri, Basra Körfezi kıyısı, Zagros sıradağları ve geçitleri, hurma bahçeleri, Ahvaz ve Abadan petrol tesisleri |
@@ -50,15 +50,25 @@ iki tarafın birlik simgeleri ve cephe okları çizilir; yanda savaş alanının
 zekâ ordusu, karşında iki düşman üssü). Aynı taraftakiler görüşü ve görevi paylaşır. Düşman tarafının bütün
 karargâhları yıkılınca ya da görev tamamlanınca maç biter.
 
-**Büyük haritalar ve lojistik.** Haritalar eskisinin 10 katı alan kaplar. Birlikler uzun yol yürür; yol bulma yolları
+**Görev seçimi (menüden):** *Senaryo Görevi* (her ülkenin kendi görevi), *Bölgeyi Tut* (iki taraf da haritanın
+ortasındaki kilit noktayı toplam 10 dakika tutmaya çalışır) ya da *Tam İmha* (düşmanın bütün binalarını ve birliklerini
+yok et; karargâh yıkılsa da savaş sürer, düşmanın binası kalmayınca kalan birlikleri küçük haritada gösterilir).
+Maç bitince ekranda gerçek neden yazar (karargâhın yıkıldı, düşman görevini tamamladı, ordun tamamen yok edildi...).
+
+**Büyük haritalar ve lojistik.** Haritalar ilk sürümün yaklaşık 7 katı alan kaplar (veride 720 x 440 yazılır, oyunda
+%85'e küçültülür). Birlikler uzun yol yürür; yol bulma yolları
 tercih eder (yolda %50 hızlı). **İkmal hattı:** karargâh (75), İleri Harekât Üssü (55) ve sağlam ikmal noktaları (40)
 çevresine ikmal sağlar. Hattın dışındaki kara birliği %30 az hasar verir, %10 yavaş gider ve onarılmaz (üstünde turuncu
 işaret çıkar). İleri Harekât Üssü birliklerinin yanında her yere kurulur, birlikleri onarır ve çevresine kışla, santral
 ve hava savunma kurulabilir.
 
-**Taktik arazi.** Köprüler yıkılabilir (topçu, füze, uçak ya da "Köprü Yık" emri); yıkılan köprünün üstündekiler suya
-düşer, nehir orada geçilmez olur. Yıkık köprü, yanında yalnızca bir tarafın askerî birlikleri bulunduğu sürece 40 saniyede
-onarılır. Tepeyi tutmak: görüş %30, menzil %15 ve hasar %15 artar; tepedeki atıcı ağaçların ve yıkıntıların üstünden
+**İnşa alanı (sarı alan):** karargâhın çevresi ve her üs binasının çevresi; alanın kenarına kurduğun her bina alanı
+büyütür. Alan tek parça sarı olarak çizilir, içi ve ileri üslerin çevresi savaş sisiyle örtülmez.
+
+**Taktik arazi.** Köprüler yıkılabilir (topçu, füze, uçak ya da "Köprü Yık" emri; köprünün yeri bilinir, görmeden de
+vurulur, hasarlıyken canı üstünde yazar); yıkılan köprünün üstündekiler suya düşer, nehir orada geçilmez olur. Araçlar
+köprünün tabliyesinin üstünden geçer. Yıkık köprü, son 30 saniyede vurulmadıysa ve yanında yalnızca bir tarafın askerî
+birlikleri varsa 40 saniyede onarılır. Tepeyi tutmak: görüş %30, menzil %15 ve hasar %15 artar; tepedeki atıcı ağaçların ve yıkıntıların üstünden
 görür. Geniş ormanlar ve ağaç hatları piyadeyi her zaman, aracı dururken gizler (yalnızca yakından görülür), derin orman
 görüşü keser. Kasabalarda köy evleri (2 birlik), yıkık apartmanlar (3 birlik, üst kattan uzağı görür) ve terk edilmiş
 fabrikalar (4 birlik) vardır.
@@ -67,16 +77,21 @@ fabrikalar (4 birlik) vardır.
 rastgele yerlerinde **kaynak yatakları** belirir ve herkese duyurulur (küçük haritada yanıp söner). Yatağın üstüne
 Maden Ocağı ilk kuran takımın olur ($5,5-9/sn; kurulumu $1600, yanında kendi birliğin olmalı); yatağın rezervi bitince
 tükenir. **Bütün kaynaklar tahrip edilebilir:** ikmal noktaları ve madenler hasar aldıkça daha az gelir getirir, sıfıra
-inen nokta kimsesiz kalır. Onarım yalnızca yanlarında kendi tarafının askerî birliği varken ve çevrede düşman yokken ilerler.
+inen nokta kimsesiz kalır ve 90 saniye **tahrip** durumda kalır (gelir yok, ele geçirilemez); yıkılan madenin yatağına da
+90 saniye yeni maden kurulamaz. Vurulan kaynak 20 saniye onarılamaz; sonra onarım yalnızca yanında kendi tarafının askerî
+birliği varken ve çevrede düşman yokken ilerler. Kaynakların (ikmal noktaları ve madenler) yeri herkesçe bilinir: birlikler,
+topçu ve füzeler onları görmeden de vurabilir. Maden Ocağı elinde kaldıkça verimi artar (10 dakikada en çok %20).
+Başta 5 yatak belirir, sonra her 50-95 saniyede yenisi gelir (aynı anda en çok 11).
 
 **Doktrinler** fiyatı belirler: doktrine uyan birimler %25-40 ucuz, uymayanlar %20-60 pahalıdır (kartta yeşil ▼ ya da
 kırmızı ▲). Bazı ülkelerde bazı birimler hiç yoktur: Ukrayna'nın tankı yoktur (İHA'larla Rus zırhını avlar), İsrail'in
-çok namlulu roketatarı, İran'ın taarruz uçağı yoktur. Üretim panelinde birimler sabit yuvalara dizilir; ülkede olmayan
+çok namlulu roketatarı yoktur. Her ülkede uzun menzilli topçu/roketatardan yalnızca bir tane vardır (Zırhlı/Topçu
+doktrinli Rusya'da iki), dron savar hava savunmadan bir tane, uçaklardan da her türden (çok amaçlı, taarruz, görünmez)
+en çok bir tane. Üretim panelinde birimler sabit yuvalara dizilir; ülkede olmayan
 birimin yuvası boş kalır, diğerleri kaymaz.
 
 **Deneysel silahlar (Kademe 3)** turuncu kartla gösterilir; %50 pahalı, %50 daha çok hasar ve %30 daha çok can:
-T-14 Armata, Merkava Barak, Su-57, S-70, F-35I, J-35, Ghatak, Peklo füze-drone, Shahed-238, Tryzub, Iron Beam ve DURGA-II
-lazerleri, hipersonik füzeler.
+T-14 Armata, Merkava Barak, Su-57, S-70, F-35I, J-35, Ghatak, Peklo füze-drone, Shahed-238, hipersonik füzeler.
 
 **Ulusal mimari.** Her ülkenin binaları kendi üslubundadır: Ukrayna'da badanalı duvar, yeşil çatı ve altın armut kubbe;
 Rusya'da kızıl tuğla, çadır çatılı kule, soğan kubbe ve kızıl yıldız; İsrail'de Kudüs taşı, kemerli revak ve çatıda güneş
@@ -87,13 +102,15 @@ haritanın üslubunu alır.
 **Hava araçlarının mühimmatı:** her silahlı uçak ve İHA'nın üstünde dolu ve boş füzeleri simge olarak görünür
 (dost birimlerde "3/4" sayısı da yazar); silahlanırken "silahlanıyor" yazar.
 
-**Ülkeler kendi silahlarını kullanır** (her ülkede 16-20 birim). Örnekler: T-72B3, T-90M, T-14 Armata, Merkava Mk 4,
-Karrar, Al-Khalid, Arjun; F-16, Mirage 2000, Su-35, Su-34, Su-57, F-35I, F-15I, F-14A, MiG-29, JF-17, J-10C, Rafale,
-Su-30MKI, Tejas; Bayraktar TB2, Akıncı, Shahed-136, Geran-2, Lancet-3, Harop, Mohajer-6, MQ-9B; HIMARS, TOS-1A,
-Pinaka; Patriot, S-400, Iron Dome, Bavar-373.
+**Ülkeler kendi silahlarını kullanır** (her ülkede 16-19 birim). Örnekler: T-72B3, T-90M, T-14 Armata, Merkava Mk 4,
+Karrar, Al-Khalid, Arjun; F-16, Su-24M, Su-35, Su-34, Su-57, F-35I, F-15I, F-14A, JF-17, J-10C, Rafale, Su-30MKI;
+Bayraktar TB2, Akıncı, Shahed-136, Geran-2, Lancet-3, Harop, Mohajer-6, MQ-9B; HIMARS, Tornado-S, Pinaka; Buk-M1/M3,
+Machbet, Herz-9, HQ-16FE, Akash; Patriot, S-400, Iron Dome, Bavar-373.
 
 **Birim sınıfları**
-- Kara: piyade, tanksavar timi, hafif zırhlı araç, tank, obüs, çok namlulu roketatar, hareketli hava savunma.
+- Kara: piyade, tanksavar timi, hafif zırhlı araç, tank, obüs, çok namlulu roketatar, dron savar hava savunma,
+  zırhlı hava savunma (Kademe 2: uçakları ve büyük İHA'ları uzaktan sert vurur, yerdeki hedeflere neredeyse etkisiz).
+- Keşif ve silahlı İHA'ların görüşü geniştir (kamikazeler hariç). Araç modelleri okunur olsun diye büyüktür.
 - Küçük İHA (kışladan, elden atılır): keşif dronu, FPV kamikaze (3'lü paket, uçuş süresi sınırlı), bombardıman dronu, dolanan mühimmat.
 - Büyük İHA (hava alanı gerekir): keşif, silahlı, ağır silahlı, uzun menzilli kamikaze.
 - Uçak (hava alanı gerekir, alan başına 4 pist): çok amaçlı, taarruz, görünmez. Görünmez uçağı hava savunma ancak yakından görür.
@@ -101,7 +118,8 @@ Pinaka; Patriot, S-400, Iron Dome, Bavar-373.
 **Binalar:** Karargâh, Santral, Kışla, Fabrika, Maden Ocağı (yalnızca kaynak yatağına), İleri Harekât Üssü, Hava Alanı,
 hava savunma (ülkeye göre adı değişir), Teknoloji Merkezi (7 araştırma, Kademe 3 için şart), Füze Üssü.
 
-**Füzeler:** Füze Üssü'nden füze seçilir, haritada **görebildiğin** bir yere dokunulur. Menzildeki düşman hava savunması
+**Füzeler:** Füze Üssü'nden füze seçilir, haritada **görebildiğin** bir yere (ya da yeri bilinen bir düşman kaynağına,
+stratejik tesise) dokunulur. Menzildeki düşman hava savunması
 füzeyi önleyebilir; hipersonik füzeler (Fattah-2, BrahMos, Fatah-IV) önlenemez.
 
 **Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız hedefe döner; ateşte geri tepme, namlu alevi ve duman;
@@ -121,8 +139,15 @@ daha az kayıp). Geri çekilen birlik %25 hızlı gider ve %30 az hasar alır; k
 Doyurma Salvosu (Balistik Füze), Seferberlik (Dengeli).
 
 **Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da Çuhuiv köprübaşını
-10 dakika tutmak; İsrail'in 4 stratejik hedefi yok etmesi, İran'ın Ahvaz petrol terminalini tutması; Pakistan'ın 3 üretim
-tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması. Ekranın üstünde senin ve düşmanın ilerlemesi görünür.
+10 dakika tutmak; İsrail'in 4 stratejik tesisi yok etmesi, İran'ın Ahvaz petrol terminalini tutması; Pakistan'ın 3 üretim
+tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması. İran tarafındaki 4 stratejik tesis (füze üssü, hava savunma,
+santral, teknoloji merkezi) baştan kuruludur, haritada kırmızı nişangâhla işaretlidir ve çevrelerinde siper kazmış
+bağımsız savunma birlikleri (piyade, tanksavar, dron savar, zırhlı) vardır; bu birlikler yerinden ayrılmaz. Yok etme
+görevlerinde düşmanın hedef binaları 2. dakikadan sonra haritada gösterilir. Ekranın üstünde senin ve düşmanın
+ilerlemesi görünür.
+
+**Saldırı uyarısı:** kendi binan ya da kaynağın vurulunca küçük haritada o yer kırmızı yanıp söner, binanın üstünde
+"SALDIRI!" yazar. **Araştırmalar** ne işe yaradıklarını düğmenin üstünde yazar.
 
 **Birim kartları:** üretim düğmesinin köşesindeki çevirme simgesine basınca kart arkaya döner; can, kara gücü,
 hava gücü, menzil ve hız görünür, ekranın altında o birimin kullanım ipucu çıkar.
@@ -131,7 +156,7 @@ hava gücü, menzil ve hız görünür, ekranın altında o birimin kullanım ip
 düşünme sıklığını, ilk saldırı zamanını ve davranışını değiştirir. Kaynak yataklarına korumalı maden kurar, madenlerine
 bekçi bırakır, hasarlı kaynaklarının yanına onarım için birlik gönderir; toplanma yeri ikmal dışındaysa İleri Harekât Üssü
 kurar. Ordusunu doktrinine göre kurar (ucuz sınıfları çok alır) ve gördüğüne karşılık verir: uçaklara hava savunma, zırha
-tanksavar ve İHA, dron sürüsüne EH ve lazer; deneysel silah kullanır. Orta ve Zor'da düşman madenlerine ve noktalarına
+tanksavar ve İHA, dron sürüsüne EH ve dron savar; deneysel silah kullanır. Orta ve Zor'da düşman madenlerine ve noktalarına
 baskın yapar, en zayıf savunulan hedefi seçer, odaklı ateşle en zayıf düşmanı birlikte vurur, uçaklarla önce hava
 savunmasını susturur. Karşı taraf tutma görevini bitirmek üzereyse bütün ordusuyla o noktaya yürür. Yaralı birliklerini
 ve çöken dalgaları geri çeker.
@@ -197,6 +222,7 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/bridge.gd`, `supply_point.gd`, `deposit.gd`, `garrison.gd` | Yıkılabilir köprü; tahrip edilebilir ikmal noktası; kaynak yatağı; girilebilen ev, apartman ve fabrika |
 | `scripts/logo.gd`, `world_map.gd`, `map_preview.gd` | Logo ve amblem; menünün taktik dünya haritası ve bayraklar; senaryo harita önizlemesi |
 | `scripts/fog.gd` | Savaş sisi |
+| `scripts/zone.gd` | İnşa alanı: karargâhın ve binaların çevresindeki dairelerin birleşimi tek sarı alan olarak çizilir |
 | `scripts/controls.gd`, `camera_rig.gd` | Dokunmatik kontroller ve kamera |
 | `scripts/hud.gd`, `menu.gd` | Oyun içi arayüz ve senaryo seçim ekranı |
 | `scripts/ai.gd` | Yapay zekâ (düşman ve müttefik ordular) |
@@ -233,6 +259,8 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--maptest --scn=N`: haritanın oynanabilirliğini doğrular (her üsten her noktaya ve karşı üslere yol var mı).
 - `--mapshot --scn=N --shots=KLASÖR`: haritanın üstten ve yakın görüntülerini alır; `--perfonly` ile kare sürelerini ölçer.
 - `--uishot --scn=N --shots=KLASÖR`: üretim panellerinin görüntüsünü alır.
+- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (stratejik tesisler ve savunucuları, hedeflerin
+  2. dakikada açılması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
 - `--duel --scn=0`: denge için aynı bütçeyle sınıf düelloları yapar ve kalan değerleri yazar.
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).

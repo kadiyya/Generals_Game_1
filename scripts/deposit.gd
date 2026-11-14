@@ -13,6 +13,7 @@ var mine = null          # üstündeki Maden Ocağı (Building)
 var model: Node3D
 var marker: MeshInstance3D
 var born := 0.0
+var ruined_until := -1.0   # üstündeki maden yıkılınca yatak bir süre kullanılamaz
 
 
 func setup(p: Vector3, r: float, res: float) -> void:
@@ -29,7 +30,11 @@ func setup(p: Vector3, r: float, res: float) -> void:
 
 
 func free_for(_team: int) -> bool:
-	return mine == null or not is_instance_valid(mine) or not mine.alive
+	return (mine == null or not is_instance_valid(mine) or not mine.alive) and not ruined()
+
+
+func ruined() -> bool:
+	return Game.I.time < ruined_until
 
 
 func depleted() -> bool:
@@ -39,8 +44,11 @@ func depleted() -> bool:
 func _process(_dt: float) -> void:
 	if mine != null and (not is_instance_valid(mine) or not mine.alive):
 		mine = null
+		ruined_until = Game.I.time + Defs.RUIN_TIME
+	if ruined() and randf() < 0.05:
+		Game.I.fx_puff(global_position + Vector3(randf_range(-2, 2), 1.0, randf_range(-2, 2)), Color(0.12, 0.11, 0.1), 1.8, 2.4, 3.5)
 	# Boş yatak, yeni belirdiyse yanıp söner.
-	marker.visible = mine == null
+	marker.visible = mine == null and not ruined()
 	if marker.visible:
 		var pulse := 1.0 + 0.06 * sin(Game.I.time * 4.0)
 		marker.scale = Vector3(pulse, 0.2, pulse)

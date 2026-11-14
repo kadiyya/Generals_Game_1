@@ -60,6 +60,14 @@ func recompute() -> void:
 			var v: float = e.vision
 			if e.is_building and not e.built:
 				v = 6.0
+			elif e.is_building:
+				# Üs ve inşa alanı sisle örtülmez; ileri üssün çevresi de açıktır.
+				if e.kind == "hq":
+					v = maxf(v, Defs.BUILD_ZONE + 2.0)
+				elif e.kind == "ileri":
+					v = maxf(v, Defs.FOB_ZONE + 10.0)
+				elif not e.d.get("field", false):
+					v = maxf(v, Defs.ZONE_EXT + 2.0)
 			elif not e.is_air and not e.is_building:
 				# Tepeden daha uzağı görür; evdeki birlik pencereden gözler.
 				if g.terrain.kind_at(e.global_position) == Terrain.HILL:

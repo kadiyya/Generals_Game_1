@@ -23,6 +23,8 @@ var flag: MeshInstance3D
 var repairing := false
 var _tick := 0.0
 var _smoke_t := 0.0
+var ruined_until := -1.0     # tahrip: bu zamana kadar gelir yok, ele geçirilemez
+var last_hit := -100.0
 
 
 func setup_point(p: Vector3, inc: float, ct: float, k: String, nm: String) -> void:
@@ -63,7 +65,20 @@ func integrity() -> float:
 
 
 func current_income() -> float:
-	return 0.0 if owner_team < 0 else income * integrity()
+	return 0.0 if owner_team < 0 or ruined() else income * integrity()
+
+
+func ruined() -> bool:
+	return Game.I != null and Game.I.time < ruined_until
+
+
+## Tahrip durumunun kalan süresi (sn).
+func ruin_left() -> float:
+	return maxf(0.0, ruined_until - Game.I.time) if Game.I != null else 0.0
+
+
+func known_target() -> bool:
+	return true
 
 
 func has_weapon() -> bool:
@@ -78,11 +93,12 @@ func take_damage(amount: float, attacker = null, _tag := "") -> void:
 	if owner_team < 0 or amount <= 0.0 or hp <= 0.0:
 		return
 	hp = maxf(0.0, hp - amount)
+	last_hit = Game.I.time
 	if attacker != null and is_instance_valid(attacker) and attacker.alive:
 		attacker.gain_xp(amount * 0.5)
 	var g := Game.I
 	if owner_team == Defs.PLAYER:
-		g.alert_base()
+		g.alert_base(global_position, d.name)
 	if hp <= 0.0:
 		var was := owner_team
 		g.fx_explosion(aim_pos(), 3.0)
@@ -90,8 +106,9 @@ func take_damage(amount: float, attacker = null, _tag := "") -> void:
 		claim(Defs.NEUTRAL)
 		cap_t = 0.0
 		cap_team = Defs.NEUTRAL
+		ruined_until = g.time + Defs.RUIN_TIME
 		if Defs.friendly(was):
-			g.hud.toast("%s tahrip edildi! Geri al ve askerî birlikle koru ki onarılsın." % d.name, 6.0)
+			g.hud.toast("%s tahrip edildi! %d saniye kullanılamaz; sonra geri al ve askerî birlikle koru ki onarılsın." % [d.name, int(Defs.RUIN_TIME)], 6.0)
 		elif g.fog.sees(Defs.PLAYER, global_position):
 			g.hud.toast("Düşmanın %s kaynağı tahrip edildi." % d.name)
 
@@ -100,6 +117,15 @@ func _process(dt: float) -> void:
 	var g := Game.I
 	if g == null or g.over:
 		return
+	if ruined():
+		_smoke_t -= dt
+		if _smoke_t <= 0.0:
+			_smoke_t = 0.6
+			g.fx_puff(global_position + Vector3(randf_range(-1.5, 1.5), 1.5, randf_range(-1.5, 1.5)), Color(0.12, 0.11, 0.1), 2.0, 2.6, 4.0)
+		return
+	if hp <= 0.0:
+		# Tahrip süresi bitti: enkaz kaldırıldı, nokta yeniden ele geçirilebilir (sağlamlık düşük başlar).
+		hp = max_hp * 0.25
 	# Ele geçirme: yalnızca bir tarafın piyadesi varsa ilerler.
 	var who := Defs.NEUTRAL
 	var sides := {}
@@ -137,7 +163,7 @@ func _process(dt: float) -> void:
 ## Onarım: sahibinin silahlı kara birliği yanında ve çevrede düşman yoksa sağlamlık artar.
 func _repair() -> void:
 	repairing = false
-	if owner_team < 0 or hp >= max_hp:
+	if owner_team < 0 or hp >= max_hp or Game.I.time - last_hit < Defs.HIT_PAUSE:
 		return
 	var friend := false
 	for e in Game.I.nearby(position, REPAIR_R + 4.0):

@@ -14,7 +14,7 @@ var t := 0.0
 
 func setup(s: Dictionary) -> void:
 	scn = s
-	map = Scenarios.MAPS[s.map]
+	map = Scenarios.map_def(s.map)
 	custom_minimum_size = Vector2(330, 202)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not _cache.has(s.map):
@@ -58,6 +58,13 @@ func _draw() -> void:
 			var r := 6.0 + fmod(t * 8.0, 10.0)
 			draw_arc(c, r, 0, TAU, 20, Color(1.0, 0.82, 0.3, 1.0 - (r - 6.0) / 10.0), 2.0)
 			draw_circle(c, 4.0, Color(1.0, 0.82, 0.3))
+	# stratejik tesisler (senaryo görevinde): kırmızı nişangâh
+	if Scenarios.GOALS[Scenarios.goal].id == "senaryo":
+		for st in map.get("strategic", []):
+			var sc := _p(st[0], st[1])
+			draw_arc(sc, 5.0, 0, TAU, 14, Color(1.0, 0.25, 0.2), 1.6)
+			draw_line(sc + Vector2(-8, 0), sc + Vector2(8, 0), Color(1.0, 0.25, 0.2), 1.2)
+			draw_line(sc + Vector2(0, -8), sc + Vector2(0, 8), Color(1.0, 0.25, 0.2), 1.2)
 	var sides := [[map.bases_a, Color(0.35, 0.6, 1.0), scn.a], [map.bases_b, Color(1.0, 0.35, 0.3), scn.b]]
 	var font := ThemeDB.fallback_font
 	for sd in sides:

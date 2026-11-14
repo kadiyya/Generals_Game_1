@@ -5,7 +5,7 @@ extends RefCounted
 ## kule parçaları kule merkezine göre yazılır, design() merkezin z'sini döndürür. Kulesi olmayanlarda t boş kalır.
 ## Not: bu dosya yalnızca Kit çağrıları ve düz hesap içerir; geliştirme önizleme aracı da aynı kodu okur.
 
-const IDS := ["ifv_low", "m113", "ifv_tall", "namer", "gepard", "shilka", "tor", "sph", "tos", "pantsir", "irondome",
+const IDS := ["ifv_low", "m113", "ifv_tall", "namer", "gepard", "shilka", "tor", "buk", "sph", "tos", "pantsir", "irondome",
 	"truck_gun", "himars", "mlrs_truck", "laser_truck", "ew_truck"]
 
 
@@ -43,6 +43,8 @@ static func design(id: String, h: Kit, t: Kit) -> float:
 		tz = _shilka(h, t)
 	elif id == "tor":
 		tz = _tor(h, t)
+	elif id == "buk":
+		tz = _buk(h, t)
 	elif id == "sph":
 		tz = _sph(h, t)
 	elif id == "tos":
@@ -325,6 +327,36 @@ static func _tor(h: Kit, t: Kit) -> float:
 			t.box("missile", Vector3(0.34, 0.03, 0.34), Vector3(0.3 * sx, 2.92, 0.5 - i * 0.5))
 	_radar(t, Vector3(0, 3.75, -1.3), 2.0, 0.7, -10.0)
 	return 0.0
+
+
+## Buk / zırhlı hava savunma: uzun paletli gövde, dönen kaide üstünde eğik rampada dört büyük füze,
+## önde takip radarı. Füzeler beyaz gövdeli, uçları koyu.
+static func _buk(h: Kit, t: Kit) -> float:
+	_tracks(h, 1.5, 0.5, [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], 0.32, Vector3(3.8, 0.6, 0.28), Vector3(-3.7, 0.62, 0.3), false, [-2.0, 0.0, 2.0], 0.86)
+	_hull(h, [Vector2(4.1, 0.95), Vector2(3.7, 0.45), Vector2(-3.9, 0.45), Vector2(-4.0, 1.0)],
+		[Vector2(4.1, 0.95), Vector2(3.2, 1.45), Vector2(-3.95, 1.45), Vector2(-4.0, 1.0)], 1.2, 1.7)
+	for sx in [-1.0, 1.0]:
+		_lamp(h, Vector3(1.35 * sx, 1.2, 3.75))
+		h.box("rubber", Vector3(0.03, 0.25, 7.0), Vector3(1.72 * sx, 0.86, 0.0))
+		h.box("glass", Vector3(0.5, 0.2, 0.03), Vector3(0.65 * sx, 1.3, 3.55), Vector3(-29, 0, 0))
+	Tanks._grille(h, Vector3(0, 1.47, -3.2), 2.2, 0.9, 0.0, 5)
+	Tanks._hatch(h, Vector3(0.7, 1.46, 2.6), 0.27)
+	# dönen kaide
+	t.lathe("hull", [Vector2(0, 0), Vector2(1.3, 0), Vector2(1.25, 0.35), Vector2(0, 0.35)], Vector3(0, 1.45, 0), Vector3.ZERO, 14)
+	t.box("team", Vector3(2.0, 0.08, 1.6), Vector3(0, 1.84, -0.2))
+	t.box("hull2", Vector3(1.4, 0.9, 1.1), Vector3(0, 2.25, 0.9))
+	_radar(t, Vector3(0, 3.1, 1.45), 1.6, 0.9, -5.0)
+	# füze rampası: dört füze, 25 derece yukarı
+	t.push(Vector3(0, 2.2, -0.6), Vector3(-25, 0, 0))
+	t.box("steel", Vector3(2.0, 0.12, 3.6), Vector3(0, 0.0, 0.0))
+	for i in 4:
+		var x := -0.72 + i * 0.48
+		t.lathe("missile", [Vector2(0, 0), Vector2(0.17, 0), Vector2(0.17, 2.9), Vector2(0.12, 3.25), Vector2(0, 3.45)], Vector3(x, 0.26, -1.6), Vector3(90, 0, 0), 8)
+		t.lathe("dark", [Vector2(0, 0), Vector2(0.06, 0), Vector2(0, 0.22)], Vector3(x, 0.26, 1.85), Vector3(90, 0, 0), 6)
+		for zz in [-0.9, 0.6]:
+			t.box("missile", Vector3(0.02, 0.32, 0.4), Vector3(x, 0.45, zz))
+	t.pop()
+	return -0.3
 
 
 # ---------------------------------------------------------------- topçu

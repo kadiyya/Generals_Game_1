@@ -19,7 +19,7 @@ func _ready() -> void:
 	steps = [
 		["Kamerayı kaydırmak için ekranı parmağınla sürükle. İki parmakla yakınlaştırabilirsin.",
 			func(): return g.cam.focus.distance_to(start_focus) > 6.0],
-		["Sol paneldeki İnşa düğmesine bas, Kışla'yı seç, sarı çemberin içinde bir yere dokun.",
+		["Sol paneldeki İnşa düğmesine bas, Kışla'yı seç, sarı alanın içinde bir yere dokun.",
 			func(): return g.count_kind(0, "kisla", false) > 0],
 		["Kışla bitince ona dokun ve bir Piyade Mangası üret. Kartın köşesindeki sarı simgeye basarak birimin özelliklerine bakabilirsin.",
 			func(): return _count("inf") >= 3],
