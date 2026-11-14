@@ -123,7 +123,9 @@ static func build(d: Dictionary, team: int) -> Node3D:
 		_aircraft(n, d, id, ac, tc)
 		return n
 	if Buildings.has(id):
-		_structure(n, id, bc, tc)
+		# Mimari üslup: binanın ülkesi; ülkesi olmayan yapılar (köy evleri) haritanın üslubunu alır.
+		var style: String = d.get("cc", "") if d.get("cc", "") != "" else Defs.MAP.get("style", "")
+		_structure(n, id, bc, tc, style)
 		return n
 	if Vehicles.has(id) or id.begins_with("tank_"):
 		_vehicle(n, id, bc, tc)
@@ -206,13 +208,13 @@ static func _vehicle(n: Node3D, id: String, bc: Color, tc: Color) -> void:
 
 
 ## Bina, vinç ya da ikmal noktası (buildings.gd): tek mesh, renk ve toz başına bir kez üretilir.
-static func _structure(n: Node3D, id: String, bc: Color, tc: Color) -> void:
-	var key := "bld|%s|%s|%s|%s" % [id, bc.to_html(), tc.to_html(), _dust().to_html()]
+static func _structure(n: Node3D, id: String, bc: Color, tc: Color, style := "") -> void:
+	var key := "bld|%s|%s|%s|%s|%s" % [id, bc.to_html(), tc.to_html(), _dust().to_html(), style]
 	if not _vehicles.has(key):
 		var k := Kit.new()
 		k.dust = _dust()
-		Buildings.slots(k, bc, tc)
-		Buildings.design(id, k)
+		Buildings.slots(k, bc, tc, style)
+		Buildings.design(id, k, style)
 		_vehicles[key] = [k.mesh()]
 	var m := MeshInstance3D.new()
 	m.mesh = _vehicles[key][0]

@@ -57,6 +57,21 @@ func _screen(p: Vector3) -> Vector2:
 	return Game.I.cam.camera.unproject_position(p)
 
 
+## Kuzeydeki dağ kuşağında bir hücre.
+func _mountain() -> Vector3:
+	var ter := Game.I.terrain
+	for y in ter.gh:
+		for x in range(6, ter.gw - 6):
+			var ok := true
+			for dx in range(-6, 7):
+				if ter.kind[y * ter.gw + x + dx] != Terrain.MOUNTAIN:
+					ok = false
+					break
+			if ok:
+				return ter.center(Vector2i(x, y))
+	return Vector3.ZERO
+
+
 func _run() -> void:
 	var g := Game.I
 	await _frames(5)
@@ -70,7 +85,7 @@ func _run() -> void:
 	_check("Insa dugmesi menuyu acar", g.menu == "build" and g.hud.bottom.visible)
 
 	# 2) Kışla düğmesi -> yerleştirme modu -> haritaya dokun -> bina kurulur
-	await _tap(g.hud.actions.get_child(2).get_global_rect().get_center())
+	await _tap(g.hud.actions.get_child(Defs.BUILD_KINDS.find("kisla")).get_global_rect().get_center())
 	await _frames(2)
 	_check("bina dugmesi yerlestirme modunu acar", g.placing == "kisla")
 	await _tap(_screen(g.teams[0].hq.position + Vector3(16, 0, -8)))
@@ -78,7 +93,8 @@ func _run() -> void:
 	_check("haritaya dokununca Kisla kurulur", g.nearest_building(0, "kisla", Vector3.ZERO) == null and g.placing == "" and _count("kisla") == 1)
 
 	# 2b) dağın üstüne bina kurulamaz
-	_check("dagin ustune bina kurulamaz", not g.terrain.is_land(Vector3(-45, 0, -50)) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
+	var rock := _mountain()
+	_check("dagin ustune bina kurulamaz", not g.terrain.is_land(rock) and not g.can_place(0, "kisla", g.teams[0].hq.position + Vector3(3, 0, 0)))
 
 
 	# 3) birime dokun -> seçilir
@@ -98,6 +114,7 @@ func _run() -> void:
 	# 5) çift dokun -> aynı tipin hepsi
 	await _tap(_screen(m.aim_pos()))
 	await _tap(_screen(m.aim_pos()))
+	print("  fps=%d secim=%d" % [Engine.get_frames_per_second(), g.selection.size()])
 	_check("cift dokununca ayni tipin hepsi secilir", g.selection.size() == 2)
 
 	# 6) sürükle -> kamera kayar, seçim bozulmaz
@@ -157,13 +174,18 @@ func _run() -> void:
 	_check("Hepsi dugmesi butun birimleri secer", g.selected_units().size() == 2)
 
 	# 9b) yol bulma: nehrin karşısına giden birim köprüden geçer, suya girmez
-	var path := g.terrain.find_path(Vector3(-30, 0, 38), Vector3(30, 0, 38))
+	var br: Bridge = g.bridges[0]
+	var bdir: Vector3 = (br.b - br.a).normalized()
+	var path := g.terrain.find_path(g.terrain.nearest_free(br.a - bdir * 14.0), g.terrain.nearest_free(br.b + bdir * 14.0))
 	var wet := false
+	var crossed := false
 	for wp in path:
-		if not g.terrain.is_land(wp):
+		if g.terrain.kind_at(wp) == Terrain.WATER:
 			wet = true
-	_check("yol nehri kopruden gecer", path.size() > 5 and not wet)
-	_check("dagin icinden duz gidilemez", not g.terrain.line_clear(Vector3(-60, 0, -50), Vector3(-30, 0, -50)))
+		if g.terrain.kind_at(wp) == Terrain.BRIDGE:
+			crossed = true
+	_check("yol nehri kopruden gecer", path.size() > 5 and not wet and crossed)
+	_check("dagin icinden duz gidilemez", not g.terrain.line_clear(rock - Vector3(12, 0, 0), rock + Vector3(12, 0, 0)))
 
 	# 9c) doktrin: Pakistan'da (Balistik Füze) Füze Üssü Kademe 2'de açılır, füze ucuzdur
 	_check("fuze doktrini fuze ussunu kademe 2'de acar", int(Defs.BUILDINGS[Defs.bid(0, "fuze")].tier) == 2 and g.missile_info(0, 0).cost < Scenarios.country(0).missiles[0].cost)

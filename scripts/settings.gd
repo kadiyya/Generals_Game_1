@@ -1,6 +1,6 @@
 class_name Settings
 extends RefCounted
-## Oyuncu ayarları (user://ayarlar.cfg): ses, müzik, gölge, efekt, texture ve doğa ayrıntıları.
+## Oyuncu ayarları (user://ayarlar.cfg): ses, müzik, gölge, efekt ve texture.
 ## Eski telefonlarda gölge, efekt ve texture kapatılarak oyun hızlandırılabilir.
 
 const PATH := "user://ayarlar.cfg"

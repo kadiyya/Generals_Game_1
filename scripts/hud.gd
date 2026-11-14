@@ -3,8 +3,8 @@ extends CanvasLayer
 ## Arayüz: üst bilgi çubuğu, görev satırı, hız düğmesi, küçük harita, grup düğmeleri, doktrin yeteneği,
 ## alt bağlam paneli (birim kartları arkaya çevrilip özellikleri görülebilir), ipucu satırı, can çubukları ve rütbeler.
 
-const MM_W := 220.0
-const MM_H := MM_W * Defs.MAP_H / Defs.MAP_W
+var MM_W := 260.0
+var MM_H := 160.0
 
 var root: Control
 var overlay: Control
@@ -34,6 +34,7 @@ var _last_ms := 0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
+	MM_H = MM_W * Defs.MAP_H / Defs.MAP_W
 	_last_ms = Time.get_ticks_msec()
 	root = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -86,13 +87,13 @@ func _ready() -> void:
 	for g in [["Kara", "kara"], ["Hava Sav.", "hs"], ["Hava", "hava"], ["Hepsi", ""]]:
 		var b := Button.new()
 		b.text = g[0]
-		b.custom_minimum_size = Vector2(108, 50)
+		b.custom_minimum_size = Vector2(128, 50)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(_on_group.bind(g[1]))
 		grid.add_child(b)
 	var build := Button.new()
 	build.text = "İnşa"
-	build.custom_minimum_size = Vector2(220, 56)
+	build.custom_minimum_size = Vector2(260, 56)
 	build.focus_mode = Control.FOCUS_NONE
 	build.pressed.connect(_on_build)
 	side.add_child(build)
@@ -102,7 +103,7 @@ func _ready() -> void:
 	for i in 3:
 		var gb := Button.new()
 		gb.text = "Grup %d" % (i + 1)
-		gb.custom_minimum_size = Vector2(70, 46)
+		gb.custom_minimum_size = Vector2(84, 46)
 		gb.focus_mode = Control.FOCUS_NONE
 		gb.add_theme_font_size_override("font_size", 15)
 		gb.tooltip_text = "Dokun: grubu seç (iki kez: kamerayı götür). Basılı tut: seçili birlikleri bu gruba kaydet."
@@ -110,7 +111,7 @@ func _ready() -> void:
 		gb.button_up.connect(_group_up.bind(i))
 		grp.add_child(gb)
 	ab_btn = Button.new()
-	ab_btn.custom_minimum_size = Vector2(220, 62)
+	ab_btn.custom_minimum_size = Vector2(260, 62)
 	ab_btn.focus_mode = Control.FOCUS_NONE
 	ab_btn.add_theme_font_size_override("font_size", 16)
 	ab_btn.pressed.connect(func(): Game.I.begin_ability())
@@ -313,7 +314,11 @@ func _rebuild_now() -> void:
 	var g := Game.I
 	bottom.visible = true
 	if g.placing != "":
-		title.text = "%s yerleştiriliyor: sarı çemberin içinde bir yere dokun" % Defs.BUILDINGS[Defs.bid(0, g.placing)].name
+		title.text = "%s yerleştiriliyor: sarı alanın içinde bir yere dokun" % Defs.BUILDINGS[Defs.bid(0, g.placing)].name
+		if g.placing == "maden":
+			title.text = "Maden Ocağı: bir kaynak yatağına dokun (yanında birliğin olmalı)"
+		elif g.placing == "ileri":
+			title.text = "İleri Harekât Üssü: birliklerinin yanında görebildiğin bir yere dokun"
 		_btn("İptal", g.cancel_placing)
 		return
 	if g.rally_for != null:
@@ -322,6 +327,10 @@ func _rebuild_now() -> void:
 		return
 	if g.patrol_pick:
 		title.text = "Devriye: birliklerin gidip geleceği noktaya dokun"
+		_btn("İptal", g.cancel_modes)
+		return
+	if g.bridge_pick:
+		title.text = "Köprü yık: seçili birliklerin ateş edeceği köprüye dokun"
 		_btn("İptal", g.cancel_modes)
 		return
 	if g.targeting != null:
@@ -359,6 +368,7 @@ func _rebuild_now() -> void:
 		_btn("Dur", _stop)
 		_btn("Geri Çekil", _retreat)
 		_btn("Devriye", g.begin_patrol)
+		_btn("Köprü\nYık", g.begin_bridge_pick)
 		var foot := 0
 		for u in units:
 			if u.armor == "inf":
@@ -370,11 +380,18 @@ func _rebuild_now() -> void:
 			title.text += "   (eve girmek için bir eve dokun)"
 		_btn("Seçimi Bırak", g.clear_selection)
 		return
+	if g.selection.size() == 1 and g.selection[0] is Building and g.selection[0].strategic:
+		title.text = "%s — stratejik tesis: düşmanın görev hedefi. Bağımsız savunma birlikleri korur; üretim yapmaz." % g.selection[0].d.name
+		_btn("Kapat", g.clear_selection)
+		return
 	if g.selection.size() == 1 and g.selection[0] is Building:
 		var b: Building = g.selection[0]
 		refreshers.append(_refresh_building_title.bind(b))
 		if b.built:
-			for id in b.d.get("produces", []):
+			for id in b.d.get("slots", b.d.get("produces", [])):
+				if id == "":
+					_empty_slot()
+					continue
 				var ud: Dictionary = Defs.UNITS[id]
 				var cost := g.unit_cost(0, id)
 				var label: String = ud.name
@@ -384,13 +401,18 @@ func _rebuild_now() -> void:
 				refreshers.append(_refresh_card.bind(btn, id, label, cost, int(ud.get("tier", 1))))
 			if b.kind == "teknoloji":
 				for r in Scenarios.RESEARCH:
-					var rb := _btn("%s\n$%d" % [r.name, r.cost], _research.bind(b, r))
+					var rb := _btn("%s\n$%d\n%s" % [r.name, r.cost, r.desc], _research.bind(b, r))
 					rb.tooltip_text = r.desc
+					rb.custom_minimum_size = Vector2(190, 112)
+					rb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+					rb.add_theme_font_size_override("font_size", 13)
 					refreshers.append(_refresh_research.bind(rb, b, r))
 			if b.kind == "fuze":
 				var ms: Array = Scenarios.country(0).missiles
 				for i in ms.size():
 					var mb := _btn(ms[i].name, g.begin_targeting.bind(b, i))
+					if g.missile_info(0, i).get("exp", false):
+						_exp_style(mb)
 					refreshers.append(_refresh_missile.bind(mb, b, i))
 			if not b.d.get("produces", []).is_empty():
 				_btn("Toplanma\nNoktası", g.begin_rally.bind(b))
@@ -407,6 +429,8 @@ func _rebuild_now() -> void:
 
 func _card(b: Building, id: String, label: String, cost: int) -> Button:
 	var btn := _btn("%s\n$%d" % [label, cost], _card_pressed.bind(b, id), id)
+	if Defs.UNITS[id].get("exp", false):
+		_exp_style(btn)
 	btn.pivot_offset = btn.custom_minimum_size * 0.5
 	var f := Button.new()
 	f.name = "flip"
@@ -463,6 +487,14 @@ func _refresh_card(btn: Button, id: String, label: String, cost: int, tier: int)
 	btn.add_theme_font_size_override("font_size", 15)
 	btn.remove_theme_color_override("font_color")
 	_refresh_cost(btn, label, cost, tier)
+	# Doktrine uyan birimin fiyatı yeşil, cezalı olanınki kırmızı.
+	var m := Game.I.mod(Defs.PLAYER, "cost_" + Defs.UNITS[id].cls)
+	if m < 0.95:
+		btn.add_theme_color_override("font_color", Color(0.55, 1.0, 0.55))
+		btn.text += "  ▼%d%%" % int(round((1.0 - m) * 100.0))
+	elif m > 1.05:
+		btn.add_theme_color_override("font_color", Color(1.0, 0.55, 0.5))
+		btn.text += "  ▲%d%%" % int(round((m - 1.0) * 100.0))
 
 
 func _update_tip(id: String) -> void:
@@ -529,6 +561,9 @@ func _update_objective() -> void:
 		return
 	var ts = g.teams[Defs.PLAYER]
 	var prog := ""
+	if o.type == "annihilate":
+		obj_lbl.text = "Görev: %s  —  kalan düşman: %d      Senin kalanın: %d" % [o.text, g.foe_left[1 - Defs.SIDE[Defs.PLAYER]], g.foe_left[Defs.SIDE[Defs.PLAYER]]]
+		return
 	if o.type == "hold":
 		prog = "%d:%02d / %d:%02d" % [int(ts.obj_prog) / 60, int(ts.obj_prog) % 60, int(o.secs) / 60, int(o.secs) % 60]
 	else:
@@ -594,6 +629,40 @@ func _btn(text: String, cb: Callable, icon_id := "") -> Button:
 	return b
 
 
+## Ülkede bulunmayan birimin yuvası: boş bir çerçeve (diğer yuvalar kaymaz).
+func _empty_slot() -> void:
+	var p := Panel.new()
+	p.custom_minimum_size = Vector2(126, 112)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.12)
+	sb.border_color = Color(1, 1, 1, 0.08)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(4)
+	p.add_theme_stylebox_override("panel", sb)
+	actions.add_child(p)
+
+
+## Deneysel silahlar (son kademe) turuncu zeminli kartla gösterilir.
+func _exp_style(btn: Button) -> void:
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		var sb := StyleBoxFlat.new()
+		var c := Color(0.85, 0.42, 0.08)
+		match st:
+			"hover":
+				c = c.lightened(0.12)
+			"pressed":
+				c = c.darkened(0.15)
+			"disabled":
+				c = Color(0.45, 0.26, 0.1)
+		sb.bg_color = c
+		sb.border_color = Color(1.0, 0.75, 0.3)
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(5)
+		btn.add_theme_stylebox_override(st, sb)
+	btn.tooltip_text = "DENEYSEL SİLAH: pahalı ama çok etkili."
+
+
 func _refresh_cost(b: Button, label: String, cost: int, tier: int) -> void:
 	var ts = Game.I.teams[Defs.PLAYER]
 	if ts.tier < tier:
@@ -636,13 +705,13 @@ func _refresh_research(btn: Button, b: Building, r: Dictionary) -> void:
 	var g := Game.I
 	var ts = g.teams[Defs.PLAYER]
 	if ts.researched.has(r.id):
-		btn.text = "%s\ntamam" % r.name
+		btn.text = "%s — tamam\n%s" % [r.name, r.desc]
 		btn.disabled = true
 	elif b.research_id == r.id:
-		btn.text = "%s\n%%%d" % [r.name, int(b.research_t / float(r.time) * 100.0)]
+		btn.text = "%s — %%%d\n%s" % [r.name, int(b.research_t / float(r.time) * 100.0), r.desc]
 		btn.disabled = true
 	else:
-		btn.text = "%s\n$%d" % [r.name, r.cost]
+		btn.text = "%s — $%d\n%s" % [r.name, r.cost, r.desc]
 		btn.disabled = b.research_id != "" or ts.money < float(r.cost) or not g.can_research(Defs.PLAYER, r.id)
 
 
@@ -684,7 +753,15 @@ func _refresh_building_title(b: Building) -> void:
 	elif b.kind == "havaalani":
 		s += "  |  Uçak: %d/%d pist" % [Game.I.plane_count(0), Defs.PLANES_PER_AIRFIELD * Game.I.count_kind(0, "havaalani")]
 	elif b.kind == "maden":
-		s += "  |  +$%d/sn" % int(b.d.income)
+		if b.deposit == null or b.deposit.depleted():
+			s += "  |  Yatak tükendi"
+		else:
+			s += "  |  +$%.1f/sn  |  Rezerv $%d" % [b.mine_income(), int(b.deposit.reserve)]
+			s += "  |  Elde tutma bonusu +%%%d (en çok %%%d)" % [int(round(b.hold_bonus() * 100.0)), int(Defs.MINE_HOLD_MAX * 100.0)]
+			if b.hp < b.max_hp:
+				s += "  |  Hasarlı: verim düştü" + (" (onarılıyor)" if b.repairing else " — yanına birlik gönder ki onarılsın")
+	elif b.kind == "ileri":
+		s += "  |  İkmal sağlar, birlikleri onarır. Çevresine kışla, santral ve hava savunma kurulabilir."
 	if b.built and int(b.d.get("power", 0)) < 0 and not b.powered():
 		s += "  |  ENERJİ YETERSİZ: Santral kur"
 	title.text = s
@@ -726,17 +803,21 @@ func _draw_overlay() -> void:
 	var g := Game.I
 	var cam := g.cam.camera
 	var font := ThemeDB.fallback_font
+	var view := get_viewport().get_visible_rect().grow(60.0)
 	for e in g.entities:
 		if not e.alive or not e.seen:
 			continue
 		var is_sel: bool = g.selection.has(e)
 		var unbuilt: bool = e.is_building and not e.built
-		if e.hp >= e.max_hp and not is_sel and not unbuilt and e.rank == 0:
+		var armed_air: bool = e is AirUnit and e.d.has("ammo")
+		if e.hp >= e.max_hp and not is_sel and not unbuilt and e.rank == 0 and not armed_air:
 			continue
 		var wp: Vector3 = e.global_position + Vector3(0, 2.4 if not e.is_building else 4.5, 0)
 		if cam.is_position_behind(wp):
 			continue
 		var p := cam.unproject_position(wp)
+		if not view.has_point(p):
+			continue
 		var w := 46.0 if not e.is_building else 80.0
 		var f: float = clampf(e.hp / e.max_hp, 0.0, 1.0)
 		var col := Color(0.25, 0.9, 0.3)
@@ -751,28 +832,143 @@ func _draw_overlay() -> void:
 			var cx: float = p.x - w * 0.5 - 8.0
 			var cy: float = p.y + 4.0 - r * 5.0
 			overlay.draw_colored_polygon(PackedVector2Array([Vector2(cx - 5, cy), Vector2(cx, cy - 4), Vector2(cx + 5, cy), Vector2(cx + 5, cy + 2), Vector2(cx, cy - 2), Vector2(cx - 5, cy + 2)]), Color(1.0, 0.82, 0.25))
-		if e is AirUnit and e.team == Defs.PLAYER and e.d.has("ammo"):
-			var txt := "Füze %d" % e.ammo if e.state == "patrol" else "Silahlanıyor"
-			overlay.draw_string(font, p + Vector2(-w * 0.5, -6), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+		if e is AirUnit and e.d.has("ammo"):
+			_ammo_pips(e, p + Vector2(0, -4), font)
 	for pt in g.points:
 		var wp2: Vector3 = pt.position + Vector3(0, 5.2, 0)
 		if cam.is_position_behind(wp2):
 			continue
 		var p2 := cam.unproject_position(wp2)
-		var label := "+$%d/sn" % int(pt.income)
+		if not view.has_point(p2):
+			continue
+		var label := "+$%.1f/sn" % pt.income if pt.owner_team == Defs.NEUTRAL else "+$%.1f/sn" % pt.current_income()
+		if pt.ruined():
+			label = "TAHRİP  %d sn" % int(ceil(pt.ruin_left()))
+		if pt.pname != "":
+			label = pt.pname + "  " + label
 		var lc := Color(1, 1, 1, 0.95)
 		if pt.owner_team != Defs.NEUTRAL:
 			lc = Defs.TEAM_COLORS[pt.owner_team].lightened(0.45)
+		if pt.hp < pt.max_hp:
+			var fi: float = pt.integrity()
+			overlay.draw_rect(Rect2(p2.x - 31, p2.y - 30, 62, 7), Color(0, 0, 0, 0.7))
+			overlay.draw_rect(Rect2(p2.x - 30, p2.y - 29, 60 * fi, 5), Color(0.95, 0.55, 0.2) if fi < 0.6 else Color(0.4, 0.9, 0.4))
+			if pt.repairing:
+				overlay.draw_string(font, p2 + Vector2(36, -22), "onarılıyor", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 1.0, 0.6))
 		overlay.draw_string_outline(font, p2 + Vector2(-30, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5, Color(0, 0, 0, 0.8))
 		overlay.draw_string(font, p2 + Vector2(-30, 0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, lc)
 		if pt.cap_t > 0.0 and pt.cap_team != Defs.NEUTRAL:
 			var f2: float = clampf(pt.cap_t / pt.cap_time, 0.0, 1.0)
 			overlay.draw_rect(Rect2(p2.x - 41, p2.y + 5, 82, 9), Color(0, 0, 0, 0.7))
 			overlay.draw_rect(Rect2(p2.x - 40, p2.y + 6, 80 * f2, 7), Defs.TEAM_COLORS[pt.cap_team])
+	# görev hedefleri ve saldırı altındaki kendi binaların
+	for e in g.entities:
+		if not e.alive or not e.is_building:
+			continue
+		var tgt: bool = g.is_obj_target(e)
+		var hit: bool = e.team == Defs.PLAYER and g.time - e.last_hit < 4.0
+		if not tgt and not hit:
+			continue
+		var wpt: Vector3 = e.global_position + Vector3(0, 6.5, 0)
+		if cam.is_position_behind(wpt):
+			continue
+		var pt3 := cam.unproject_position(wpt)
+		if not view.has_point(pt3):
+			continue
+		var tc := Color(1.0, 0.25, 0.2)
+		var txt := "HEDEF" if tgt else "SALDIRI!"
+		if hit and fmod(g.time, 0.6) > 0.3:
+			tc = Color(1.0, 0.85, 0.3)
+		overlay.draw_arc(pt3 + Vector2(0, -6), 9.0, 0.0, TAU, 16, tc, 2.0)
+		overlay.draw_string_outline(font, pt3 + Vector2(14, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0, 0.85))
+		overlay.draw_string(font, pt3 + Vector2(14, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, tc)
+	# köprülerin canı: hasarlıysa ya da köprü yıkma seçiliyken her zaman
+	for br in g.bridges:
+		if br.hp >= br.max_hp and not g.bridge_pick and not br.down:
+			continue
+		var wpb: Vector3 = br.global_position + Vector3(0, 3.0, 0)
+		if cam.is_position_behind(wpb):
+			continue
+		var pb := cam.unproject_position(wpb)
+		if not view.has_point(pb):
+			continue
+		var fb: float = clampf(br.hp / br.max_hp, 0.0, 1.0)
+		overlay.draw_rect(Rect2(pb.x - 41, pb.y - 1, 82, 9), Color(0, 0, 0, 0.75))
+		overlay.draw_rect(Rect2(pb.x - 40, pb.y, 80 * fb, 7), Color(0.95, 0.3, 0.2) if fb < 0.35 else (Color(0.95, 0.8, 0.2) if fb < 0.7 else Color(0.3, 0.9, 0.35)))
+		var bl := "Köprü %d / %d" % [int(br.hp), int(br.max_hp)]
+		if br.down:
+			bl = "Yıkık köprü" + ("  onarılıyor %%%d" % int(br.repair_t / Bridge.REPAIR_TIME * 100.0) if br.repair_t > 0.0 else "")
+		overlay.draw_string_outline(font, pb + Vector2(-40, -6), bl, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color(0, 0, 0, 0.85))
+		overlay.draw_string(font, pb + Vector2(-40, -6), bl, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.95, 0.92, 0.8))
+	for dp in g.deposits:
+		if not is_instance_valid(dp) or dp.mine != null:
+			continue
+		var wp3: Vector3 = dp.position + Vector3(0, 4.0, 0)
+		if cam.is_position_behind(wp3):
+			continue
+		var p3 := cam.unproject_position(wp3)
+		if not view.has_point(p3):
+			continue
+		var dl := "Kaynak yatağı  +$%.1f/sn  ($%d)" % [dp.rich, int(dp.reserve)]
+		if dp.ruined():
+			dl = "Tahrip edilmiş yatak  %d sn" % int(ceil(dp.ruined_until - g.time))
+		overlay.draw_string_outline(font, p3 + Vector2(-80, 0), dl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0, 0.8))
+		overlay.draw_string(font, p3 + Vector2(-80, 0), dl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.85, 0.35))
+	# ikmal hattı dışındaki kendi birliklerin: turuncu uyarı
+	for e in g.entities:
+		if e is Unit and e.alive and e.team == Defs.PLAYER and not e.supplied:
+			var wp4: Vector3 = e.global_position + Vector3(0, 3.2, 0)
+			if cam.is_position_behind(wp4):
+				continue
+			var p4 := cam.unproject_position(wp4)
+			if not view.has_point(p4):
+				continue
+			overlay.draw_rect(Rect2(p4 + Vector2(-7, -7), Vector2(14, 14)), Color(0.95, 0.5, 0.1, 0.9))
+			overlay.draw_line(p4 + Vector2(-5, -5), p4 + Vector2(5, 5), Color.BLACK, 2.0)
+			overlay.draw_line(p4 + Vector2(-5, 5), p4 + Vector2(5, -5), Color.BLACK, 2.0)
 	if g.controls != null and g.controls.mode == "box":
 		var r: Rect2 = g.controls.box_rect()
 		overlay.draw_rect(r, Color(0.3, 1.0, 0.4, 0.15))
 		overlay.draw_rect(r, Color(0.3, 1.0, 0.4, 0.9), false, 2.0)
+
+
+var _mmt: ImageTexture = null
+
+
+## Küçük harita resmi: arazi resmi, su kenarları belirgin.
+func _mm_tex() -> ImageTexture:
+	if _mmt == null:
+		var img: Image = Game.I.terrain.ground_img.duplicate()
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				if c.a > 0.5:
+					c = Color(0.16, 0.34, 0.55)
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0))
+		_mmt = ImageTexture.create_from_image(img)
+	return _mmt
+
+
+## Hava aracının üstünde mühimmat: dolu ve boş füze simgeleri; silahlanırken yazı.
+func _ammo_pips(e, p: Vector2, font: Font) -> void:
+	var n := int(e.d.ammo)
+	var w := 7.0
+	var x0 := p.x - n * w * 0.5
+	var col: Color = Color.WHITE if Defs.friendly(e.team) else Color(1.0, 0.75, 0.7)
+	overlay.draw_rect(Rect2(x0 - 3, p.y - 13, n * w + 4, 12), Color(0, 0, 0, 0.55))
+	for i in n:
+		var x := x0 + i * w
+		var full: bool = i < e.ammo
+		var body := PackedVector2Array([Vector2(x + 1, p.y - 3), Vector2(x + 1, p.y - 9), Vector2(x + 2.5, p.y - 12), Vector2(x + 4, p.y - 9), Vector2(x + 4, p.y - 3)])
+		if full:
+			overlay.draw_colored_polygon(body, col)
+		else:
+			body.append(body[0])
+			overlay.draw_polyline(body, Color(col, 0.45), 1.0)
+	if e.state != "patrol" and e.state != "takeoff":
+		overlay.draw_string(font, Vector2(x0 + n * w + 4, p.y - 2), "silahlanıyor", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.8, 0.9, 1.0))
+	elif e.d.has("ammo") and Defs.friendly(e.team):
+		overlay.draw_string(font, Vector2(x0 + n * w + 4, p.y - 2), "%d/%d" % [e.ammo, n], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
 
 
 func _mm(p: Vector3) -> Vector2:
@@ -788,17 +984,30 @@ func _mm_rect(r: Array) -> Rect2:
 func _draw_minimap() -> void:
 	var g := Game.I
 	minimap.draw_rect(Rect2(Vector2.ZERO, minimap.size), Color(0.16, 0.22, 0.14, 0.95))
-	var mp_def: Dictionary = Defs.MAP
-	for r in mp_def.water:
-		minimap.draw_rect(_mm_rect(r), Color(0.14, 0.3, 0.5))
-	for r in mp_def.bridges:
-		minimap.draw_rect(_mm_rect(r), Color(0.4, 0.4, 0.32))
-	for r in mp_def.rock:
-		minimap.draw_rect(_mm_rect(r), Color(0.42, 0.39, 0.35))
-	for r in mp_def.trees:
-		minimap.draw_rect(_mm_rect(r), Color(0.1, 0.3, 0.14))
-	for r in mp_def.ruins:
-		minimap.draw_rect(_mm_rect(r), Color(0.5, 0.47, 0.44))
+	minimap.draw_texture_rect(_mm_tex(), Rect2(Vector2.ZERO, minimap.size), false)
+	for br in g.bridges:
+		minimap.draw_line(_mm(br.a), _mm(br.b), Color(0.85, 0.82, 0.7) if br.alive else Color(0.9, 0.2, 0.15), 3.0)
+	# kendi tarafının ikmal alanı
+	var sc := Color(1.0, 1.0, 1.0, 0.18)
+	for src in g.supply_sources(Defs.SIDE[Defs.PLAYER]):
+		minimap.draw_arc(_mm(src[0]), src[1] / Defs.MAP_W * MM_W, 0.0, TAU, 24, sc, 1.0)
+	for dp in g.deposits:
+		if not is_instance_valid(dp) or dp.depleted():
+			continue
+		var dc := Color(1.0, 0.82, 0.25)
+		if dp.mine != null:
+			dc = Defs.TEAM_COLORS[dp.mine.team].lightened(0.4)
+		var q := _mm(dp.position)
+		minimap.draw_colored_polygon(PackedVector2Array([q + Vector2(0, -5), q + Vector2(5, 0), q + Vector2(0, 5), q + Vector2(-5, 0)]), dc)
+	for pg in g.pings:
+		if g.time < pg[1]:
+			var rr := 4.0 + fmod(g.time * 14.0, 14.0)
+			minimap.draw_arc(_mm(pg[0]), rr, 0.0, TAU, 20, Color(1.0, 0.85, 0.3, 1.0 - (rr - 4.0) / 14.0), 2.0)
+	for ap in g.attack_pings:
+		if g.time < ap[1]:
+			var ra := 5.0 + fmod(g.time * 16.0, 14.0)
+			minimap.draw_arc(_mm(ap[0]), ra, 0.0, TAU, 20, Color(1.0, 0.2, 0.15, 1.0 - (ra - 5.0) / 14.0), 2.5)
+			minimap.draw_circle(_mm(ap[0]), 3.0, Color(1.0, 0.2, 0.15))
 	for pt in g.points:
 		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:
@@ -810,6 +1019,14 @@ func _draw_minimap() -> void:
 			continue
 		var s := 6.0 if e.is_building else 3.5
 		minimap.draw_rect(Rect2(_mm(e.global_position) - Vector2(s, s) * 0.5, Vector2(s, s)), Defs.TEAM_COLORS[e.team].lightened(0.3))
+	# görev hedefleri: kırmızı nişangâh
+	for e in g.entities:
+		if e.alive and e.is_building and g.is_obj_target(e):
+			var tq := _mm(e.global_position)
+			var tr := 6.0 + 1.5 * sin(g.time * 5.0)
+			minimap.draw_arc(tq, tr, 0.0, TAU, 16, Color(1.0, 0.25, 0.2), 2.0)
+			minimap.draw_line(tq + Vector2(-tr - 3, 0), tq + Vector2(tr + 3, 0), Color(1.0, 0.25, 0.2), 1.5)
+			minimap.draw_line(tq + Vector2(0, -tr - 3), tq + Vector2(0, tr + 3), Color(1.0, 0.25, 0.2), 1.5)
 	var vr := get_viewport().get_visible_rect().size
 	var a := _mm(g.cam.ground_at(Vector2(0, 0)))
 	var b := _mm(g.cam.ground_at(Vector2(vr.x, 0)))
@@ -842,7 +1059,7 @@ func _minimap_input(ev: InputEvent) -> void:
 
 # ---------------------------------------------------------------- bitiş
 
-func show_end(won: bool) -> void:
+func show_end(won: bool, reason := "") -> void:
 	Engine.time_scale = 1.0
 	end_panel = ColorRect.new()
 	end_panel.color = Color(0, 0, 0, 0.65)
@@ -861,8 +1078,13 @@ func show_end(won: bool) -> void:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(l)
 	var l2 := Label.new()
-	l2.text = "Düşman karargâhı yıkıldı." if won else "Karargâhın yıkıldı."
+	if reason == "":
+		reason = "Düşman karargâhı yıkıldı." if won else "Karargâhın yıkıldı."
+	l2.text = reason
 	l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l2.custom_minimum_size = Vector2(620, 0)
+	l2.add_theme_font_size_override("font_size", 24)
 	vb.add_child(l2)
 	var b := Button.new()
 	b.text = "Yeniden Oyna"

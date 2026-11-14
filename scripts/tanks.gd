@@ -5,7 +5,7 @@ extends RefCounted
 ## (x ve y mutlak, z yatağa göre), design() yatağın z konumunu döndürür.
 ## Not: bu dosya yalnızca Kit çağrıları ve düz hesap içerir; geliştirme önizleme aracı da aynı kodu okur.
 
-const S := 0.56
+const S := 0.66   # araçlar okunsun diye gerçek ölçünün biraz üstünde
 
 
 ## Renk yuvaları: gövde boyası, ek zırh, çelik, lastik, palet, takım rengi örtüsü, branda, cam.

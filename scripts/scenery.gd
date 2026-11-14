@@ -3,7 +3,7 @@ extends RefCounted
 ## Doğa görselleri: arazi, su, bitki ve kuş shader'ları ile kodla üretilen ağaç, çalı, ot ve kuş modelleri.
 ## Dosya yok; hepsi açılışta bir kez üretilir. Oynanışa etkisi yoktur.
 
-## Arazi: maske dokusundan (R yol, G orman zemini, B kum/kıyı, A kaya) ve eğimden renk üretir.
+## Arazi: tarla rengi dokusundan, maske dokusundan (R yol, G orman zemini, B kum/kıyı, A kaya) ve eğimden renk üretir.
 ## Gürültüyle maske kenarları bozulur; böylece 1 m çözünürlüklü maske keskin ve doğal görünür.
 const TERRAIN_SHADER := """
 shader_type spatial;
@@ -11,8 +11,9 @@ uniform sampler2D mask_tex : filter_linear, repeat_disable;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_tex : filter_linear_mipmap, repeat_enable;
 uniform sampler2D bump_tex : filter_linear_mipmap, repeat_enable;
-uniform vec3 grass : source_color;
-uniform vec3 lush : source_color;
+uniform sampler2D field_tex : source_color, filter_linear, repeat_disable;
+uniform vec3 lush_mul;
+uniform float lush_k;
 uniform vec3 dry : source_color;
 uniform vec3 dirt : source_color;
 uniform vec3 floor_col : source_color;
@@ -42,6 +43,9 @@ void fragment() {
 	float slope = 1.0 - n.y;
 
 	// çayır: iri lekeler hâlinde gür, olağan ve kuru ot
+	// tarla parselleri: her parselin kendi tonu var (zemin dokusundan)
+	vec3 grass = texture(field_tex, muv).rgb;
+	vec3 lush = mix(grass, grass * lush_mul, lush_k);
 	vec3 c = mix(lush, grass, smoothstep(0.32, 0.6, big));
 	c = mix(c, dry, smoothstep(0.52, 0.74, mid * 0.65 + big * 0.35) * 0.6);
 	c *= (0.74 + 0.36 * fine) * (0.72 + 0.56 * grain) * 0.8;
@@ -301,10 +305,9 @@ static func mesh(kind: String) -> ArrayMesh:
 			b.cone(1.4, 0.1, 2.2, 0.05, 4, bark, bark, Vector3(-0.5, 0, -0.3))
 			var top := Color(0.36, 0.5, 0.2, 1.0)
 			var bot := Color(0.14, 0.27, 0.11, 0.7)
-			b.blob(Vector3(0, 2.9, 0), Vector3(1.2, 1.0, 1.2), top, bot, 3)
-			b.blob(Vector3(0.75, 2.4, 0.3), Vector3(0.85, 0.7, 0.85), top, bot, 4)
-			b.blob(Vector3(-0.7, 2.3, -0.4), Vector3(0.9, 0.72, 0.9), top, bot, 5)
-			b.blob(Vector3(-0.1, 2.5, 0.75), Vector3(0.75, 0.62, 0.75), top, bot, 6)
+			b.blob(Vector3(0, 2.9, 0), Vector3(1.2, 1.0, 1.2), top, bot, 3, 0.18, 6, 3)
+			b.blob(Vector3(0.75, 2.4, 0.3), Vector3(0.85, 0.7, 0.85), top, bot, 4, 0.18, 6, 3)
+			b.blob(Vector3(-0.7, 2.3, -0.4), Vector3(0.9, 0.72, 0.9), top, bot, 5, 0.18, 6, 3)
 		"poplar":
 			# kavak: rüzgâr perdesi ağacı, uzun ve ince
 			b.cone(0.0, 0.15, 1.6, 0.09, 5, bark2, bark)

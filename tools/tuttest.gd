@@ -47,7 +47,7 @@ func _run() -> void:
 		func():
 			var f = g.nearest_building(0, "fabrika", hq)
 			if f != null and f.built and f.queue.is_empty():
-				g.queue_unit(f, g.unit_of(0, "tank")),
+				g.queue_unit(f, g.unit_of(0, "ifv")),
 		func():
 			g.select_category("")
 			g.save_group(0),

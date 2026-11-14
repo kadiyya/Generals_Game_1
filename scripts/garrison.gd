@@ -1,22 +1,42 @@
 class_name Garrison
 extends Node3D
-## Köy evi: en çok iki piyade birliği girebilir. İçerideki birlik %60 az hasar alır, menzili artar.
-## Ev bir takıma ait değildir; içinde kim varsa onundur. Ev yıkılmaz (prototip).
+## Piyadenin girebildiği yapı. Kimseye ait değildir; içinde kim varsa onundur. Türler:
+##   house:   köy evi, 2 birlik, %60 az hasar, +3 menzil, +6 görüş
+##   block:   yıkık apartman, 3 birlik, %65 az hasar, +4 menzil, +10 görüş (üst katlardan gözetler)
+##   factory: terk edilmiş fabrika, 4 birlik, %55 az hasar, +3 menzil, +6 görüş
+## Yapılar yıkılmaz (prototip).
 
-const CAP := 2
-const RADIUS := 2.4
+const TYPES := {
+	house = {cap = 2, protect = 0.4, range = 3.0, vision = 6.0, radius = 2.4, model = "house"},
+	block = {cap = 3, protect = 0.35, range = 4.0, vision = 10.0, radius = 3.0, model = "block"},
+	factory = {cap = 4, protect = 0.45, range = 3.0, vision = 6.0, radius = 4.6, model = "ruin_factory"},
+}
 
+var tp := "house"
+var cap := 2
+var protect := 0.4
+var range_bonus := 3.0
+var vision_bonus := 6.0
+var radius := 2.4
 var units: Array = []
 var flag: MeshInstance3D
 
 
-func setup(p: Vector3) -> void:
+func setup(p: Vector3, kind := "house") -> void:
 	position = p
-	rotation.y = (int(absf(p.x + p.z)) % 4) * PI * 0.5
-	add_child(Models.build({"model": "house"}, Defs.PLAYER))
-	flag = Models.box(self, Vector3(1.0, 0.6, 0.05), Vector3(1.6, 3.9, 1.4), Color(0.85, 0.85, 0.85))
-	Models.cyl(self, 0.05, 0.05, 2.2, Vector3(1.1, 3.0, 1.4), Models.DARK)
-	Game.I.terrain.block_circle(p, RADIUS, true)
+	tp = kind if TYPES.has(kind) else "house"
+	var t: Dictionary = TYPES[tp]
+	cap = t.cap
+	protect = t.protect
+	range_bonus = t.range
+	vision_bonus = t.vision
+	radius = t.radius
+	rotation.y = (int(absf(p.x * 3.0 + p.z)) % 4) * PI * 0.5
+	add_child(Models.build({"model": t.model}, Defs.PLAYER))
+	var top := 3.9 if tp == "house" else (6.6 if tp == "block" else 5.2)
+	flag = Models.box(self, Vector3(1.0, 0.6, 0.05), Vector3(radius * 0.65, top, radius * 0.55), Color(0.85, 0.85, 0.85))
+	Models.cyl(self, 0.05, 0.05, 2.2, Vector3(radius * 0.65 - 0.5, top - 0.9, radius * 0.55), Models.DARK)
+	Game.I.terrain.block_circle(p, radius, true)
 
 
 func owner_team() -> int:
@@ -26,7 +46,7 @@ func owner_team() -> int:
 
 func has_room(team: int) -> bool:
 	var o := owner_team()
-	return units.size() < CAP and (o == Defs.NEUTRAL or o == team)
+	return units.size() < cap and (o == Defs.NEUTRAL or o == team)
 
 
 func add(u) -> void:

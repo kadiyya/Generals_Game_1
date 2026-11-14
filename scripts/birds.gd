@@ -3,8 +3,8 @@ extends Node3D
 ## Atmosfer: haritanın üstünden geçen kuş sürüleri ve tepelerin üstünde süzülen yırtıcılar.
 ## Tek MultiMesh; kanat çırpma shader'dadır. Oynanışa etkisi yoktur.
 
-const FLOCKS := 3
-const SOARERS := 2
+const FLOCKS := 7
+const SOARERS := 5
 
 var mm := MultiMesh.new()
 var flocks: Array = []     # {pos, yaw, speed, alt, turn, t, n, first}
@@ -18,14 +18,14 @@ func _ready() -> void:
 	for f in FLOCKS:
 		var n := rng.randi_range(5, 9)
 		flocks.append({
-			pos = Vector3(rng.randf_range(-90.0, 90.0), 0, rng.randf_range(-60.0, 60.0)), yaw = rng.randf() * TAU,
+			pos = Vector3(rng.randf_range(-0.45, 0.45) * Defs.MAP_W, 0, rng.randf_range(-0.45, 0.45) * Defs.MAP_H), yaw = rng.randf() * TAU,
 			speed = rng.randf_range(5.0, 7.5), alt = rng.randf_range(7.0, 10.0), turn = 0.0, t = rng.randf() * 20.0,
 			n = n, first = total})
 		total += n
 	# yırtıcılar tepe ve dağların üstünde döner
-	var spots: Array = Defs.MAP.get("hills", []) + Defs.MAP.rock
+	var spots: Array = Defs.MAP.get("hills", []) + Defs.MAP.get("rock", [])
 	for s in mini(SOARERS, spots.size()):
-		var r: Array = spots[rng.randi() % spots.size()]
+		var r: Array = Terrain._bbox(spots[rng.randi() % spots.size()])
 		soarers.append({
 			ctr = Vector3((r[0] + r[2]) * 0.5, 0, (r[1] + r[3]) * 0.5), r = rng.randf_range(7.0, 12.0),
 			a = rng.randf() * TAU, w = rng.randf_range(0.22, 0.32) * (1.0 if s % 2 == 0 else -1.0),
@@ -43,7 +43,7 @@ func _ready() -> void:
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
 	mi.material_override = Scenery.shader_mat(Scenery.BIRD_SHADER)
-	mi.custom_aabb = AABB(Vector3(-200, 0, -200), Vector3(400, 40, 400))
+	mi.custom_aabb = AABB(Vector3(-600, 0, -500), Vector3(1200, 40, 1000))
 	add_child(mi)
 	_process(0.0)
 

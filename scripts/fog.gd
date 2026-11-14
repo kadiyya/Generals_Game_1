@@ -1,7 +1,6 @@
 class_name Fog
 extends Node3D
 ## Savaş sisi. Her takım için bir görüş ızgarası tutar; oyuncununki haritaya çizilir.
-## Sis yüzeyi araziye oturur (tepe ve dağların üstünü de örter) ve bulut gölgelerini de taşır.
 
 const CELL := 2.0
 const SHADER := """
@@ -47,6 +46,7 @@ func _ready() -> void:
 	sm.set_shader_parameter("cloud", Tex.texture("noise"))
 	sm.set_shader_parameter("clouds", 1.0 if Settings.get_v("nature") else 0.0)
 	sm.render_priority = 1
+	# Sis yüzeyi araziye oturur: tepe ve dağların üstünü de örter. Bitkiler aynı dokuyla kararır.
 	var ter: Terrain = Game.I.terrain
 	for pm in ter.fog_mats:
 		pm.set_shader_parameter("vis", tex)
@@ -73,26 +73,38 @@ func recompute() -> void:
 			var v: float = e.vision
 			if e.is_building and not e.built:
 				v = 6.0
+			elif e.is_building:
+				# Üs ve inşa alanı sisle örtülmez; ileri üssün çevresi de açıktır.
+				if e.kind == "hq":
+					v = maxf(v, Defs.BUILD_ZONE + 2.0)
+				elif e.kind == "ileri":
+					v = maxf(v, Defs.FOB_ZONE + 10.0)
+				elif not e.d.get("field", false):
+					v = maxf(v, Defs.ZONE_EXT + 2.0)
 			elif not e.is_air and not e.is_building:
 				# Tepeden daha uzağı görür; evdeki birlik pencereden gözler.
 				if g.terrain.kind_at(e.global_position) == Terrain.HILL:
 					v *= 1.3
 				if e is Unit and e.garrison != null:
-					v += 6.0
-			_stamp(e.team, e.global_position, v)
+					v += e.garrison.vision_bonus
+			_stamp(Defs.SIDE[e.team], e.global_position, v)
 	for p in g.points:
 		if p.owner_team != Defs.NEUTRAL:
-			_stamp(p.owner_team, p.position, SupplyPoint.VISION)
-	tex.update(Image.create_from_data(gw, gh, false, Image.FORMAT_L8, grids[Defs.PLAYER]))
+			_stamp(Defs.SIDE[p.owner_team], p.position, SupplyPoint.VISION)
+	tex.update(Image.create_from_data(gw, gh, false, Image.FORMAT_L8, grids[Defs.SIDE[Defs.PLAYER]]))
 	for e in g.entities:
-		if e.team == Defs.PLAYER:
+		if Defs.friendly(e.team):
+			if not e.seen:
+				e.seen = true
+				e.visible = true
 			continue
 		var s := sees(Defs.PLAYER, e.global_position)
 		if s and e.concealed():
-			# Ormandaki düşman piyadesi yalnızca yakından görülür.
+			# Ormandaki düşman yalnızca yakından görülür.
 			s = false
+			var rd: float = e.reveal_dist()
 			for o in g.entities:
-				if o.team == Defs.PLAYER and o.alive and not o.is_air and Entity.flat(o.global_position, e.global_position) <= 9.0:
+				if Defs.friendly(o.team) and o.alive and not o.is_air and Entity.flat(o.global_position, e.global_position) <= rd:
 					s = true
 					break
 		if e.is_building:
@@ -125,6 +137,6 @@ func _stamp(team: int, pos: Vector3, r: float) -> void:
 func sees(team: int, pos: Vector3) -> bool:
 	var x := int((pos.x + Defs.MAP_W * 0.5) / CELL)
 	var y := int((pos.z + Defs.MAP_H * 0.5) / CELL)
-	if x < 0 or y < 0 or x >= gw or y >= gh:
+	if x < 0 or y < 0 or x >= gw or y >= gh or team < 0:
 		return false
-	return grids[team][y * gw + x] > 0
+	return grids[Defs.SIDE[team]][y * gw + x] > 0

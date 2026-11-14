@@ -4,7 +4,7 @@ extends Node3D
 
 const PITCH := 1.0   # radyan, aşağı bakış açısı
 const MIN_DIST := 22.0
-const MAX_DIST := 130.0
+const MAX_DIST := 210.0
 
 var camera: Camera3D
 var focus := Vector3.ZERO
@@ -14,7 +14,7 @@ var dist := 60.0
 func _ready() -> void:
 	camera = Camera3D.new()
 	camera.fov = 40.0
-	camera.far = 400.0
+	camera.far = 900.0
 	add_child(camera)
 	camera.current = true
 	apply()

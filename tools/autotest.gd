@@ -4,7 +4,7 @@ extends Node
 ## Kullanım: godot --headless --path . --fixed-fps 30 -- --autotest [--scn=N] [--side=N] [--end=SANİYE] [--idle]
 ## Ekran görüntüsü için --headless olmadan --shots=KLASÖR ekle.
 
-const WANT_B := [["kisla", 1], ["santral", 2], ["fabrika", 1], ["maden", 2], ["havaalani", 1],
+const WANT_B := [["kisla", 1], ["santral", 2], ["fabrika", 1], ["havaalani", 1],
 	["teknoloji", 1], ["sam", 1], ["santral", 4], ["fuze", 1], ["havaalani", 2]]
 const SHOTS := [[2.0, "01_baslangic"], [70.0, "02_us"], [200.0, "03_hava_alani"], [330.0, "04_ordu"],
 	[400.0, "05_ileri"], [470.0, "06_saldiri"], [520.0, "07_harita"]]
@@ -102,6 +102,35 @@ func _act() -> void:
 							if g.launch_missile(e, i, t.position):
 								launched += 1
 							break
+	# kaynak yatağına maden: bir birlik gönderilir, varınca kurulur
+	if g.time > 60.0 and g.count_kind(0, "maden", false) < 2:
+		var best = null
+		for dp in g.deposits:
+			if is_instance_valid(dp) and dp.free_for(0) and not dp.depleted():
+				if best == null or Entity.flat(dp.position, g.teams[0].hq.position) < Entity.flat(best.position, g.teams[0].hq.position):
+					best = dp
+		if best != null:
+			if g.presence(0, best.position, Defs.PRESENCE_R):
+				if g.place_building(0, "maden", best.position):
+					used["maden"] = int(used.get("maden", 0)) + 1
+			else:
+				for u in _units("kara"):
+					if u.cls == "ifv" and u.order == "idle":
+						u.go(best.position, true)
+						break
+	# ileri harekât üssü: karargâhtan en uzak kara birliğinin yanına
+	if g.time > 200.0 and g.count_kind(0, "ileri", false) == 0:
+		var far = null
+		for u in _units("kara"):
+			if far == null or Entity.flat(u.position, g.teams[0].hq.position) > Entity.flat(far.position, g.teams[0].hq.position):
+				far = u
+		if far != null and Entity.flat(far.position, g.teams[0].hq.position) > Defs.SUPPLY_HQ * 0.8:
+			for k in 8:
+				var p: Vector3 = far.position + Vector3(cos(k * 0.8), 0, sin(k * 0.8)) * 9.0
+				if g.can_place(0, "ileri", p):
+					if g.place_building(0, "ileri", p):
+						used["ileri"] = 1
+					break
 	# yeni mekanikler: siper, mayın, engel, eve girme, doktrin yeteneği
 	var inf: Array = []
 	for u in _units("kara"):
@@ -126,7 +155,7 @@ func _act() -> void:
 		var pos := Vector3.INF
 		if a.target:
 			for t in g.entities:
-				if t.team == 1 and g.fog.sees(0, t.global_position):
+				if Defs.foe(0, t.team) and g.fog.sees(0, t.global_position):
 					pos = t.global_position
 					break
 		if not a.target or pos != Vector3.INF:
@@ -155,24 +184,34 @@ func _process(dt: float) -> void:
 	log_t -= dt
 	if log_t <= 0.0:
 		log_t = 60.0
-		var c := [0, 0]
+		var c: Array = []
+		var own: Array = []
+		var money: Array = []
+		var tiers: Array = []
+		for t in Defs.N:
+			c.append(0)
+			own.append(0)
+			money.append(int(g.teams[t].money))
+			tiers.append(g.teams[t].tier)
 		for e in g.entities:
 			c[e.team] += 1
-		var own := [0, 0]
 		for p in g.points:
 			if p.owner_team >= 0:
 				own[p.owner_team] += 1
-		print("t=%d  varlik=%s  nokta=%s  para=[%d,%d]  kademe=[%d,%d]  fuze=%d" % [
-			int(g.time), c, own, int(g.teams[0].money), int(g.teams[1].money),
-			g.teams[0].tier, g.teams[1].tier, launched])
+		print("t=%d  varlik=%s  nokta=%s  para=%s  kademe=%s  fuze=%d  fps=%d" % [
+			int(g.time), c, own, money, tiers, launched, Engine.get_frames_per_second()])
 	if g.time > end_time or g.over:
 		_shot("08_son")
 		var kinds := {}
 		for id in made:
 			kinds[Defs.UNITS[id].cls] = true
-		var ranks := [0, 0]
-		var garr := [0, 0]
-		var dug := [0, 0]
+		var ranks: Array = []
+		var garr: Array = []
+		var dug: Array = []
+		for t in Defs.N:
+			ranks.append(0)
+			garr.append(0)
+			dug.append(0)
 		for e in g.entities:
 			ranks[e.team] = maxi(ranks[e.team], e.rank)
 			if e is Unit:
