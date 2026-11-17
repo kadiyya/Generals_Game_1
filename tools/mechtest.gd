@@ -425,7 +425,7 @@ func _run() -> void:
 	mine.built = true
 	mine.hp = mine.max_hp
 	var full: float = mine.mine_income()
-	_check("maden gelir getirir", full > 5.0)
+	_check("maden gelir getirir", full >= Defs.DEPOSIT_RICH.x * 0.99)
 	mine.take_damage(mine.max_hp * 0.5 / mine.damage_taken_mult())
 	_check("hasarli madenin verimi duser", mine.mine_income() < full * 0.6)
 	var mh: float = mine.hp
@@ -483,7 +483,17 @@ func _run() -> void:
 	fob.built = true
 	g._supply_tick()
 	_check("ileri us ikmal saglar", g.supplied(0, far_p) and lone.supplied)
-	_check("ileri usun yanina kisla kurulabilir", g.place_reason(0, "kisla", fob.position + Vector3(12, 0, 0)) == "" or g.place_reason(0, "kisla", fob.position + Vector3(0, 0, 12)) == "" or g.place_reason(0, "kisla", fob.position + Vector3(-12, 0, 0)) == "")
+	var fob_ok := false
+	var fob_why := []
+	for i in 12:
+		var ang := TAU * i / 12.0
+		var why: String = g.place_reason(0, "kisla", fob.position + Vector3(cos(ang), 0, sin(ang)) * 13.0)
+		fob_why.append(why)
+		if why == "":
+			fob_ok = true
+	if not fob_ok:
+		print("   ileri us: %s  %s" % [fob.position, fob_why])
+	_check("ileri usun yanina kisla kurulabilir", fob_ok)
 	_check("ileri usun yanina fabrika kurulamaz", g.place_reason(0, "fabrika", fob.position + Vector3(12, 0, 0)) != "")
 
 	# ---- köprü: yıkılır, nehri kapatır, askerî varlıkla onarılır

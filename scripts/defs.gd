@@ -53,11 +53,11 @@ const FOB_ZONE := 26.0                                   # ileri üssün çevres
 const FOB_KINDS: Array[String] = ["kisla", "santral", "sam"]
 const PRESENCE_R := 28.0                                 # maden / ileri üs için yakında gereken birlik
 # Kaynak yatakları: başta kaç tane, en çok kaç tane, kaç saniyede bir yenisi belirir, verim ve rezerv aralığı.
-const DEPOSIT_FIRST := 5
-const DEPOSIT_MAX := 11
-const DEPOSIT_EVERY := Vector2(50.0, 95.0)
-const DEPOSIT_RICH := Vector2(5.5, 9.0)
-const DEPOSIT_RESERVE := Vector2(5000.0, 9000.0)
+const DEPOSIT_FIRST := 3
+const DEPOSIT_MAX := 6
+const DEPOSIT_EVERY := Vector2(120.0, 200.0)
+const DEPOSIT_RICH := Vector2(4.0, 6.5)
+const DEPOSIT_RESERVE := Vector2(3000.0, 5500.0)
 const RUIN_TIME := 90.0          # sıfıra inen kaynak bu kadar saniye tahrip kalır: gelir yok, ele geçirilemez, onarılmaz
 const HIT_PAUSE := 20.0          # vurulan kaynak bu kadar saniye onarılamaz
 const MINE_HOLD_MAX := 0.2       # elde tutulan Maden Ocağının verim artışı (en çok)

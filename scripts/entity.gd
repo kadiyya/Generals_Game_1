@@ -239,6 +239,8 @@ func die() -> void:
 	alive = false
 	if is_air and float(d.get("alt", 9.0)) > 5.0:
 		Game.I.fx_crash(global_position, radius)
+	elif armor == "inf":
+		Game.I.fx_puff(global_position + Vector3(0, 0.4, 0), Game.I.dust_color, 1.2, 0.9, 0.4)
 	else:
 		Game.I.fx_explosion(aim_pos(), radius * 1.6)
 		if not is_air:

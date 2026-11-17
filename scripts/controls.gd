@@ -139,7 +139,8 @@ func _tap(pos: Vector2) -> void:
 		if e != null:
 			g.order_attack(units, e)
 		else:
-			g.order_move(units, world, true)
+			# Dokunarak verilen emir önceliklidir: birlik düşmana sapmadan gider, yolda menzildekine ateş eder.
+			g.order_move(units, world, false)
 		return
 	g.clear_selection()
 

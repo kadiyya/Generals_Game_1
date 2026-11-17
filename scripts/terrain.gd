@@ -955,12 +955,14 @@ func _flora(m: Dictionary, ground: Color, arid: bool) -> void:
 			var key := "|%d" % ((y / CHUNK) * 1000 + x / CHUNK)
 			match k:
 				TREES:
-					_plant(groups, line_trees[rng.randi() % line_trees.size()] + key, cc, rng, 1.05, 1.5, tint, -1, 0.55)
+					# gerçek boyda ağaçlar (askerin 6-9 katı); taç büyüdüğü için hücre başına seyrek
+					if rng.randf() < 0.55:
+						_plant(groups, line_trees[rng.randi() % line_trees.size()] + key, cc, rng, 1.7, 2.5, tint, -1, 0.55)
 					if rng.randf() < 0.3:
 						_plant(groups, "bush" + key, cc, rng, 0.8, 1.3, tint, -1)
 				FOREST:
-					if (x + y) % 2 == 0:
-						_plant(groups, wood_trees[rng.randi() % wood_trees.size()] + key, cc, rng, 0.95, 1.6, tint, -1, 0.55)
+					if (x + y) % 2 == 0 and rng.randf() < 0.55:
+						_plant(groups, wood_trees[rng.randi() % wood_trees.size()] + key, cc, rng, 1.6, 2.7, tint, -1, 0.9)
 					elif rng.randf() < 0.35:
 						_plant(groups, "bush" + key, cc, rng, 0.6, 1.1, tint, ci)
 				MOUNTAIN:
@@ -1009,7 +1011,7 @@ func _flora(m: Dictionary, ground: Color, arid: bool) -> void:
 		var od := maxf(absf(p.x) - hw, absf(p.z) - hh)
 		var oy := maxf(0.0, ground_y(p.x, p.z)) + smoothstep(4.0, 110.0, od) * (2.0 + 9.0 * (_far.get_noise_2d(p.x, p.z) * 0.5 + 0.5)) - 0.3
 		var side := "|out%d" % (int(p.x > 0.0) + 2 * int(p.z > 0.0))
-		_plant(groups, wood_trees[rng.randi() % wood_trees.size()] + side, p, rng, 0.9, 1.6, tint, -1, 0.0, oy)
+		_plant(groups, wood_trees[rng.randi() % wood_trees.size()] + side, p, rng, 1.6, 2.6, tint, -1, 0.0, oy)
 	for gk in groups:
 		var nm: String = gk.split("|")[0]
 		if nm in ["tuft", "bush"] and not _nature:

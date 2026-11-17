@@ -547,7 +547,7 @@ const MAPS := {
 }
 
 # Haritalar yukarıdaki ölçülerle yazılır, oyunda MAP_SCALE ile küçültülür (yolların genişliği aynı kalır; dağlar ve nehirler orantılı incelir).
-const MAP_SCALE := 0.85
+const MAP_SCALE := 0.72
 static var _scaled := {}
 
 

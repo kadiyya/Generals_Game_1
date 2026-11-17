@@ -75,13 +75,13 @@ fabrikalar (4 birlik) vardır.
 
 **Kaynaklar.** Gelir çok düşüktür: karargâh $8/sn, ikmal noktası $2, kasaba $3, petrol/gaz $4-6. Maç boyunca haritanın
 rastgele yerlerinde **kaynak yatakları** belirir ve herkese duyurulur (küçük haritada yanıp söner). Yatağın üstüne
-Maden Ocağı ilk kuran takımın olur ($5,5-9/sn; kurulumu $1600, yanında kendi birliğin olmalı); yatağın rezervi bitince
+Maden Ocağı ilk kuran takımın olur ($4-6,5/sn; kurulumu $1600, yanında kendi birliğin olmalı); yatağın rezervi bitince
 tükenir. **Bütün kaynaklar tahrip edilebilir:** ikmal noktaları ve madenler hasar aldıkça daha az gelir getirir, sıfıra
 inen nokta kimsesiz kalır ve 90 saniye **tahrip** durumda kalır (gelir yok, ele geçirilemez); yıkılan madenin yatağına da
 90 saniye yeni maden kurulamaz. Vurulan kaynak 20 saniye onarılamaz; sonra onarım yalnızca yanında kendi tarafının askerî
 birliği varken ve çevrede düşman yokken ilerler. Kaynakların (ikmal noktaları ve madenler) yeri herkesçe bilinir: birlikler,
 topçu ve füzeler onları görmeden de vurabilir. Maden Ocağı elinde kaldıkça verimi artar (10 dakikada en çok %20).
-Başta 5 yatak belirir, sonra her 50-95 saniyede yenisi gelir (aynı anda en çok 11).
+Başta 3 yatak belirir, sonra her 120-200 saniyede yenisi gelir (aynı anda en çok 6); rezervleri $3000-5500'dür.
 
 **Doktrinler** fiyatı belirler: doktrine uyan birimler %25-40 ucuz, uymayanlar %20-60 pahalıdır (kartta yeşil ▼ ya da
 kırmızı ▲). Bazı ülkelerde bazı birimler hiç yoktur: Ukrayna'nın tankı yoktur (İHA'larla Rus zırhını avlar), İsrail'in
@@ -122,9 +122,18 @@ hava savunma (ülkeye göre adı değişir), Teknoloji Merkezi (7 araştırma, K
 stratejik tesise) dokunulur. Menzildeki düşman hava savunması
 füzeyi önleyebilir; hipersonik füzeler (Fattah-2, BrahMos, Fatah-IV) önlenemez.
 
-**Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız hedefe döner; ateşte geri tepme, namlu alevi ve duman;
-araçların arkasında toz; piyade yürürken adım atar, ateş ederken çömelir; füzeler duman izi bırakır; vurulan uçak
-duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
+**Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız döner: hedefi yaklaşırken de, yürürken de izler, boşta
+ağır ağır çevreyi gözler; ateşte geri tepme, namlu alevi ve duman; araçların arkasında toz. Piyade askerleri kalça ve
+dizden bükülen bacaklarla adım atar (adım hıza göre, ayak kaymaz), öne eğik yürür, geri çekilirken koşar; çatışmada diz
+çöker, sırayla tetik çeker; boşta etrafa bakınır. Vurulan asker yere yığılır, bir süre yatıp kaybolur; onarılan mangaya
+geri döner. Füzeler duman izi bırakır; vurulan uçak duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
+
+**Emir önceliği:** yere dokununca birlik emredilen yere sapmadan gider; yolda menzile giren düşmana durmadan ateş eder
+(topçu hariç). Boştaki birlik yakına gelen düşmana kendiliğinden saldırır ama bulunduğu yerden 18 birimden fazla
+uzaklaşmaz, sonra yerine döner. Düşmana dokunmak doğrudan saldırı emridir.
+
+**Ölçek:** askerler, araçlar ve ağaçlar birbirine göre gerçek oranlardadır (ağaç askerin 6-9 katı); kamera açılışta
+yakından bakar, iki parmakla uzaklaşınca bütün cephe görülür.
 
 **Harita görüntüsü:** arazi bir yükseklik alanıdır: yuvarlak tepeler, sırtlı kayalık dağlar, kumsallı nehir yatağı,
 tarla parselleri ve harita dışında ufka uzanan tepeler. Su dalgalanır, kıyıya köpük vurur; ağaçlar (kavak, çam,
@@ -191,7 +200,7 @@ Henüz yok: deniz modu ve kilitli senaryolar.
 
 | Hareket | Sonuç |
 |---|---|
-| Dokun | Birim / bina seç. Birim seçiliyken: yere dokun = saldırarak ilerle, düşmana dokun = saldır. Hava aracında: o bölgede devriye |
+| Dokun | Birim / bina seç. Birim seçiliyken: yere dokun = oraya git (yolda ateş eder, sapmaz), düşmana dokun = saldır. Hava aracında: o bölgede devriye |
 | Çift dokun | Ekrandaki aynı tip birimlerin hepsini seç |
 | Sürükle | Kamerayı kaydır |
 | Basılı tut + sürükle | Kutu seçimi |

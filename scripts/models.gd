@@ -221,20 +221,49 @@ static func _structure(n: Node3D, id: String, bc: Color, tc: Color, style := "")
 	n.add_child(m)
 
 
-## Piyade: her asker ayrı düğümdür (Unit adım, çömelme ve kayıp animasyonlarını bunlarla yapar), mesh ortaktır.
+## Piyade: her asker ayrı düğümdür; altında "body" (gövde ve silah) ile kalçadan dönen "leg_l" / "leg_r" düğümleri
+## (uyluk, altında dizden dönen "knee" düğümü ve baldır) vardır. Unit yürüme, diz çökme, geri tepme ve düşme animasyonlarını bunlarla yapar. Mesh'ler ortaktır.
 static func _soldiers(n: Node3D, spots: Array, bc: Color, tc: Color, launcher: bool) -> void:
 	var key := "sol|%s|%s|%s|%s" % [launcher, bc.to_html(), tc.to_html(), _dust().to_html()]
 	if not _vehicles.has(key):
-		var k := Kit.new()
-		k.dust = _dust()
-		Vehicles.slots(k, bc, tc)
-		Vehicles.soldier(k, launcher)
-		_vehicles[key] = [k.mesh()]
+		var parts := []
+		for part in ["body", "thigh_l", "thigh_r", "shin_l", "shin_r"]:
+			var k := Kit.new()
+			k.dust = _dust()
+			Vehicles.slots(k, bc, tc)
+			Vehicles.soldier(k, launcher, part)
+			parts.append(k.mesh())
+		_vehicles[key] = parts
+	var ms: Array = _vehicles[key]
+	var s := Vehicles.SOLDIER_S
 	for o in spots:
-		var m := MeshInstance3D.new()
-		m.mesh = _vehicles[key][0]
-		m.position = o
-		n.add_child(m)
+		var f := Node3D.new()
+		f.position = o
+		n.add_child(f)
+		var body := MeshInstance3D.new()
+		body.name = "body"
+		body.mesh = ms[0]
+		f.add_child(body)
+		for i in 2:
+			var sx := -1.0 if i == 0 else 1.0
+			var hip := Vector3(0.11 * sx, Vehicles.HIP, 0.0) * s
+			var knee := Vector3(0.11 * sx, Vehicles.KNEE, 0.0) * s
+			var pivot := Node3D.new()
+			pivot.name = "leg_l" if i == 0 else "leg_r"
+			pivot.position = hip
+			f.add_child(pivot)
+			var thigh := MeshInstance3D.new()
+			thigh.mesh = ms[1 + i]
+			thigh.position = -hip
+			pivot.add_child(thigh)
+			var kn := Node3D.new()
+			kn.name = "knee"
+			kn.position = knee - hip
+			pivot.add_child(kn)
+			var shin := MeshInstance3D.new()
+			shin.mesh = ms[3 + i]
+			shin.position = -knee
+			kn.add_child(shin)
 
 
 ## Araçların üstündeki toz ve çamurun rengi: haritanın toprağından.
