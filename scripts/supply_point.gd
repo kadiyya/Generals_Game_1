@@ -9,7 +9,7 @@ const RADIUS := 6.0
 const VISION := 10.0
 const REPAIR_R := 16.0
 const REPAIR_RATE := 0.02      # saniyede azami sağlamlığın oranı
-const SUPPLY_R := 40.0         # ikmal yarıçapı
+const SUPPLY_R := 62.0         # ikmal yarıçapı
 
 var owner_team := Defs.NEUTRAL
 var income := 2.0
@@ -29,7 +29,8 @@ var last_hit := -100.0
 
 func setup_point(p: Vector3, inc: float, ct: float, k: String, nm: String) -> void:
 	position = p
-	income = inc
+	# ikmal noktası az para getirir (asıl işi ikmal); kasaba ve petrol tesisi değerini korur
+	income = inc * (0.5 if k == "supply" else 1.0)
 	cap_time = ct
 	kind = k
 	pname = nm

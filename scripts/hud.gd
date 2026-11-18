@@ -7,6 +7,7 @@ var MM_W := 260.0
 var MM_H := 160.0
 
 var root: Control
+var touch: TouchScroll
 var overlay: Control
 var top: PanelContainer
 var lbl_top: Label
@@ -39,6 +40,14 @@ func _ready() -> void:
 	root = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Kamera deliği / çentik: arayüz güvenli alanın içinde kalır.
+	var ins := TouchScroll.safe_insets(get_viewport())
+	root.offset_left = ins.x
+	root.offset_top = ins.y
+	root.offset_right = -ins.z
+	root.offset_bottom = -ins.w
+	touch = TouchScroll.new()
+	add_child(touch)
 	var th := Theme.new()
 	th.default_font_size = 19
 	root.theme = th
@@ -169,6 +178,7 @@ func _ready() -> void:
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vb.add_child(sc)
+	touch.watch(sc)
 	actions = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
 	sc.add_child(actions)
@@ -387,6 +397,9 @@ func _rebuild_now() -> void:
 	if g.selection.size() == 1 and g.selection[0] is Building:
 		var b: Building = g.selection[0]
 		refreshers.append(_refresh_building_title.bind(b))
+		if not b.built and b.team == Defs.PLAYER:
+			var cb := _btn("İnşaatı İptal Et\n+$%d geri" % int(b.d.get("cost", 0)), g.cancel_building.bind(b))
+			cb.add_theme_color_override("font_color", Color(1.0, 0.6, 0.5))
 		if b.built:
 			for id in b.d.get("slots", b.d.get("produces", [])):
 				if id == "":

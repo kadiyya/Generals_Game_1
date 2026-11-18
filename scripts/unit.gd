@@ -19,6 +19,7 @@ var nav_goal := Vector3.INF
 var nav_wp := Vector3.ZERO
 var nav_t := 0.0
 var nav_ok := true
+var nav_ver := -1
 var turret: Node3D = null    # varsa gövdeden bağımsız döner
 var turret_base := Vector3.ZERO   # kulenin dönme merkezi (geri tepme buradan ölçülür)
 var recoil := 0.0
@@ -179,6 +180,8 @@ func _process(dt: float) -> void:
 	scan_timer -= dt
 	reveal_t -= dt
 	valid_target()
+	if order != "attack":
+		air_first(dt, weapon_range())
 	match order:
 		"move":
 			_fire_on_move(dt)
@@ -269,7 +272,9 @@ func _fire_on_move(dt: float) -> void:
 func _aim_turret(p: Vector3, dt: float) -> bool:
 	var to := p - position
 	var want := atan2(to.x, to.z) - rotation.y
-	turret.rotation.y = rotate_toward(turret.rotation.y, want, dt * TURRET_SPEED)
+	# hava savunma taretleri hızlı döner
+	var spd := TURRET_SPEED * (2.2 if cls in ["spaag", "laser", "ads"] else 1.0)
+	turret.rotation.y = rotate_toward(turret.rotation.y, want, dt * spd)
 	return absf(angle_difference(turret.rotation.y, want)) < 0.1
 
 
@@ -340,6 +345,11 @@ func _waypoint(p: Vector3, dt: float) -> Vector3:
 		return nav_wp
 	nav_t = 0.25
 	var ter := Game.I.terrain
+	if nav_ver != ter.ver:
+		# geçilebilirlik değişti (köprü yıkıldı ya da onarıldı): eski yol geçersiz
+		nav_ver = ter.ver
+		nav = PackedVector3Array()
+		nav_goal = Vector3.INF
 	if flat(position, p) < 26.0 and ter.line_clear(position, p):
 		nav = PackedVector3Array()
 		nav_goal = p
@@ -402,7 +412,14 @@ func _step(p: Vector3, dt: float) -> bool:
 	var dir := to / l
 	var ter := Game.I.terrain
 	var sp := speed * ter.speed_mult(position, armor) * (1.25 if retreating else 1.0) * (1.0 if supplied else Defs.OOS_SPEED)
-	position += dir * minf(sp * dt, l)
+	var nxt := position + dir * minf(sp * dt, l)
+	if ter.solid(nxt) and not ter.solid(position) and ter.bld[ter.cell(nxt).y * ter.gw + ter.cell(nxt).x] == 0:
+		# önü su ya da yıkık köprü: geçemez, yolu yeniden hesapla
+		nav_goal = Vector3.INF
+		nav_t = 0.0
+		nav = PackedVector3Array()
+		return false
+	position = nxt
 	position.y = lerpf(position.y, ter.height(position), minf(1.0, dt * 6.0))
 	position.x = clampf(position.x, -Defs.MAP_W * 0.5 + 1.0, Defs.MAP_W * 0.5 - 1.0)
 	position.z = clampf(position.z, -Defs.MAP_H * 0.5 + 1.0, Defs.MAP_H * 0.5 - 1.0)

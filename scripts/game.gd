@@ -608,6 +608,7 @@ func on_building_done(b: Building) -> void:
 		_show_zone()
 	_msg(b.team, "%s hazır." % b.d.name)
 	if b.team == Defs.PLAYER:
+		sfx.play("build")
 		hud.rebuild()
 
 
@@ -620,6 +621,7 @@ func on_point_captured(p: SupplyPoint) -> void:
 
 
 func on_missile_intercepted(src_team: int) -> void:
+	sfx.play("intercept")
 	hud.toast("Füzen hava savunma tarafından önlendi." if src_team == Defs.PLAYER else "Düşman füzesi önlendi!")
 
 
@@ -902,6 +904,23 @@ func place_building(team: int, kind: String, pos: Vector3) -> bool:
 	return true
 
 
+## İnşaat hâlindeki binayı iptal eder: parası tamamen geri verilir, bina kaldırılır.
+func cancel_building(b: Building) -> void:
+	if b == null or not is_instance_valid(b) or b.built or not b.alive:
+		return
+	var cost := float(b.d.get("cost", 0))
+	teams[b.team].money += cost
+	if b.deposit != null and is_instance_valid(b.deposit):
+		b.deposit.mine = null
+	b.alive = false
+	b.visible = false
+	on_entity_died(b)
+	b.queue_free()
+	if b.team == Defs.PLAYER:
+		hud.toast("%s inşaatı iptal edildi: $%d geri geldi." % [b.d.name, int(cost)])
+		hud.rebuild()
+
+
 func begin_placing(kind: String) -> void:
 	cancel_modes()
 	placing = kind
@@ -1152,13 +1171,7 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	s.splash = float(m.splash)
 	s.boom = 6.0
 	s.trail = true
-	if not m.get("hypersonic", false):
-		for e in entities:
-			if e.is_building and Defs.foe(b.team, e.team) and e.kind == "sam" and e.built and e.powered():
-				if Entity.flat(e.position, pos) <= e.wrange() and randf() < Defs.INTERCEPT_CHANCE:
-					s.intercept_at = randf_range(0.6, 0.85)
-					fx_tracer(e.muzzle_pos(), e.muzzle_pos() + Vector3(0, 30, 0), Color(1, 1, 1), 0.15, 0.4)
-					break
+	_arm_ballistic(s, m)
 	add_child(s)
 	s.launch()
 	if b.team == Defs.PLAYER:
@@ -1306,12 +1319,36 @@ func order_attack(units: Array, e: Entity) -> void:
 			if u.has_weapon() and u.can_hit(e):
 				u.target = e
 		elif u is Unit:
+			# Hedefe ateş edemeyen birlik (dron savar, EH aracı...) yerinde kalır; düşmanın dibine girmez.
 			if u.has_weapon() and u.can_hit(e):
 				u.attack(e)
-			else:
-				u.go(e.global_position, true)
 	if not units.is_empty() and units[0].team == Defs.PLAYER:
 		fx_marker(e.global_position, Color(1.0, 0.3, 0.2))
+		var none := true
+		for u in units:
+			if u.has_weapon() and u.can_hit(e):
+				none = false
+		if none:
+			hud.toast("Seçili birlikler bu hedefe ateş edemez.")
+
+
+## Bir dosta saldırı var: yakındaki boşta (emirsiz) silahlı dost birlikler saldırgana yönelir. Yürüyen birlik emrini
+## bozmaz. Saldırgan görülmüyorsa (topçu, uzaktan füze) yardıma gelen saldırının geldiği yöne bakar.
+const HELP_R := 26.0
+
+
+func call_help(victim, attacker) -> void:
+	if victim.team == Defs.IND:
+		return
+	for u in nearby(victim.global_position, HELP_R + 4.0):
+		if not (u is Unit) or not u.alive or u == victim or u.guard or not Defs.ally(u.team, victim.team):
+			continue
+		if u.order != "idle" or u.target != null or u.garrison != null:
+			continue
+		if Entity.flat(u.global_position, victim.global_position) > HELP_R:
+			continue
+		if u.has_weapon() and u.can_hit(attacker):
+			u.target = attacker
 
 
 func order_stop(units: Array) -> void:
@@ -1691,8 +1728,8 @@ func use_ability(team: int, pos: Vector3) -> bool:
 			for i in 8:
 				var u = spawn_unit(id, team, from + Vector3(randf_range(-3, 3), 0, randf_range(-3, 3)))
 				u.set_patrol(pos + Vector3(randf_range(-5, 5), 0, randf_range(-5, 5)))
-		"ikmal":
-			ts.tanker_until = time + 60.0
+		"akin":
+			_air_raid(team, pos)
 		"baraj":
 			for i in 14:
 				get_tree().create_timer(0.5 * i, false).timeout.connect(
@@ -1701,14 +1738,9 @@ func use_ability(team: int, pos: Vector3) -> bool:
 			var src = nearest_building(team, "fuze", pos)
 			var start: Vector3 = (src.muzzle_pos() if src != null else ts.hq.position + Vector3(0, 6, 0))
 			var m := missile_info(team, 0)
-			var sams: Array = []
-			for e in entities:
-				if e.is_building and Defs.foe(team, e.team) and e.kind == "sam" and e.built and e.powered() and Entity.flat(e.position, pos) <= e.wrange():
-					sams.append(e)
 			for i in 4:
-				# Her batarya en çok bir füzeyi önleyebilir: doyurma saldırısı.
-				var stop := i < sams.size() and randf() < Defs.INTERCEPT_CHANCE + 0.3
-				_missile_shot(team, start, pos + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)), float(m.dmg) * 0.8, float(m.splash), stop, src)
+				# Doyurma: hava savunmasının silahı her atışta bir füzeye yetişir; dört füzeyi birden durduramaz.
+				_missile_shot(team, start, pos + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)), float(m.dmg) * 0.8, float(m.splash), false, src)
 		"seferberlik":
 			var id := unit_of(team, "inf")
 			var hq = ts.hq
@@ -1743,6 +1775,28 @@ func _nearest_own(team: int, pos: Vector3) -> Vector3:
 	return best
 
 
+## Hava Akını: takımın bombardıman (yoksa savaş) uçağından iki tanesi üssün arkasından kalkar, hedefe girer,
+## bomba bırakıp geri döner ve harita dışında kaybolur. Gerçek birlik oldukları için hava savunması onları vurabilir.
+func _air_raid(team: int, pos: Vector3) -> void:
+	var id := unit_of(team, "striker")
+	if id == "":
+		id = unit_of(team, "fighter")
+	if id == "":
+		id = unit_of(team, "uav_heavy")
+	var hq = teams[team].hq
+	var from: Vector3 = hq.position if hq != null and is_instance_valid(hq) else Vector3(-signf(pos.x) * Defs.MAP_W * 0.5, 0, pos.z)
+	var back := Vector3(signf(from.x) * (Defs.MAP_W * 0.5 + 20.0), 0, from.z)
+	for i in 2:
+		var def: Dictionary = Defs.UNITS[id].duplicate()
+		def.pop = 0
+		var u: AirUnit = AirUnit.new()
+		add_child(u)
+		u.position = back + Vector3(0, 0, (i - 0.5) * 8.0)
+		u.setup(id, team, def)
+		entities.append(u)
+		u.start_raid(pos + Vector3((i - 0.5) * 5.0, 0, (i - 0.5) * 3.0), back)
+
+
 func _sky_shell(team: int, pos: Vector3) -> void:
 	if over:
 		return
@@ -1763,6 +1817,13 @@ func _sky_shell(team: int, pos: Vector3) -> void:
 	s.boom = 2.0
 	add_child(s)
 	s.launch()
+
+
+## Balistik füzenin canı: savaş başlığıyla orantılı; hipersonik füze daha dayanıklı ve önlemesi zor.
+func _arm_ballistic(s: Shot, m: Dictionary) -> void:
+	s.hypersonic = m.get("hypersonic", false)
+	s.bhp_max = (260.0 + float(m.dmg) * 0.12) * (1.8 if s.hypersonic else 1.0)
+	s.bhp = s.bhp_max
 
 
 func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: float, intercepted: bool, src = null) -> void:
@@ -1788,6 +1849,7 @@ func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: 
 	s.trail = true
 	if intercepted:
 		s.intercept_at = randf_range(0.6, 0.85)
+	_arm_ballistic(s, {dmg = dmg})
 	add_child(s)
 	s.launch()
 

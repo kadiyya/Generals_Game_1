@@ -23,6 +23,7 @@ var xp := 0.0            # verdiği hasar; rütbe buna göre artar
 var rank := 0
 var jammed_t := 0.0      # elektronik harp: kilitlenemez
 var reveal_t := 0.0      # ateş edince kısa süre gizlenemez
+var help_t := 0.0        # yardım çağrısı en çok saniyede bir
 var neutral_target := false   # tarafsız ama vurulabilir (köprü)
 var guard := false            # stratejik hedefin bağımsız savunucusu: yerinden ayrılmaz, yapay zekâ kullanmaz
 var strategic := false        # senaryonun stratejik hedefi (bina): haritada hep işaretli
@@ -130,6 +131,33 @@ func can_hit(e) -> bool:
 	return true
 
 
+## Hava savunması: yerdeki hedefle uğraşırken menzile hava hedefi (uçak, İHA, dron) girerse ona geçer.
+## Böylece yer hedefi de vurabilen dron savarlar küçük dronları kaçırmaz.
+var _air_t := 0.0
+
+
+func air_first(dt: float, max_d: float) -> void:
+	if float(d.get("mult", {}).get("drone", 0.0)) < 0.25 and float(d.get("mult", {}).get("air", 0.0)) < 0.5:
+		return
+	if target != null and is_instance_valid(target) and target.is_air:
+		return
+	_air_t -= dt
+	if _air_t > 0.0:
+		return
+	_air_t = 0.2
+	var best = null
+	var bd := 1e9
+	for e in Game.I.nearby(global_position, max_d + 7.0):
+		if not is_instance_valid(e) or not e.is_air or not can_hit(e) or float(d.mult.get(e.armor, 0.0)) < 0.25:
+			continue
+		var dist: float = flat(global_position, e.global_position) - e.radius
+		if dist <= max_d and dist < bd:
+			bd = dist
+			best = e
+	if best != null:
+		target = best
+
+
 func find_target(max_d: float, min_d := 0.0):
 	var best = null
 	var best_s := 1e9
@@ -208,7 +236,10 @@ func fire(e) -> void:
 			g.fx_shot(self, e, base, 45.0, 0.0, false)
 	if seen:
 		g.fx_muzzle(muzzle_pos(), d.get("proj", "tracer"))
-		g.sfx.play({"shell": "cannon", "arc": "arty", "missile": "missile", "beam": "beam"}.get(d.get("proj", "tracer"), "rifle"), global_position)
+		var snd: String = {"shell": "cannon", "arc": "arty", "missile": "missile", "beam": "beam"}.get(d.get("proj", "tracer"), "rifle")
+		if snd == "rifle" and armor != "inf":
+			snd = "autocannon"
+		g.sfx.play(snd, global_position)
 	reveal_t = 3.0
 	_on_fired()
 
@@ -227,6 +258,9 @@ func take_damage(amount: float, attacker = null, tag := "") -> void:
 		attacker.gain_xp(minf(amount, maxf(hp, 0.0)) + (float(d.get("cost", 0)) * 0.3 if amount >= hp else 0.0))
 	hp -= amount
 	_on_damaged(attacker)
+	if attacker != null and is_instance_valid(attacker) and attacker.alive and Defs.foe(attacker.team, team) and Game.I.time >= help_t:
+		help_t = Game.I.time + 1.0
+		Game.I.call_help(self, attacker)
 	if hp <= 0.0:
 		die()
 

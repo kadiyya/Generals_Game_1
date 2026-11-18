@@ -57,21 +57,21 @@ const CLASSES := {
 		cat = "hs", from = "fabrika", cost = 550, time = 18.0, tier = 1,
 		hp = 560, speed = 4.2, vision = 14.0, radius = 1.5, armor = "light",
 		range = 14.0, dmg = 22.0, cd = 0.35, proj = "tracer",
-		mult = {air = 0.6, drone = 1.0},
+		mult = {air = 0.6, drone = 1.0, inf = 0.6, light = 0.4, heavy = 0.06, bld = 0.15},
 	},
 	"laser": {
 		cat = "hs", from = "fabrika", cost = 1400, time = 35.0, tier = 3,
 		hp = 500, speed = 3.6, vision = 16.0, radius = 1.5, armor = "light",
 		range = 18.0, dmg = 60.0, cd = 0.6, proj = "beam",
-		mult = {air = 0.5, drone = 3.0},
+		mult = {air = 0.5, drone = 3.0, inf = 0.5, light = 0.35, heavy = 0.08, bld = 0.12},
 	},
-	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları çok sert vurur,
-	# küçük dronlara ve yerdeki hedeflere neredeyse etkisizdir.
+	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları çok sert vurur; yerdeki hafif
+	# hedeflere ve piyadeye orta, tanka zayıf etkilidir; küçük dronlara neredeyse etkisizdir.
 	"ads": {
 		cat = "hs", from = "fabrika", cost = 950, time = 24.0, tier = 2,
 		hp = 950, speed = 3.9, vision = 20.0, radius = 1.7, armor = "heavy",
 		range = 25.0, dmg = 150.0, cd = 2.6, proj = "missile",
-		mult = {air = 1.6, drone = 0.15, inf = 0.06, light = 0.08, heavy = 0.04, bld = 0.04},
+		mult = {air = 1.6, drone = 0.15, inf = 0.3, light = 0.35, heavy = 0.12, bld = 0.15},
 	},
 	"ew": {
 		cat = "hs", from = "fabrika", cost = 650, time = 20.0, tier = 1,
@@ -157,7 +157,7 @@ const BUILDING_KINDS := {
 	"havaalani": {name = "Hava Alanı", cost = 900, time = 30.0, tier = 2, hp = 1600, vision = 14.0, radius = 6.0, power = -2},
 	"sam": {
 		name = "Hava Savunma", cost = 700, time = 20.0, tier = 2, hp = 800, vision = 14.0, radius = 2.2, power = -1,
-		cls = "sam", range = 26.0, dmg = 140.0, cd = 3.0, proj = "missile", mult = {air = 1.0},
+		cls = "sam", range = 26.0, dmg = 140.0, cd = 3.0, proj = "missile", mult = {air = 1.0, drone = 0.3, inf = 0.3, light = 0.4, heavy = 0.18, bld = 0.2},
 	},
 	"teknoloji": {name = "Teknoloji Merkezi", cost = 800, time = 30.0, tier = 2, hp = 1000, vision = 12.0, radius = 3.4, power = -1},
 	"engel": {name = "Tanksavar Engeli", cost = 150, time = 6.0, tier = 1, hp = 1400, vision = 4.0, radius = 2.0, field = true},
@@ -173,8 +173,8 @@ const DOCTRINES := {
 		mods = {cost_fighter = 0.7, cost_striker = 0.7, cost_stealth = 0.75, cost_uav_recon = 0.85, cost_uav_strike = 0.85,
 			cost_uav_heavy = 0.85, rearm = 0.7, cost_tank = 1.35, cost_arty = 1.4, cost_mlrs = 1.4, cost_ifv = 1.2,
 			cost_sdrone_fpv = 1.3, cost_sdrone_bomb = 1.3},
-		ability = {id = "ikmal", name = "Havada Yakıt İkmali", cost = 800, cd = 150.0, tier = 2, target = false,
-			desc = "60 saniye boyunca uçakların mühimmatı havada yenilenir ve %20 hızlı uçarlar: üsse dönmeden uzun devriye."},
+		ability = {id = "akin", name = "Hava Akını", cost = 900, cd = 150.0, tier = 2, target = true,
+			desc = "İki bombardıman uçağı üssünden kalkar, görülen hedefe alçaktan girip 12 bomba bırakır ve geri döner. Hava alanı gerekmez. Hava savunması uçakları düşürebilir: düşen uçağın bombaları düşmez."},
 	},
 	"iha": {
 		name = "İHA Doktrini", desc = "Küçük dronlar %40, büyük İHA'lar %30 ucuz. Tank yok; zırhlı, topçu ve uçaklar %30-60 pahalı.",
@@ -198,7 +198,7 @@ const DOCTRINES := {
 		mods = {missile_cost = 0.6, missile_cd = 0.6, cost_uav_kami = 0.7, cost_sdrone_fpv = 0.8, cost_loiter = 0.85,
 			hp_tank = 0.9, hp_ifv = 0.9, cost_tank = 1.35, cost_ifv = 1.2, cost_fighter = 1.4, cost_striker = 1.4, cost_stealth = 1.4},
 		ability = {id = "salvo", name = "Doyurma Salvosu", cost = 1600, cd = 180.0, tier = 2, target = true,
-			desc = "Görülen bir noktaya aynı anda 4 balistik füze atar. Her hava savunma bataryası en çok birini önleyebilir."},
+			desc = "Görülen bir noktaya aynı anda 4 balistik füze atar. Hava savunması her atışta yalnızca bir füzeye yetişir: doyurur."},
 	},
 	"denge": {
 		name = "Dengeli / İnsan Gücü", desc = "Piyade %35, tanksavar %25 ucuz, birlik sınırı yüksek. Pahalı doktrin cezası yok.",

@@ -46,6 +46,8 @@ var regroup_t := 0.0
 var attacking := false
 var goal := Vector3.INF
 var stage := Vector3.ZERO
+const MISSILE_GAP := [200.0, 140.0, 100.0]
+var missile_next := 240.0
 var roles := {}         # birim -> "guard" / "raid" / "escort"
 var guard_at := {}      # birim -> korunan yer
 var expand_dep = null   # maden kurulacak yatak
@@ -889,6 +891,9 @@ func _retreat(g: Game) -> void:
 # ---------------------------------------------------------------- füze, saha işleri, yetenek
 
 func _missiles(g: Game, ts) -> void:
+	# Füze sıklığı: iki atış arasında en az MISSILE_GAP[zorluk] saniye (füze doktrini çok sık atmasın).
+	if g.time < missile_next:
+		return
 	for b in _blds(g, "fuze"):
 		for i in b.missile_ready.size():
 			var m := g.missile_info(T, i)
@@ -913,7 +918,8 @@ func _missiles(g: Game, ts) -> void:
 					bs = s
 					best = e
 			if best != null:
-				g.launch_missile(b, i, best.position)
+				if g.launch_missile(b, i, best.position):
+					missile_next = g.time + MISSILE_GAP[clampi(Scenarios.difficulty, 0, 2)] * randf_range(0.85, 1.25)
 				return
 
 
@@ -949,8 +955,6 @@ func _ability(g: Game, ts) -> void:
 		return
 	var a := g.ability(T)
 	if not a.target:
-		if a.id == "ikmal" and _units(g, "fighter").size() + _units(g, "striker").size() + _units(g, "stealth").size() == 0:
-			return
 		g.use_ability(T, Vector3.INF)
 		return
 	# Hedef: görülen düşman birliklerinin en kalabalık olduğu yer, yoksa görülen bir bina.

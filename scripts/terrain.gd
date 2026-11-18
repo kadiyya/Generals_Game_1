@@ -48,6 +48,7 @@ var _far := FastNoiseLite.new()
 var _pmat: ShaderMaterial = null
 var _smats := {}
 var _cube := BoxMesh.new()
+var ver := 0                     # geçilebilirlik değişince artar (köprü yıkıldı/onarıldı): birlikler yolu yeniden hesaplar
 var deck := {}                   # köprü tabliyesinin altındaki hücreler (kıyıdaki uçlar dahil)
 
 
@@ -558,6 +559,7 @@ func block_circle(p: Vector3, r: float, v: bool) -> void:
 
 ## Köprü yıkılınca hücreleri suya döner (geçilmez); onarılınca yeniden açılır.
 func set_bridge(cells: Array, up: bool) -> void:
+	ver += 1
 	for c in cells:
 		var idx: int = c.y * gw + c.x
 		kind[idx] = BRIDGE if up else WATER

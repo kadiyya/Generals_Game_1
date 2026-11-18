@@ -40,7 +40,6 @@ const MAX_MINES := 4
 const PLANES_PER_AIRFIELD := 4
 const HEAL_RADIUS := 16.0         # karargâhın yanındaki birimler onarılır
 const HEAL_RATE := 0.015          # saniyede azami canın oranı
-const INTERCEPT_CHANCE := 0.4     # menzildeki her hava savunmanın füzeyi önleme olasılığı
 
 const BUILD_KINDS: Array[String] = ["santral", "kisla", "fabrika", "maden", "ileri", "havaalani", "sam", "teknoloji", "fuze"]
 # Lojistik: ikmal kaynaklarının yarıçapı. İkmal hattı dışındaki kara birliği %30 az hasar verir, %10 yavaş gider
