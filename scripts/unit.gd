@@ -6,7 +6,7 @@ extends Entity
 ## Emir önceliklidir: yürüyen birim düşmana sapmaz. Boştaki birim yakına gelen düşmana saldırır ama bulunduğu
 ## yerden LEASH'ten fazla uzaklaşmaz, sonra yerine döner.
 
-const LEASH := 18.0
+const LEASH := 24.0
 const TURRET_SPEED := 1.9    # kule dönüş hızı (rad/sn)
 
 var order := "idle"
@@ -277,9 +277,8 @@ func _scan() -> void:
 	if target != null or scan_timer > 0.0 or not has_weapon():
 		return
 	scan_timer = 0.3
-	var r := weapon_range()
-	if not d.get("no_chase", false) or order == "amove":
-		r = maxf(r, vision * 0.85)
+	# Görüş alanındaki her düşmana kendiliğinden saldırır (topçu menzilindekine, gördüğü kadarıyla).
+	var r := maxf(weapon_range(), vision)
 	target = find_target(r, float(d.get("min_range", 0.0)))
 
 

@@ -130,7 +130,7 @@ func _process(dt: float) -> void:
 	var who := Defs.NEUTRAL
 	var sides := {}
 	for e in g.nearby(position, RADIUS + 2.0):
-		if e.alive and not e.is_building and e.d.get("capture", false) and Entity.flat(e.position, position) <= RADIUS:
+		if e.alive and not e.is_building and e.team != Defs.IND and e.d.get("capture", false) and Entity.flat(e.position, position) <= RADIUS:
 			var s: int = Defs.SIDE[e.team]
 			if not sides.has(s):
 				sides[s] = e.team

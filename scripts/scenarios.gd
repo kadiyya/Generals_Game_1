@@ -467,8 +467,9 @@ const MAPS := {
 			{e = [90, 140, 30, 14]}, {e = [-100, 150, 25, 15]},
 		],
 		trees = [], ruins = [],
-		# İsrail'in hedefi olan dört stratejik tesis: İran tarafında hazır kurulu, çevrelerinde bağımsız savunma birlikleri.
-		strategic = [[185, -75, "fuze"], [205, 80, "sam"], [150, -12, "santral"], [275, 15, "teknoloji"]],
+		# Dört bölge: bağımsız kuvvetlerin elinde; iki taraf da dördünü birden ele geçirmeye çalışır.
+		zones = [[70, -40, "Kerhe Tepesi"], [-60, 40, "Karun Sırtı"], [-50, -75, "Şuş Sanayi Bölgesi"], [100, 100, "Mahşehr Depoları"]],
+		ind_cc = "ir",
 		roads = [
 			{p = [[-360, 100], [-250, 125], [-150, 120], [-60, 135], [60, 125], [200, 120], [360, 100]], w = 6.0, asphalt = true},
 			{p = [[-360, -20], [-250, -15], [-150, 10], [-60, 20], [40, 30], [120, 10], [180, 60], [270, 70], [360, 60]], w = 5.0, asphalt = true},
@@ -571,7 +572,7 @@ static func map_def(key: String) -> Dictionary:
 				ns.w = float(ns.w) * k   # dağlar ve nehirler orantılı incelir; geçitler kapanmaz
 			out.append(ns)
 		m[layer] = out
-	for list in ["towns", "big", "points", "strategic"]:
+	for list in ["towns", "big", "points", "strategic", "zones"]:
 		for row in m.get(list, []):
 			row[0] = float(row[0]) * k
 			row[1] = float(row[1]) * k
@@ -652,10 +653,10 @@ const LIST := [
 	{
 		name = "İran – İsrail", map = "korfez", a = "il", b = "ir",
 		geo = {c = Vector2(42.0, 31.8), zoom = 6.0, a = Vector2(35.0, 31.6), b = Vector2(49.5, 31.5), col = Color(0.3, 0.85, 0.75), label = "Huzistan – Zagros"},
-		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir.",
+		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. Dört kilit bölgeyi iki orduya da saldıran bağımsız kuvvetler tutuyor. İsrail görünmez uçaklarla, İran balistik füzelerle bölgeleri almaya çalışır.",
 		obj = {
-			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, strategic = true, text = "Haritada işaretli 4 stratejik tesisi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
-			b = {type = "hold", point = 0, secs = 600.0, text = "Ahvaz petrol terminalini toplam 10 dakika elinde tut"},
+			a = {type = "zones", count = 4, secs = 90.0, text = "Bağımsız kuvvetlerin tuttuğu 4 bölgeyi ele geçir, dördünü birlikte toplam 1,5 dakika tut"},
+			b = {type = "zones", count = 4, secs = 90.0, text = "Bağımsız kuvvetlerin tuttuğu 4 bölgeyi ele geçir, dördünü birlikte toplam 1,5 dakika tut"},
 		},
 	},
 	{
@@ -690,6 +691,7 @@ static func setup() -> void:
 	Defs.MAP_H = map.size.y
 	Defs.SIDE = md.sides.duplicate()
 	Defs.N = Defs.SIDE.size()
+	Defs.IND = -1
 	Defs.COUNTRY = []
 	Defs.TEAM_COLORS = []
 	Defs.TEAM_NAMES = []
@@ -712,6 +714,14 @@ static func setup() -> void:
 				nm += [" (1. ordu)", " (2. ordu)"][used[1] % 2]
 		Defs.TEAM_NAMES.append(nm)
 		used[s] += 1
+	# Bölgeli harita: bağımsız kuvvetler ayrı bir takım ve üçüncü taraftır (ordulardan sonra).
+	if not map.get("zones", []).is_empty() and not tutorial:
+		Defs.IND = Defs.N
+		Defs.SIDE.append(2)
+		Defs.COUNTRY.append(map.get("ind_cc", codes[1]))
+		Defs.TEAM_COLORS.append(Color(0.92, 0.8, 0.3))
+		Defs.TEAM_NAMES.append("Bağımsız kuvvetler")
+		map.team_bases.append(Vector3.ZERO)
 	Defs.SCN = scn
 	Defs.MAP = map
 	Defs.UNITS = {}

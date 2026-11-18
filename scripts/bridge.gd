@@ -173,7 +173,7 @@ func _process(dt: float) -> void:
 	# Hangi tarafın askerî birliği köprünün yanında?
 	var sides := {}
 	for e in g.nearby(global_position, REPAIR_R + radius + 4.0):
-		if e.alive and not e.is_air and not e.is_building and e.has_weapon() and dist_to(e.global_position) < REPAIR_R:
+		if e.alive and not e.is_air and not e.is_building and e.team != Defs.IND and e.has_weapon() and dist_to(e.global_position) < REPAIR_R:
 			sides[Defs.SIDE[e.team]] = true
 	if sides.size() != 1:
 		return

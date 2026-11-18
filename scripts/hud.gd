@@ -566,6 +566,10 @@ func _update_objective() -> void:
 		return
 	if o.type == "hold":
 		prog = "%d:%02d / %d:%02d" % [int(ts.obj_prog) / 60, int(ts.obj_prog) % 60, int(o.secs) / 60, int(o.secs) % 60]
+	elif o.type == "zones":
+		var me: int = Defs.SIDE[Defs.PLAYER]
+		prog = "bölge %d/%d (düşman %d)  —  %d:%02d / %d:%02d" % [g.regions_held(me), g.regions.size(), g.regions_held(1 - me),
+			int(ts.obj_prog) / 60, int(ts.obj_prog) % 60, int(o.secs) / 60, int(o.secs) % 60]
 	else:
 		prog = "%d / %d" % [int(ts.obj_prog), int(o.count)]
 	obj_lbl.text = "Görev: %s  —  %s      Düşman görevi: %%%d" % [o.text, prog, int(g.objective_fraction(Defs.ENEMY) * 100.0)]
@@ -1008,6 +1012,16 @@ func _draw_minimap() -> void:
 			var ra := 5.0 + fmod(g.time * 16.0, 14.0)
 			minimap.draw_arc(_mm(ap[0]), ra, 0.0, TAU, 20, Color(1.0, 0.2, 0.15, 1.0 - (ra - 5.0) / 14.0), 2.5)
 			minimap.draw_circle(_mm(ap[0]), 3.0, Color(1.0, 0.2, 0.15))
+	# bölgeler: sahibinin renginde halka; ele geçirilirken dolan yay
+	for rg in g.regions:
+		var rc := Color(0.92, 0.8, 0.3)
+		if rg.owner_side >= 0:
+			rc = Defs.TEAM_COLORS[Defs.leader(rg.owner_side)].lightened(0.2)
+		var rq := _mm(rg.position)
+		var rr := maxf(5.0, Region.RADIUS / Defs.MAP_W * MM_W)
+		minimap.draw_arc(rq, rr, 0.0, TAU, 20, rc, 2.5)
+		if rg.cap_t > 0.0:
+			minimap.draw_arc(rq, rr + 3.0, -PI * 0.5, -PI * 0.5 + TAU * rg.progress(), 20, Color(1, 1, 1, 0.9), 2.0)
 	for pt in g.points:
 		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:

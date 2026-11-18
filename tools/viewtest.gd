@@ -1,6 +1,6 @@
 extends Node
 ## Geliştirme aracı: haritanın görüntüsünü denetlemek için tepe, su, dağ, orman, köprü, kasaba ve üsten
-## ekran görüntüsü alır; arazi kurulum süresini yazar.
+## bölge ve üsten ekran görüntüsü alır; arazi kurulum süresini yazar.
 ## Kullanım (gerçek pencere gerekir): godot --path . -- --viewtest --shots=KLASÖR [--scn=N] [--fog]
 
 var out_dir := ""
@@ -53,6 +53,8 @@ func _run() -> void:
 		var p := _find(w[1])
 		if p != Vector3.INF:
 			spots.append([w[0], p + Vector3(0, 0, 3), w[2]])
+	if not g.regions.is_empty():
+		spots.append(["bolge", g.regions[0].position + Vector3(0, 0, 4), 46.0])
 	spots.append(["us", g.teams[0].hq.position, 50.0])
 	for s in spots:
 		g.cam.focus = s[1]

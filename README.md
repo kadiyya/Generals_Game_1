@@ -81,7 +81,7 @@ inen nokta kimsesiz kalır ve 90 saniye **tahrip** durumda kalır (gelir yok, el
 90 saniye yeni maden kurulamaz. Vurulan kaynak 20 saniye onarılamaz; sonra onarım yalnızca yanında kendi tarafının askerî
 birliği varken ve çevrede düşman yokken ilerler. Kaynakların (ikmal noktaları ve madenler) yeri herkesçe bilinir: birlikler,
 topçu ve füzeler onları görmeden de vurabilir. Maden Ocağı elinde kaldıkça verimi artar (10 dakikada en çok %20).
-Başta 3 yatak belirir, sonra her 120-200 saniyede yenisi gelir (aynı anda en çok 6); rezervleri $3000-5500'dür.
+Başta 3 yatak belirir, sonra her 120-200 saniyede yenisi gelir (aynı anda en çok 6); rezervleri (bir yatağın toplam vereceği para) $9000-15000'dir.
 
 **Doktrinler** fiyatı belirler: doktrine uyan birimler %25-40 ucuz, uymayanlar %20-60 pahalıdır (kartta yeşil ▼ ya da
 kırmızı ▲). Bazı ülkelerde bazı birimler hiç yoktur: Ukrayna'nın tankı yoktur (İHA'larla Rus zırhını avlar), İsrail'in
@@ -129,8 +129,11 @@ dizden bükülen bacaklarla adım atar (adım hıza göre, ayak kaymaz), öne e�
 geri döner. Füzeler duman izi bırakır; vurulan uçak duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
 
 **Emir önceliği:** yere dokununca birlik emredilen yere sapmadan gider; yolda menzile giren düşmana durmadan ateş eder
-(topçu hariç). Boştaki birlik yakına gelen düşmana kendiliğinden saldırır ama bulunduğu yerden 18 birimden fazla
-uzaklaşmaz, sonra yerine döner. Düşmana dokunmak doğrudan saldırı emridir.
+(topçu hariç). Boştaki birlik görüş alanına giren her düşmana kendiliğinden saldırır (topçu menzilindekine) ama bulunduğu
+yerden 24 birimden fazla uzaklaşmaz, sonra yerine döner. Düşmana dokunmak doğrudan saldırı emridir.
+
+**Kamikaze dronlar** (FPV, dolanan mühimmat, kamikaze İHA) gönderildikleri bölgenin yakınında tarafının gördüğü bir düşman
+belirince beklemeden ona dalar; kilitlendikten sonra hedef bölgeden çıksa da kovalar.
 
 **Ölçek:** askerler, araçlar ve ağaçlar birbirine göre gerçek oranlardadır (ağaç askerin 6-9 katı); kamera açılışta
 yakından bakar, iki parmakla uzaklaşınca bütün cephe görülür.
@@ -159,10 +162,14 @@ daha az kayıp). Geri çekilen birlik %25 hızlı gider ve %30 az hasar alır; k
 Doyurma Salvosu (Balistik Füze), Seferberlik (Dengeli).
 
 **Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da Çuhuiv köprübaşını
-10 dakika tutmak; İsrail'in 4 stratejik tesisi yok etmesi, İran'ın Ahvaz petrol terminalini tutması; Pakistan'ın 3 üretim
-tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması. İran tarafındaki 4 stratejik tesis (füze üssü, hava savunma,
-santral, teknoloji merkezi) baştan kuruludur, haritada kırmızı nişangâhla işaretlidir ve çevrelerinde siper kazmış
-bağımsız savunma birlikleri (piyade, tanksavar, dron savar, zırhlı) vardır; bu birlikler yerinden ayrılmaz. Yok etme
+10 dakika tutmak; Pakistan'ın 3 üretim tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması.
+İran – İsrail'de iki tarafın görevi aynıdır: **4 bölgeyi ele geçirmek** (Kerhe Tepesi, Karun Sırtı, Şuş Sanayi Bölgesi,
+Mahşehr Depoları) ve dördünü birlikte toplam 1,5 dakika tutmak. Bölgeleri baştan **bağımsız kuvvetler** tutar (siper
+kazmış piyade, tanksavar, dron savar, zırhlı ve tank; kum sarısı renkte). Gelen her iki orduya da saldırırlar, yerlerinden
+ayrılmazlar. Bir bölgenin bağımsız kuvvetleri tükenince yaklaşık 2 dakika sonra orada daha zayıf bir grup (2 piyade,
+tanksavar, bazen zırhlı; %60 can) yeniden belirir ve bölgeyi kim tutuyorsa onunla çarpışır. Bölge, alanda yalnızca bir
+ordunun kara birliği kalınca 20 saniyede o tarafın olur; sahibi yokken alanı bağımsızlar tutarsa yeniden tarafsızlaşır.
+Bölgeler küçük haritada halka olarak görünür (sahibinin renginde; alınırken dolan yay). Yok etme
 görevlerinde düşmanın hedef binaları 2. dakikadan sonra haritada gösterilir. Ekranın üstünde senin ve düşmanın
 ilerlemesi görünür.
 
@@ -243,6 +250,7 @@ Dışa aktarma ayarı (`export_presets.cfg`) repoda hazırdır.
 | `scripts/logo.gd`, `world_map.gd`, `map_preview.gd` | Logo ve amblem; menünün taktik dünya haritası ve bayraklar; senaryo harita önizlemesi |
 | `scripts/scenery.gd` | Doğa görselleri: arazi, su, bitki ve kuş shader'ları; ağaç, çalı, ot, kaya ve kuş modelleri |
 | `scripts/birds.gd` | Kuş sürüleri ve süzülen yırtıcılar |
+| `scripts/region.gd` | Bölge: bağımsız kuvvetlerin tuttuğu, ele geçirilecek alan; yeniden doğan savunucular |
 | `scripts/fog.gd` | Savaş sisi (araziye oturur) ve bulut gölgeleri |
 | `scripts/zone.gd` | İnşa alanı: karargâhın ve binaların çevresindeki dairelerin birleşimi tek sarı alan olarak çizilir |
 | `scripts/controls.gd`, `camera_rig.gd` | Dokunmatik kontroller ve kamera |
@@ -282,7 +290,7 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--maptest --scn=N`: haritanın oynanabilirliğini doğrular (her üsten her noktaya ve karşı üslere yol var mı).
 - `--mapshot --scn=N --shots=KLASÖR`: haritanın üstten ve yakın görüntülerini alır; `--perfonly` ile kare sürelerini ölçer.
 - `--uishot --scn=N --shots=KLASÖR`: üretim panellerinin görüntüsünü alır.
-- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (stratejik tesisler ve savunucuları, hedeflerin
+- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (bölgeler, bağımsız kuvvetler ve yeniden doğmaları, hedeflerin
   2. dakikada açılması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
 - `--duel --scn=0`: denge için aynı bütçeyle sınıf düelloları yapar ve kalan değerleri yazar.

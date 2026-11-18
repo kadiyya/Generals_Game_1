@@ -68,6 +68,7 @@ const SAVE_PATH := "user://kayit.json"
 const SAVE_V := 3
 var _tick_t := 0.0
 var deposits: Array = []
+var regions: Array = []      # Region: bağımsız kuvvetlerin tuttuğu, ele geçirilecek bölgeler
 var _dep_t := 90.0
 var _supply_t := 0.0
 var _supply_src: Array = [[], []]   # [taraf] -> [[konum, yarıçap], ...]
@@ -90,6 +91,8 @@ func _ready() -> void:
 	for t in Defs.N:
 		teams.append(TeamState.new())
 		apply_mods(t, Scenarios.doctrine(t).mods)
+	if Defs.IND >= 0:
+		teams.append(TeamState.new())
 	_build_world()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -118,6 +121,15 @@ func _ready() -> void:
 		for i in Defs.DEPOSIT_FIRST:
 			spawn_deposit(false)
 		_spawn_strategic()
+	for z in Defs.MAP.get("zones", []):
+		if Defs.IND < 0:
+			break
+		var rg := Region.new()
+		add_child(rg)
+		rg.setup_region(terrain.nearest_free(Vector3(z[0], 0, z[1])), z[2])
+		regions.append(rg)
+		if not loading:
+			rg.garrison(true)
 	for h in terrain.house_data:
 		var g := Garrison.new()
 		add_child(g)
@@ -431,6 +443,8 @@ func _supply_tick() -> void:
 
 
 func supplied(team: int, pos: Vector3) -> bool:
+	if team == Defs.IND:
+		return true   # bağımsız kuvvetler kendi bölgelerinde ikmallidir
 	for s in _supply_src[Defs.SIDE[team]]:
 		if Entity.flat(pos, s[0]) <= s[1]:
 			return true
@@ -1448,6 +1462,10 @@ func _objective(t: int, dt: float) -> void:
 		need = float(o.secs)
 		if Defs.ally(points[o.point].owner_team, t):
 			ts.obj_prog += dt
+	elif o.type == "zones":
+		need = float(o.secs)
+		if regions_held(Defs.SIDE[t]) >= regions.size() and not regions.is_empty():
+			ts.obj_prog += dt
 	elif o.type == "annihilate":
 		var left: int = foe_left[1 - Defs.SIDE[t]]
 		ts.obj_prog = 1.0 if left == 0 and time > 2.0 else 0.0
@@ -1478,6 +1496,8 @@ func _count_left() -> void:
 		if e.is_building and e.kind == "engel":
 			continue
 		if not e.is_building and e.d.has("life"):
+			continue
+		if e.team == Defs.IND:
 			continue
 		foe_left[Defs.SIDE[e.team]] += 1
 	attack_pings = attack_pings.filter(func(a): return time < a[1])
@@ -1579,8 +1599,29 @@ func objective_fraction(t: int) -> float:
 	var o := Scenarios.objective(t)
 	if o.is_empty() or o.type == "annihilate":
 		return 0.0
-	var need := float(o.secs) if o.type == "hold" else float(o.count)
+	var need := float(o.secs) if o.type in ["hold", "zones"] else float(o.count)
 	return clampf(teams[t].obj_prog / need, 0.0, 1.0)
+
+
+## Bir tarafın elindeki bölge sayısı.
+func regions_held(side: int) -> int:
+	var n := 0
+	for rg in regions:
+		if rg.owner_side == side:
+			n += 1
+	return n
+
+
+func on_region_changed(rg: Region, before: int) -> void:
+	var me: int = Defs.SIDE[Defs.PLAYER]
+	if rg.owner_side == me:
+		hud.toast("%s ele geçirildi (%d/%d bölge)." % [rg.rname, regions_held(me), regions.size()], 6.0)
+		sfx.play("rank")
+	elif before == me:
+		hud.toast("%s elden çıktı!" % rg.rname, 6.0)
+		alert_base(rg.position, rg.rname)
+	elif rg.owner_side >= 0:
+		hud.toast("Düşman %s bölgesini aldı (%d/%d)." % [rg.rname, regions_held(rg.owner_side), regions.size()], 6.0)
 
 
 # ---------------------------------------------------------------- doktrin yeteneği
@@ -1977,6 +2018,9 @@ func save_game() -> void:
 		if is_instance_valid(dp):
 			data.deposits.append([snappedf(dp.position.x, 0.01), snappedf(dp.position.z, 0.01), dp.rich, snappedf(dp.reserve, 1.0)])
 	data.dep_t = _dep_t
+	data.regions = []
+	for rg in regions:
+		data.regions.append([rg.owner_side, rg.cap_side, snappedf(rg.cap_t, 0.1), snappedf(rg.respawn_t, 0.1), rg.waves])
 	for ts in teams:
 		data.teams.append({
 			money = ts.money, tier = ts.tier, upgrading = ts.upgrading, upgrade_t = ts.upgrade_t,
@@ -2116,6 +2160,13 @@ func _restore(data: Dictionary) -> void:
 		terrain.block_circle(dp.position, 1.6, true)
 		deposits.append(dp)
 	_dep_t = float(data.get("dep_t", 90.0))
+	var rd: Array = data.get("regions", [])
+	for i in mini(rd.size(), regions.size()):
+		regions[i].owner_side = int(rd[i][0])
+		regions[i].cap_side = int(rd[i][1])
+		regions[i].cap_t = float(rd[i][2])
+		regions[i].respawn_t = float(rd[i][3])
+		regions[i].waves = int(rd[i][4])
 	for e in entities:
 		if e is Building and e.kind == "maden":
 			var dp = deposit_at(e.position)

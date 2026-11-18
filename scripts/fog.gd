@@ -87,7 +87,8 @@ func recompute() -> void:
 					v *= 1.3
 				if e is Unit and e.garrison != null:
 					v += e.garrison.vision_bonus
-			_stamp(Defs.SIDE[e.team], e.global_position, v)
+			if e.team != Defs.IND:
+				_stamp(Defs.SIDE[e.team], e.global_position, v)
 	for p in g.points:
 		if p.owner_team != Defs.NEUTRAL:
 			_stamp(Defs.SIDE[p.owner_team], p.position, SupplyPoint.VISION)
@@ -139,4 +140,6 @@ func sees(team: int, pos: Vector3) -> bool:
 	var y := int((pos.z + Defs.MAP_H * 0.5) / CELL)
 	if x < 0 or y < 0 or x >= gw or y >= gh or team < 0:
 		return false
+	if team == Defs.IND:
+		return true   # bağımsız kuvvetler kendi bölgelerini bilir (menzil ve görüş zaten sınırlar)
 	return grids[Defs.SIDE[team]][y * gw + x] > 0

@@ -123,12 +123,37 @@ func _acquire() -> void:
 		target = t
 
 
+## Kamikaze: görev bölgesine (patrol çevresi, leash yarıçapı) yakın, tarafının gördüğü herhangi bir düşmanı
+## hemen seçer ve doğrudan dalar; bölgede yoksa kendi gördüğünü alır. Hedefe kilitlenince bölgeden çıksa da kovalar.
+func _acquire_zone() -> void:
+	if jammed_t > 0.0:
+		target = null
+		return
+	if target != null or scan_timer > 0.0:
+		return
+	scan_timer = 0.2
+	var g := Game.I
+	var r := leash + 8.0
+	var best = null
+	var bs := 1e9
+	for e in g.nearby(patrol, r + 7.0):
+		if not can_hit(e) or e.is_building:
+			continue
+		if flat(e.global_position, patrol) > r:
+			continue
+		var s: float = flat(global_position, e.global_position) / (0.3 + float(d.mult.get(e.armor, 0.0)))
+		if s < bs:
+			bs = s
+			best = e
+	target = best if best != null else find_target(vision)
+
+
 func _kamikaze(dt: float) -> void:
-	_acquire()
+	_acquire_zone()
 	if target == null:
 		_orbit(patrol, dt)
 		return
-	_fly(target.global_position, dt)
+	_fly(target.global_position, dt, -1.0, speed * 1.3)
 	if flat(global_position, target.global_position) <= target.radius + 1.2:
 		var g := Game.I
 		var base := damage_base()
