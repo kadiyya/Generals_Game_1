@@ -5,6 +5,7 @@ extends Node
 
 const RATE := 22050
 const POOL := 14
+const LOWPASS_HZ := 2500.0   # efekt seslerinin üst frekans sınırı (tiz sesler kısılır)
 
 static var _cache := {}
 var players: Array = []
@@ -75,7 +76,7 @@ func play(name: String, pos := Vector3.INF) -> void:
 		if not p.playing:
 			p.stream = stream(name)
 			p.volume_db = vol
-			p.pitch_scale = randf_range(0.92, 1.08)
+			p.pitch_scale = randf_range(0.9, 1.02)
 			p.play()
 			return
 
@@ -86,7 +87,7 @@ static func stream(name: String) -> AudioStreamWAV:
 	var s: PackedFloat32Array
 	match name:
 		"rifle":
-			s = _noise_burst(0.12, 55.0, 0.6)
+			s = _noise_burst(0.12, 55.0, 0.3)
 		"cannon":
 			s = _mix(_noise_burst(0.5, 9.0, 0.35), _thump(0.55, 70.0, 38.0, 7.0))
 		"arty":
@@ -94,21 +95,21 @@ static func stream(name: String) -> AudioStreamWAV:
 		"missile":
 			s = _whoosh(0.8)
 		"beam":
-			s = _sweep(0.35, 1500.0, 500.0, 0.4)
+			s = _sweep(0.35, 700.0, 300.0, 0.35)
 		"boom_s":
 			s = _mix(_noise_burst(0.6, 7.0, 0.15), _thump(0.6, 60.0, 30.0, 6.0))
 		"boom_l":
 			s = _mix(_noise_burst(1.5, 2.8, 0.08), _thump(1.4, 45.0, 22.0, 2.6))
 		"click":
-			s = _tone([1400.0], 0.035, 0.3, 90.0)
+			s = _tone([620.0], 0.035, 0.25, 90.0)
 		"alert":
-			s = _concat(_tone([880.0], 0.14, 0.35, 8.0), _silence(0.07), _tone([880.0], 0.14, 0.35, 8.0))
+			s = _concat(_tone([440.0], 0.14, 0.3, 8.0), _silence(0.07), _tone([440.0], 0.14, 0.3, 8.0))
 		"capture":
-			s = _concat(_tone([523.0], 0.1, 0.3, 10.0), _tone([659.0], 0.1, 0.3, 10.0), _tone([784.0], 0.22, 0.3, 6.0))
+			s = _concat(_tone([262.0], 0.1, 0.3, 10.0), _tone([330.0], 0.1, 0.3, 10.0), _tone([392.0], 0.22, 0.3, 6.0))
 		"rank":
-			s = _concat(_tone([784.0, 1175.0], 0.12, 0.25, 9.0), _tone([1047.0, 1568.0], 0.3, 0.25, 5.0))
+			s = _concat(_tone([392.0, 587.0], 0.12, 0.25, 9.0), _tone([523.0, 784.0], 0.3, 0.25, 5.0))
 		"jam":
-			s = _mix(_noise_burst(0.3, 3.0, 0.9), _tone([180.0], 0.3, 0.2, 3.0))
+			s = _mix(_noise_burst(0.3, 3.0, 0.35), _tone([180.0], 0.3, 0.2, 3.0))
 		"jet":
 			s = _whoosh(1.6)
 		_:
@@ -119,11 +120,18 @@ static func stream(name: String) -> AudioStreamWAV:
 
 # ---------------------------------------------------------------- sentez
 
+## Her ses yazılmadan önce iki kademeli alçak geçiren süzgeçten geçer (~2.5 kHz): tiz, cızırtılı kısımlar
+## kırpılır, sesler daha boğuk ve yorucu olmayan bir tona iner.
 static func _wav(s: PackedFloat32Array, rate: int) -> AudioStreamWAV:
 	var b := PackedByteArray()
 	b.resize(s.size() * 2)
+	var a := 1.0 - exp(-TAU * LOWPASS_HZ / float(rate))
+	var l1 := 0.0
+	var l2 := 0.0
 	for i in s.size():
-		b.encode_s16(i * 2, int(clampf(s[i], -1.0, 1.0) * 30000.0))
+		l1 += (s[i] - l1) * a
+		l2 += (l1 - l2) * a
+		b.encode_s16(i * 2, int(clampf(l2, -1.0, 1.0) * 30000.0))
 	var w := AudioStreamWAV.new()
 	w.format = AudioStreamWAV.FORMAT_16_BITS
 	w.mix_rate = rate

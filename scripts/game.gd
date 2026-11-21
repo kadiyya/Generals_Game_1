@@ -1434,6 +1434,12 @@ func _objective(t: int, dt: float) -> void:
 		need = float(o.secs)
 		if Defs.ally(points[o.point].owner_team, t):
 			ts.obj_prog += dt
+		elif ts.obj_prog > 0.0:
+			# Süre kesintisiz olmalı: nokta elden çıkınca sayaç baştan başlar.
+			if ts.obj_prog >= 5.0:
+				hud.toast(("%s elden çıktı: görev sayacı sıfırlandı." if Defs.friendly(t) else "Düşman %s noktasını kaybetti: sayacı sıfırlandı.") % points[o.point].d.name, 6.0)
+			ts.obj_prog = 0.0
+			ts.obj_note = 0
 	elif o.type == "annihilate":
 		var left: int = foe_left[1 - Defs.SIDE[t]]
 		ts.obj_prog = 1.0 if left == 0 and time > 2.0 else 0.0

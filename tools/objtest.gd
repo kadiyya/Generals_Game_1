@@ -1,7 +1,8 @@
 extends Node
 ## Geliştirme aracı: görev sistemini dener. Kullanım:
 ##   godot --headless --path . -- --objtest --scn=1 [--goal=N]
-## goal 0: senaryo görevi (İran–İsrail'de stratejik tesisler), goal 2: tam imha. scn 2: hedeflerin 2. dakikada açılması.
+## goal 0: senaryo görevi (İran–İsrail ve Pakistan–Hindistan'da stratejik tesisler; tutma görevinde kesintisiz sayaç),
+## goal 1: bölgeyi tut, goal 2: tam imha.
 
 var fails := 0
 
@@ -29,14 +30,15 @@ func _run() -> void:
 	var o := Scenarios.objective(Defs.PLAYER)
 	match Scenarios.GOALS[Scenarios.goal].id:
 		"senaryo":
-			if Scenarios.chosen == 1:
+			if o.get("strategic", false) or Scenarios.objective(1).get("strategic", false):
 				await _strategic(g, o)
 			else:
-				await _reveal(g, o)
+				await _hold(g, o)
 		"imha":
 			await _annihilate(g, o)
 		"tut":
 			_check("bolgeyi tut gorevi", o.type == "hold" and o.point == 0)
+			await _hold(g, o)
 	print("OBJTEST BITTI  hata=%d" % fails)
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -48,10 +50,11 @@ func _strategic(g: Game, o: Dictionary) -> void:
 		for e in g.entities:
 			if e.strategic and e.team == Defs.PLAYER:
 				mine += 1
-		_check("Iran olarak tesisler oyuncunun", mine == 4)
+		_check("tesisler oyuncunun", mine == Defs.MAP.strategic.size())
 		_check("dusmanin gorevi stratejik tesisler", Scenarios.objective(1).get("strategic", false))
 		return
-	_check("Israil'in gorevi stratejik tesisler", o.type == "destroy" and o.get("strategic", false))
+	_check("gorev stratejik tesisler", o.type == "destroy" and o.get("strategic", false))
+	var need: int = int(o.count)
 	var targets: Array = []
 	var guards := 0
 	for e in g.entities:
@@ -59,9 +62,17 @@ func _strategic(g: Game, o: Dictionary) -> void:
 			targets.append(e)
 		if e.guard:
 			guards += 1
-	_check("4 stratejik tesis kurulu", targets.size() == 4)
+	_check("%d stratejik tesis kurulu" % need, targets.size() == need)
+	# Hedefler düşman üssünün dibinde doğmaz.
+	var near := 1e9
+	for e in targets:
+		for t in Defs.N:
+			if Defs.foe(Defs.PLAYER, t) and g.teams[t].hq != null:
+				near = minf(near, Entity.flat(e.position, g.teams[t].hq.position))
+	print("  en yakin tesis - dusman karargahi: %.0f" % near)
+	_check("tesisler dusman ussunden uzakta", near > 70.0)
 	_check("tesisler dusmanin ve hep gorunur", targets.all(func(e): return Defs.foe(Defs.PLAYER, e.team) and e.discovered and g.is_obj_target(e)))
-	_check("tesislerin bagimsiz savunuculari var", guards >= 16)
+	_check("tesislerin bagimsiz savunuculari var", guards >= need * 4)
 	_check("savunucular birlik sinirina sayilmaz", g.teams[1].pop <= 4)
 	_check("tesisler dusmanin enerjisini bozmaz", g.teams[1].power_used == 0)
 	_check("tesisler kademe sartini saglamaz", g.count_kind(1, "teknoloji") == 0)
@@ -75,18 +86,26 @@ func _strategic(g: Game, o: Dictionary) -> void:
 		await _wait(0.2)
 		if i < targets.size() - 1:
 			_check("tesis %d sayilir" % (i + 1), int(g.teams[0].obj_prog) == i + 1 and not g.over)
-	_check("dort tesis yikilinca zafer", g.over and g.winner == Defs.SIDE[Defs.PLAYER])
+	_check("tesisler yikilinca zafer", g.over and g.winner == Defs.SIDE[Defs.PLAYER])
 	_check("zafer nedeni gorev", g.end_reason.begins_with("Görev tamamlandı"))
 
 
-func _reveal(g: Game, o: Dictionary) -> void:
-	_check("Pakistan'in gorevi uretim tesisleri", o.type == "destroy")
-	var k := g.spawn_building(Defs.bid(1, "kisla"), 1, g.terrain.nearest_free(g.teams[1].hq.position + Vector3(0, 0, 18)), true)
-	g.fog.recompute()
-	_check("ilk iki dakikada hedef gizli", not k.discovered and not g.is_obj_target(k))
-	g.time = Game.REVEAL_AT + 1.0
-	g._reveal_targets()
-	_check("2. dakikadan sonra hedef haritada", k.discovered and g.is_obj_target(k))
+## Tutma görevi: süre kesintisizdir; nokta elden çıkınca sayaç sıfırlanır.
+func _hold(g: Game, o: Dictionary) -> void:
+	_check("tutma gorevi", o.type == "hold")
+	var pt: SupplyPoint = g.points[o.point]
+	pt.claim(0)
+	await _wait(1.5)
+	_check("tutulan sure artar", g.teams[0].obj_prog > 0.5)
+	pt.claim(1)
+	await _wait(0.3)
+	_check("nokta kaybedilince sayac sifirlanir", is_zero_approx(g.teams[0].obj_prog))
+	pt.claim(0)
+	await _wait(1.0)
+	_check("geri alininca sayac bastan baslar", g.teams[0].obj_prog > 0.3 and g.teams[0].obj_prog < 1.5)
+	pt.claim(-1)
+	await _wait(0.3)
+	_check("nokta kimsesiz kalinca da sifirlanir", is_zero_approx(g.teams[0].obj_prog))
 	# Düşman görevini bitirirse yenilgi nedeni doğru yazılır.
 	g.points[0].claim(1)
 	g.teams[1].obj_prog = 599.5

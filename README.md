@@ -51,7 +51,7 @@ zekâ ordusu, karşında iki düşman üssü). Aynı taraftakiler görüşü ve 
 karargâhları yıkılınca ya da görev tamamlanınca maç biter.
 
 **Görev seçimi (menüden):** *Senaryo Görevi* (her ülkenin kendi görevi), *Bölgeyi Tut* (iki taraf da haritanın
-ortasındaki kilit noktayı toplam 10 dakika tutmaya çalışır) ya da *Tam İmha* (düşmanın bütün binalarını ve birliklerini
+ortasındaki kilit noktayı kesintisiz 10 dakika tutmaya çalışır; nokta elden çıkarsa sayaç baştan başlar) ya da *Tam İmha* (düşmanın bütün binalarını ve birliklerini
 yok et; karargâh yıkılsa da savaş sürer, düşmanın binası kalmayınca kalan birlikleri küçük haritada gösterilir).
 Maç bitince ekranda gerçek neden yazar (karargâhın yıkıldı, düşman görevini tamamladı, ordun tamamen yok edildi...).
 
@@ -139,12 +139,13 @@ daha az kayıp). Geri çekilen birlik %25 hızlı gider ve %30 az hasar alır; k
 Doyurma Salvosu (Balistik Füze), Seferberlik (Dengeli).
 
 **Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da Çuhuiv köprübaşını
-10 dakika tutmak; İsrail'in 4 stratejik tesisi yok etmesi, İran'ın Ahvaz petrol terminalini tutması; Pakistan'ın 3 üretim
-tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması. İran tarafındaki 4 stratejik tesis (füze üssü, hava savunma,
-santral, teknoloji merkezi) baştan kuruludur, haritada kırmızı nişangâhla işaretlidir ve çevrelerinde siper kazmış
-bağımsız savunma birlikleri (piyade, tanksavar, dron savar, zırhlı) vardır; bu birlikler yerinden ayrılmaz. Yok etme
-görevlerinde düşmanın hedef binaları 2. dakikadan sonra haritada gösterilir. Ekranın üstünde senin ve düşmanın
-ilerlemesi görünür.
+kesintisiz 10 dakika tutmak; İsrail'in 4 stratejik tesisi yok etmesi, İran'ın Ahvaz petrol terminalini tutması; Pakistan'ın
+3 üretim tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması. Tutma görevlerinde süre kesintisizdir: nokta elden
+çıkarsa (düşman alır ya da tahrip olup kimsesiz kalırsa) sayaç sıfırlanır. İran tarafındaki 4 stratejik tesis (füze
+üssü, hava savunma, santral, teknoloji merkezi) ve Hindistan tarafındaki 3 üretim tesisi (kışla, fabrika, hava alanı)
+baştan kuruludur; düşman üssünün dibinde değil, cephe ile üs arasındaki ileri hatta dururlar. Haritada kırmızı
+nişangâhla işaretlidirler ve çevrelerinde siper kazmış bağımsız savunma birlikleri (piyade, tanksavar, dron savar,
+zırhlı) vardır; bu birlikler yerinden ayrılmaz. Ekranın üstünde senin ve düşmanın ilerlemesi görünür.
 
 **Saldırı uyarısı:** kendi binan ya da kaynağın vurulunca küçük haritada o yer kırmızı yanıp söner, binanın üstünde
 "SALDIRI!" yazar. **Araştırmalar** ne işe yaradıklarını düğmenin üstünde yazar.
@@ -166,7 +167,8 @@ noktası (birlikler orada yayılarak durur); devriye emri; üç birlik grubu (ba
 götür); otomatik kayıt (dakikada bir, menüye dönüşte ve uygulama arka plana geçince) ve menüde "Devam Et".
 
 **Ses ve görsellik:** atış, top, topçu, füze, lazer, patlama, uyarı, nokta alma ve terfi sesleri ile arka plan müziği
-kodla sentezlenir (ses dosyası yok); sesler kameraya uzaklığa göre kısılır. Uçaklar ve büyük İHA'lar pistten kalkar,
+kodla sentezlenir (ses dosyası yok); sesler kameraya uzaklığa göre kısılır. Tiz sesler yorucu olmasın diye bütün efektler
+~2,5 kHz alçak geçiren süzgeçten geçer, uyarı/tık/terfi tonları bir oktav pestir. Uçaklar ve büyük İHA'lar pistten kalkar,
 mühimmatı bitince piste iner, silahlanıp yeniden kalkar. Yok edilen araçlar yanmış enkaz, binalar moloz bırakır;
 ağır hasarlı binalar tüter ve yanar.
 
@@ -259,8 +261,8 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--maptest --scn=N`: haritanın oynanabilirliğini doğrular (her üsten her noktaya ve karşı üslere yol var mı).
 - `--mapshot --scn=N --shots=KLASÖR`: haritanın üstten ve yakın görüntülerini alır; `--perfonly` ile kare sürelerini ölçer.
 - `--uishot --scn=N --shots=KLASÖR`: üretim panellerinin görüntüsünü alır.
-- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (stratejik tesisler ve savunucuları, hedeflerin
-  2. dakikada açılması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
+- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (stratejik tesisler, savunucuları ve düşman üssüne
+  uzaklıkları, tutma sayacının nokta kaybında sıfırlanması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
 - `--duel --scn=0`: denge için aynı bütçeyle sınıf düelloları yapar ve kalan değerleri yazar.
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).
