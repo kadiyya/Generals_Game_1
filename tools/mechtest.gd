@@ -566,7 +566,12 @@ func _run() -> void:
 		_check("%s: ayni turden iki ucak yok" % cc, int(cnt.get("fighter", 0)) <= 1 and int(cnt.get("striker", 0)) <= 1 and int(cnt.get("stealth", 0)) <= 1)
 	var ads_id := g.unit_of(0, "ads")
 	var adsd: Dictionary = Defs.UNITS[ads_id]
-	_check("zirhli hava savunma ucaga sert, yere orta, tanka zayif vurur", float(adsd.mult.air) >= 1.5 and float(adsd.mult.heavy) < 0.2 and float(adsd.mult.light) >= 0.3)
+	_check("zirhli hava savunma ucaga sert, yere orta, tanka zayif vurur", float(adsd.mult.air) >= 1.2 and float(adsd.mult.heavy) < 0.3 and float(adsd.mult.light) >= 0.5)
+	_check("buyuk hava savunmanin ucaga etkisi %20 azaldi, fuze onleme ayni", is_equal_approx(float(adsd.mult.air), 1.28) and is_equal_approx(float(adsd.mult.missile), 1.6)
+		and is_equal_approx(float(Defs.BUILDINGS[Defs.bid(0, "sam")].mult.air), 0.8))
+	var ua_fpv: Dictionary = Defs.UNITS[g.unit_of(0, "sdrone_fpv")]
+	_check("Ukrayna dronlari zirhliya %15 fazla vurur", Defs.COUNTRY[0] == "ua" and is_equal_approx(float(ua_fpv.mult.light), 1.2 * 1.15) and is_equal_approx(float(ua_fpv.mult.heavy), 0.8 * 1.15) and is_equal_approx(float(ua_fpv.mult.inf), 0.8))
+	_check("piyade %10 hizli, kara araci %5 yavas", is_equal_approx(float(Defs.UNITS[g.unit_of(0, "inf")].speed), 3.4 * 1.1) and is_equal_approx(float(Defs.UNITS[g.unit_of(0, "ifv")].speed), 5.2 * 0.95))
 	_check("IHA gorusu genis", float(Defs.UNITS[g.unit_of(0, "uav_strike")].vision) >= 30.0)
 	for r in Scenarios.RESEARCH:
 		_check("arastirma aciklamasi: %s" % r.id, String(r.desc).length() > 20)
@@ -695,6 +700,20 @@ func _run() -> void:
 				gone = false
 	_check("hava akini ucaklari donup kaybolur", gone)
 	dummy.die()
+
+	# Füze Üssü varken sol panelde füze düğmeleri çıkar ve hedef seçimini başlatır.
+	g.teams[0].tier = 3
+	g.teams[0].money = 50000.0
+	var fz := g.spawn_building(Defs.bid(0, "fuze"), 0, g.terrain.nearest_free(hq + Vector3(-24, 0, -30)), true)
+	g.hud._update_missiles()
+	_check("sol panelde fuze dugmesi cikar", g.hud.mis_box.visible and g.hud.mis_btns[0].visible and not g.hud.mis_btns[0].disabled)
+	g.hud._side_missile(0)
+	_check("sol paneldeki fuze dugmesi hedef secimini baslatir", g.targeting == fz and g.targeting_i == 0)
+	g.cancel_targeting()
+	fz.die()
+	await _wait(0.2)
+	g.hud._update_missiles()
+	_check("fuze ussu yokken dugme gizlenir", not g.hud.mis_box.visible)
 
 	# ---- kayıt
 	if not is_instance_valid(b) or not b.alive:

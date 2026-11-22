@@ -57,21 +57,21 @@ const CLASSES := {
 		cat = "hs", from = "fabrika", cost = 550, time = 18.0, tier = 1,
 		hp = 560, speed = 4.2, vision = 14.0, radius = 1.5, armor = "light",
 		range = 14.0, dmg = 22.0, cd = 0.35, proj = "tracer",
-		mult = {air = 0.6, drone = 1.0, inf = 0.6, light = 0.4, heavy = 0.06, bld = 0.15},
+		mult = {air = 0.6, drone = 1.0, inf = 1.1, light = 0.75, heavy = 0.15, bld = 0.25},
 	},
 	"laser": {
 		cat = "hs", from = "fabrika", cost = 1400, time = 35.0, tier = 3,
 		hp = 500, speed = 3.6, vision = 16.0, radius = 1.5, armor = "light",
 		range = 18.0, dmg = 60.0, cd = 0.6, proj = "beam",
-		mult = {air = 0.5, drone = 3.0, inf = 0.5, light = 0.35, heavy = 0.08, bld = 0.12},
+		mult = {air = 0.5, drone = 3.0, inf = 0.9, light = 0.65, heavy = 0.15, bld = 0.2},
 	},
-	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları çok sert vurur; yerdeki hafif
-	# hedeflere ve piyadeye orta, tanka zayıf etkilidir; küçük dronlara neredeyse etkisizdir.
+	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları sert vurur (missile: balistik füze
+	# önleme çarpanı); yerdeki hafif hedeflere ve piyadeye orta, tanka zayıf etkilidir; küçük dronlara neredeyse etkisizdir.
 	"ads": {
 		cat = "hs", from = "fabrika", cost = 950, time = 24.0, tier = 2,
 		hp = 950, speed = 3.9, vision = 20.0, radius = 1.7, armor = "heavy",
 		range = 25.0, dmg = 150.0, cd = 2.6, proj = "missile",
-		mult = {air = 1.6, drone = 0.15, inf = 0.3, light = 0.35, heavy = 0.12, bld = 0.15},
+		mult = {air = 1.28, missile = 1.6, drone = 0.15, inf = 0.55, light = 0.65, heavy = 0.25, bld = 0.3},
 	},
 	"ew": {
 		cat = "hs", from = "fabrika", cost = 650, time = 20.0, tier = 1,
@@ -157,7 +157,7 @@ const BUILDING_KINDS := {
 	"havaalani": {name = "Hava Alanı", cost = 900, time = 30.0, tier = 2, hp = 1600, vision = 14.0, radius = 6.0, power = -2},
 	"sam": {
 		name = "Hava Savunma", cost = 700, time = 20.0, tier = 2, hp = 800, vision = 14.0, radius = 2.2, power = -1,
-		cls = "sam", range = 26.0, dmg = 140.0, cd = 3.0, proj = "missile", mult = {air = 1.0, drone = 0.3, inf = 0.3, light = 0.4, heavy = 0.18, bld = 0.2},
+		cls = "sam", range = 26.0, dmg = 140.0, cd = 3.0, proj = "missile", mult = {air = 0.8, missile = 1.0, drone = 0.3, inf = 0.55, light = 0.7, heavy = 0.32, bld = 0.3},
 	},
 	"teknoloji": {name = "Teknoloji Merkezi", cost = 800, time = 30.0, tier = 2, hp = 1000, vision = 12.0, radius = 3.4, power = -1},
 	"engel": {name = "Tanksavar Engeli", cost = 150, time = 6.0, tier = 1, hp = 1400, vision = 4.0, radius = 2.0, field = true},
@@ -224,6 +224,7 @@ const RESEARCH := [
 const COUNTRIES := {
 	"ua": {
 		name = "Ukrayna", doctrine = "iha", body = Color(0.33, 0.4, 0.25), air = Color(0.55, 0.6, 0.66),
+		drone_armor = 1.15,   # dronlar (FPV, dolanan mühimmat, İHA'lar) zırhlılara %15 fazla vurur
 		sam = ["Patriot", "sam_box"],
 		missiles = [{name = "Hrim-2", cost = 1300, cd = 70.0, dmg = 900.0, splash = 7.0, tier = 3}],
 		units = [
@@ -655,8 +656,8 @@ const LIST := [
 		geo = {c = Vector2(42.0, 31.8), zoom = 6.0, a = Vector2(35.0, 31.6), b = Vector2(49.5, 31.5), col = Color(0.3, 0.85, 0.75), label = "Huzistan – Zagros"},
 		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. Dört kilit bölgeyi iki orduya da saldıran bağımsız kuvvetler tutuyor. İsrail görünmez uçaklarla, İran balistik füzelerle bölgeleri almaya çalışır.",
 		obj = {
-			a = {type = "zones", count = 4, secs = 90.0, text = "Bağımsız kuvvetlerin tuttuğu 4 bölgeyi ele geçir, dördünü birlikte toplam 1,5 dakika tut"},
-			b = {type = "zones", count = 4, secs = 90.0, text = "Bağımsız kuvvetlerin tuttuğu 4 bölgeyi ele geçir, dördünü birlikte toplam 1,5 dakika tut"},
+			a = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü birlikte 1,5 dk tut"},
+			b = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü birlikte 1,5 dk tut"},
 		},
 	},
 	{
@@ -738,6 +739,13 @@ static func setup() -> void:
 			d.cc = cc
 			if not d.get("air", false) and d.armor != "inf":
 				d.radius = float(d.radius) * 1.15   # araç modelleri büyütüldü
+			# Hız dengesi: piyade %10 hızlı, kara araçları %5 yavaş (zırhlı piyadeden kolayca kaçmasın).
+			if not d.get("air", false):
+				d.speed = float(d.speed) * (1.1 if d.armor == "inf" else 0.95)
+			if d.get("tag", "") == "drone" and c.has("drone_armor") and d.has("mult"):
+				for ak in ["light", "heavy"]:
+					if d.mult.has(ak):
+						d.mult[ak] = float(d.mult[ak]) * float(c.drone_armor)
 			if int(d.get("tier", 1)) >= 3:
 				# Deneysel silah: pahalı ama çok etkili.
 				d.exp = true

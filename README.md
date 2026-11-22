@@ -73,6 +73,9 @@ görür. Geniş ormanlar ve ağaç hatları piyadeyi her zaman, aracı dururken 
 görüşü keser. Kasabalarda köy evleri (2 birlik), yıkık apartmanlar (3 birlik, üst kattan uzağı görür) ve terk edilmiş
 fabrikalar (4 birlik) vardır.
 
+**Hız ve ülke farkları:** piyade %10 hızlı, kara araçları %5 yavaş (zırhlı piyadeden kolayca kaçamaz). Ukrayna'nın
+dronları (FPV, dolanan mühimmat, İHA'lar) zırhlılara %15 fazla vurur. Bütün birim değerleri: [docs/DENGE.md](docs/DENGE.md).
+
 **Kaynaklar.** Gelir çok düşüktür: karargâh $8/sn, ikmal noktası $1 (asıl işi ikmal), kasaba $3, petrol/gaz $4-6. Maç boyunca haritanın
 rastgele yerlerinde **kaynak yatakları** belirir ve herkese duyurulur (küçük haritada yanıp söner). Yatağın üstüne
 Maden Ocağı ilk kuran takımın olur ($4-6,5/sn; kurulumu $1600, yanında kendi birliğin olmalı); yatağın rezervi bitince
@@ -118,7 +121,8 @@ Machbet, Herz-9, HQ-16FE, Akash; Patriot, S-400, Iron Dome, Bavar-373.
 **Binalar:** Karargâh, Santral, Kışla, Fabrika, Maden Ocağı (yalnızca kaynak yatağına), İleri Harekât Üssü, Hava Alanı,
 hava savunma (ülkeye göre adı değişir), Teknoloji Merkezi (7 araştırma, Kademe 3 için şart), Füze Üssü.
 
-**Füzeler:** Füze Üssü'nden füze seçilir, haritada **görebildiğin** bir yere (ya da yeri bilinen bir düşman kaynağına,
+**Füzeler:** Füze Üssü kurulunca füzeler sol paneldeki düğmelerden atılır (binayı seçmeye gerek yok; düğme hazır
+olmayı ve fiyatı gösterir), ya da Füze Üssü seçilip oradan; haritada **görebildiğin** bir yere (ya da yeri bilinen bir düşman kaynağına,
 stratejik tesise) dokunulur. **Balistik füzelerin canı vardır:** uçuşun ikinci yarısında menzildeki düşman hava
 savunmaları (bina, zırhlı hava savunma, dron savar, lazer) silahları hazır oldukça önleyici atar ve füzenin canını düşürür;
 canı biten füze havada patlar, hasarlı füze daha az hasar verir. Hipersonik füzeler (Fattah-2, BrahMos, Fatah-IV) çok
@@ -126,7 +130,8 @@ daha dayanıklıdır, ancak son anda ve zor vurulur. Yapay zekâ iki füze aras�
 (Kolay/Orta/Zor) ve ilk füzesini 4. dakikadan önce atmaz.
 
 **Hava savunması yeri de vurur:** hava savunma binası, zırhlı hava savunma, dron savar ve lazer yerdeki piyadeyi ve hafif
-araçları vurur (tanka zayıf); böylece üssü savunur. Menzile bir uçak, İHA ya da dron girince yer hedefini bırakıp ona
+araçları sert vurur (dron savar piyadeye bir zırhlı araç kadar; tanka zayıf); böylece üssü savunur. Büyük hava savunma
+(bina ve zırhlı hava savunma) uçak ve İHA'lara karşı %20 yumuşatıldı; balistik füze önlemesi aynı kaldı. Menzile bir uçak, İHA ya da dron girince yer hedefini bırakıp ona
 döner; dron savar taretleri hızlı döner. Küçük dronlar: dron savar bir FPV'yi iki atışta, lazer tek atışta düşürür;
 elektronik harp aracı 16 birim içindeki küçük dronları bir saniyede düşürür (Fiber Optik FPV hariç).
 
@@ -316,6 +321,8 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--mapshot --scn=N --shots=KLASÖR`: haritanın üstten ve yakın görüntülerini alır; `--perfonly` ile kare sürelerini ölçer.
 - `--uishot --scn=N --shots=KLASÖR`: üretim panellerinin görüntüsünü alır.
 - `--menutest`: giriş ekranında parmakla kaydırmayı, kaydırırken düğmeye basılmamasını, sesleri ve müziği dener (pencere gerekir).
+- `godot --headless --path . -s tools/balance.gd -- docs/DENGE.md`: bütün birimlerin oyundaki değerlerini (fiyat, can, hız, menzil,
+  zırh sınıfına göre saniyede hasar) [docs/DENGE.md](docs/DENGE.md) tablosuna yazar. Denge değişince yeniden çalıştır.
 - `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (bölgeler, bağımsız kuvvetler ve yeniden doğmaları, hedeflerin
   2. dakikada açılması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.

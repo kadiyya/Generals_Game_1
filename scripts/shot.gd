@@ -82,7 +82,7 @@ func _air_defense() -> void:
 		e.cd_timer = float(e.d.cd)
 		g.fx_tracer(e.muzzle_pos(), p, Color(1.0, 1.0, 0.85) if e.cls != "laser" else Color(0.3, 0.95, 1.0), 0.12, 0.25)
 		if randf() < (0.75 if not hypersonic else 0.45):
-			var hit: float = float(e.d.dmg) * float(e.d.mult.get("air", 0.0)) * g.mod(e.team, "dmg_" + e.cls)
+			var hit: float = float(e.d.dmg) * float(e.d.mult.get("missile", e.d.mult.get("air", 0.0))) * g.mod(e.team, "dmg_" + e.cls)
 			bhp -= hit
 			g.fx_puff(p, Color(0.95, 0.85, 0.6), 1.2, 0.5, 0.2)
 		if bhp <= 0.0:

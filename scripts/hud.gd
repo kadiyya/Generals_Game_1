@@ -20,6 +20,8 @@ var toast_lbl: Label
 var end_panel: ColorRect
 var obj_lbl: Label
 var ab_btn: Button
+var mis_box: HBoxContainer
+var mis_btns: Array = []
 var tip_panel: PanelContainer
 var tip_lbl: Label
 var flipped := {}      # birim kimliği -> kart arkaya dönük mü
@@ -126,6 +128,21 @@ func _ready() -> void:
 	ab_btn.pressed.connect(func(): Game.I.begin_ability())
 	ab_btn.tooltip_text = Game.I.ability(Defs.PLAYER).get("desc", "")
 	side.add_child(ab_btn)
+	# Füze Üssü varken füzeler buradan atılır: binayı seçmeye gerek yok.
+	mis_box = HBoxContainer.new()
+	mis_box.add_theme_constant_override("separation", 4)
+	mis_box.visible = false
+	side.add_child(mis_box)
+	for i in 3:
+		var mb := Button.new()
+		mb.custom_minimum_size = Vector2(84, 54)
+		mb.focus_mode = Control.FOCUS_NONE
+		mb.add_theme_font_size_override("font_size", 13)
+		mb.clip_text = true
+		mb.pressed.connect(_side_missile.bind(i))
+		mb.pressed.connect(func(): Game.I.sfx.play("click"))
+		mis_box.add_child(mb)
+		mis_btns.append(mb)
 
 	obj_lbl = Label.new()
 	obj_lbl.anchor_left = 0.5
@@ -258,6 +275,7 @@ func _process(_dt: float) -> void:
 	minimap.queue_redraw()
 	_update_objective()
 	_update_ability()
+	_update_missiles()
 	_run_refreshers()
 
 
@@ -586,6 +604,51 @@ func _update_objective() -> void:
 	else:
 		prog = "%d / %d" % [int(ts.obj_prog), int(o.count)]
 	obj_lbl.text = "Görev: %s  —  %s      Düşman görevi: %%%d" % [o.text, prog, int(g.objective_fraction(Defs.ENEMY) * 100.0)]
+
+
+## Sol paneldeki füze düğmeleri: her füze için en erken hazır olan Füze Üssü kullanılır.
+func _missile_site(i: int):
+	var best = null
+	for e in Game.I.entities:
+		if e is Building and e.alive and e.built and e.team == Defs.PLAYER and e.kind == "fuze" and i < e.missile_ready.size():
+			if best == null or e.missile_ready[i] < best.missile_ready[i]:
+				best = e
+	return best
+
+
+func _side_missile(i: int) -> void:
+	var b = _missile_site(i)
+	if b != null:
+		Game.I.begin_targeting(b, i)
+
+
+func _update_missiles() -> void:
+	var g := Game.I
+	var ms: Array = Scenarios.country(Defs.PLAYER).missiles
+	var any := false
+	var ts = g.teams[Defs.PLAYER]
+	for i in mis_btns.size():
+		var btn: Button = mis_btns[i]
+		var b = _missile_site(i) if i < ms.size() else null
+		if b == null:
+			btn.visible = false
+			continue
+		var m := g.missile_info(Defs.PLAYER, i)
+		if ts.tier < int(m.tier):
+			btn.visible = false
+			continue
+		any = true
+		btn.visible = true
+		var nm: String = m.name
+		if b.missile_ready[i] > 0.0:
+			btn.text = "%s\n%d sn" % [nm, int(ceil(b.missile_ready[i]))]
+			btn.disabled = true
+		else:
+			btn.text = "%s\n$%d" % [nm, int(m.cost)]
+			btn.disabled = ts.money < float(m.cost) or not b.powered()
+		btn.tooltip_text = "%s: %d hasar, %.0f alan. Dokun, sonra haritada hedefi göster." % [nm, int(m.dmg), float(m.splash)]
+		btn.modulate = Color(1.0, 0.75, 0.6) if g.targeting == b and g.targeting_i == i else Color(1, 1, 1)
+	mis_box.visible = any
 
 
 func _update_ability() -> void:
