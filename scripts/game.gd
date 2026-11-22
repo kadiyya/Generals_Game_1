@@ -68,6 +68,7 @@ const SAVE_PATH := "user://kayit.json"
 const SAVE_V := 3
 var _tick_t := 0.0
 var deposits: Array = []
+var no_supply_rules := false   # geliştirme araçları için (denge düellosu): ikmal cezası yok
 var regions: Array = []      # Region: bağımsız kuvvetlerin tuttuğu, ele geçirilecek bölgeler
 var _dep_t := 90.0
 var _supply_t := 0.0
@@ -443,6 +444,8 @@ func _supply_tick() -> void:
 
 
 func supplied(team: int, pos: Vector3) -> bool:
+	if no_supply_rules:
+		return true
 	if team == Defs.IND:
 		return true   # bağımsız kuvvetler kendi bölgelerinde ikmallidir
 	for s in _supply_src[Defs.SIDE[team]]:
