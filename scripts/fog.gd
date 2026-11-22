@@ -7,10 +7,19 @@ const SHADER := """
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
 uniform sampler2D vis : filter_linear, repeat_disable;
+uniform sampler2D cloud : filter_linear, repeat_enable;
+uniform float clouds = 1.0;
+varying vec2 wxz;
+void vertex() {
+	wxz = VERTEX.xz;
+}
 void fragment() {
 	float v = texture(vis, UV).r;
+	// süzülen bulut gölgeleri: sisle aynı yüzeyde, ek çizim maliyeti yok
+	float c = texture(cloud, wxz * 0.0037 + TIME * vec2(0.0045, 0.0017)).r;
+	float sh = smoothstep(0.5, 0.72, c) * 0.26 * clouds;
 	ALBEDO = vec3(0.02, 0.03, 0.05);
-	ALPHA = (1.0 - v) * 0.6;
+	ALPHA = max((1.0 - v) * 0.6, sh);
 }
 """
 
@@ -34,12 +43,16 @@ func _ready() -> void:
 	var sm := ShaderMaterial.new()
 	sm.shader = sh
 	sm.set_shader_parameter("vis", tex)
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(Defs.MAP_W, Defs.MAP_H)
+	sm.set_shader_parameter("cloud", Tex.texture("noise"))
+	sm.set_shader_parameter("clouds", 1.0 if Settings.get_v("nature") else 0.0)
+	sm.render_priority = 1
+	# Sis yüzeyi araziye oturur: tepe ve dağların üstünü de örter. Bitkiler aynı dokuyla kararır.
+	var ter: Terrain = Game.I.terrain
+	for pm in ter.fog_mats:
+		pm.set_shader_parameter("vis", tex)
 	var mi := MeshInstance3D.new()
-	mi.mesh = pm
+	mi.mesh = ter.drape_mesh(0.22)
 	mi.material_override = sm
-	mi.position.y = 0.2
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 
@@ -74,7 +87,8 @@ func recompute() -> void:
 					v *= 1.3
 				if e is Unit and e.garrison != null:
 					v += e.garrison.vision_bonus
-			_stamp(Defs.SIDE[e.team], e.global_position, v)
+			if e.team != Defs.IND:
+				_stamp(Defs.SIDE[e.team], e.global_position, v)
 	for p in g.points:
 		if p.owner_team != Defs.NEUTRAL:
 			_stamp(Defs.SIDE[p.owner_team], p.position, SupplyPoint.VISION)
@@ -126,4 +140,6 @@ func sees(team: int, pos: Vector3) -> bool:
 	var y := int((pos.z + Defs.MAP_H * 0.5) / CELL)
 	if x < 0 or y < 0 or x >= gw or y >= gh or team < 0:
 		return false
+	if team == Defs.IND:
+		return true   # bağımsız kuvvetler kendi bölgelerini bilir (menzil ve görüş zaten sınırlar)
 	return grids[Defs.SIDE[team]][y * gw + x] > 0

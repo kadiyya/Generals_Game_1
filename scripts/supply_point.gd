@@ -9,7 +9,7 @@ const RADIUS := 6.0
 const VISION := 10.0
 const REPAIR_R := 16.0
 const REPAIR_RATE := 0.02      # saniyede azami sağlamlığın oranı
-const SUPPLY_R := 40.0         # ikmal yarıçapı
+const SUPPLY_R := 62.0         # ikmal yarıçapı
 
 var owner_team := Defs.NEUTRAL
 var income := 2.0
@@ -29,7 +29,7 @@ var last_hit := -100.0
 
 func setup_point(p: Vector3, inc: float, ct: float, k: String, nm: String) -> void:
 	position = p
-	income = inc
+	income = inc   # ikmal noktası $2/sn, kasaba $3, petrol/gaz $4-6
 	cap_time = ct
 	kind = k
 	pname = nm
@@ -130,7 +130,7 @@ func _process(dt: float) -> void:
 	var who := Defs.NEUTRAL
 	var sides := {}
 	for e in g.nearby(position, RADIUS + 2.0):
-		if e.alive and not e.is_building and e.d.get("capture", false) and Entity.flat(e.position, position) <= RADIUS:
+		if e.alive and not e.is_building and e.team != Defs.IND and e.d.get("capture", false) and Entity.flat(e.position, position) <= RADIUS:
 			var s: int = Defs.SIDE[e.team]
 			if not sides.has(s):
 				sides[s] = e.team

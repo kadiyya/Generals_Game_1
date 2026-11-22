@@ -167,6 +167,7 @@ func _process(dt: float) -> void:
 		cd_timer -= dt
 		scan_timer -= dt
 		valid_target()
+		air_first(dt, wrange())
 		if target == null and scan_timer <= 0.0:
 			scan_timer = 0.3
 			target = find_target(wrange())

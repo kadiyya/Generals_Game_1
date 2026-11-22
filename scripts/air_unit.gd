@@ -21,6 +21,11 @@ var tank_t := 0.0
 var phase_t := 0.0
 var rw_start := Vector3.ZERO    # pist başı (iniş / kalkış)
 var rw_dir := Vector3.FORWARD
+var raid_at := Vector3.ZERO     # hava akını: hedef
+var raid_exit := Vector3.ZERO   # hava akını: dönüş (harita dışı)
+var bombs := 0
+var bomb_t := 0.0
+var _dove := false
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -54,6 +59,49 @@ func set_patrol(p: Vector3) -> void:
 	target = null
 
 
+## Hava akınına çıkar: hedefe uçar, bombalarını bırakır, harita dışına döner ve kaybolur.
+func start_raid(p: Vector3, exit_p: Vector3) -> void:
+	state = "raid"
+	raid_at = p
+	raid_exit = exit_p
+	bombs = 6
+	position.y = alt
+	yaw = atan2(p.x - position.x, p.z - position.z)
+	if cls in Defs.PLANE_CLASSES:
+		Game.I.sfx.play("jet", global_position)
+
+
+func _raid(dt: float) -> void:
+	var g := Game.I
+	if bombs > 0:
+		_fly(raid_at, dt, alt * 0.75, speed * 1.15)
+		var dd := flat(global_position, raid_at)
+		if dd < 14.0:
+			bomb_t -= dt
+			if bomb_t <= 0.0:
+				bomb_t = 0.16
+				bombs -= 1
+				var hit := raid_at + Vector3(randf_range(-7, 7), 0, randf_range(-7, 7))
+				var tm := team
+				var base := 170.0
+				get_tree().create_timer(0.55, false).timeout.connect(func():
+					if Game.I == null or Game.I.over:
+						return
+					Game.I.fx_explosion(hit + Vector3(0, 0.5, 0), 3.0)
+					Game.I.fx_scorch(hit, 2.0)
+					Game.I.splash_damage(hit, 4.0, base, {inf = 1.0, light = 1.0, heavy = 0.6, bld = 1.2}, tm, "bomb")
+					Game.I.sfx.play("boom_s", hit))
+				if bombs == 0 and seen:
+					g.sfx.play("jet", global_position)
+		return
+	_fly(raid_exit, dt, -1.0, speed * 1.2)
+	if flat(global_position, raid_exit) < 8.0:
+		# harita dışına çıktı: sessizce kaybolur
+		alive = false
+		g.on_entity_died(self)
+		queue_free()
+
+
 func is_kamikaze() -> bool:
 	return d.get("kamikaze", false)
 
@@ -82,6 +130,9 @@ func _process(dt: float) -> void:
 			return
 	if state == "takeoff":
 		_takeoff(dt)
+		return
+	if state == "raid":
+		_raid(dt)
 		return
 	valid_target()
 	if is_kamikaze():
@@ -123,12 +174,41 @@ func _acquire() -> void:
 		target = t
 
 
+## Kamikaze: görev bölgesine (patrol çevresi, leash yarıçapı) yakın, tarafının gördüğü herhangi bir düşmanı
+## hemen seçer ve doğrudan dalar; bölgede yoksa kendi gördüğünü alır. Hedefe kilitlenince bölgeden çıksa da kovalar.
+func _acquire_zone() -> void:
+	if jammed_t > 0.0:
+		target = null
+		return
+	if target != null or scan_timer > 0.0:
+		return
+	scan_timer = 0.2
+	var g := Game.I
+	var r := leash + 8.0
+	var best = null
+	var bs := 1e9
+	for e in g.nearby(patrol, r + 7.0):
+		if not can_hit(e) or e.is_building:
+			continue
+		if flat(e.global_position, patrol) > r:
+			continue
+		var s: float = flat(global_position, e.global_position) / (0.3 + float(d.mult.get(e.armor, 0.0)))
+		if s < bs:
+			bs = s
+			best = e
+	target = best if best != null else find_target(vision)
+
+
 func _kamikaze(dt: float) -> void:
-	_acquire()
+	_acquire_zone()
 	if target == null:
 		_orbit(patrol, dt)
 		return
-	_fly(target.global_position, dt)
+	if not _dove:
+		_dove = true
+		if seen:
+			Game.I.sfx.play("drone", global_position)
+	_fly(target.global_position, dt, -1.0, speed * 1.3)
 	if flat(global_position, target.global_position) <= target.radius + 1.2:
 		var g := Game.I
 		var base := damage_base()
@@ -185,6 +265,7 @@ func _rearm(dt: float) -> void:
 	_orbit(home.global_position, dt)
 	if flat(global_position, home.global_position) < orbit + 4.0:
 		rearm_t += dt
+		hp = minf(max_hp, hp + max_hp * dt / maxf(4.0, float(d.get("rearm", 8.0))))
 		if rearm_t >= float(d.get("rearm", 8.0)) * Game.I.mod(team, "rearm"):
 			ammo = int(d.get("ammo", 0))
 			state = "patrol"
@@ -222,7 +303,10 @@ func _land(home, dt: float) -> void:
 				rearm_t = 0.0
 		"parked":
 			rearm_t += dt
-			if rearm_t >= float(d.get("rearm", 8.0)) * Game.I.mod(team, "rearm"):
+			# Pistte onarılır: silahlanma süresinde canı tamamen dolar; ağır hasarlıysa biraz daha bekler.
+			var rt := float(d.get("rearm", 8.0)) * Game.I.mod(team, "rearm")
+			hp = minf(max_hp, hp + max_hp * dt / maxf(4.0, rt))
+			if rearm_t >= rt and hp >= max_hp:
 				ammo = int(d.get("ammo", 0))
 				start_takeoff(start, dir)
 

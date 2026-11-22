@@ -1,8 +1,13 @@
 class_name Unit
 extends Entity
-## Kara birimi. Emirler: idle, move (ateş etmeden git), amove (saldırarak ilerle), attack,
+## Kara birimi. Emirler: idle, move (emredilen yere git; yolda menzildekine durmadan ateş eder), amove (saldırarak ilerle), attack,
 ## dig (siper kaz), mine (mayın döşe), obstacle (engel kur), enter (eve gir).
 ## Engellerin çevresinden Terrain üzerinden yol bulur; tepede yükselir, yolda hızlanır, ormanda yavaşlar.
+## Emir önceliklidir: yürüyen birim düşmana sapmaz. Boştaki birim yakına gelen düşmana saldırır ama bulunduğu
+## yerden LEASH'ten fazla uzaklaşmaz, sonra yerine döner.
+
+const LEASH := 24.0
+const TURRET_SPEED := 1.9    # kule dönüş hızı (rad/sn)
 
 var order := "idle"
 var dest := Vector3.ZERO
@@ -14,6 +19,7 @@ var nav_goal := Vector3.INF
 var nav_wp := Vector3.ZERO
 var nav_t := 0.0
 var nav_ok := true
+var nav_ver := -1
 var turret: Node3D = null    # varsa gövdeden bağımsız döner
 var turret_base := Vector3.ZERO   # kulenin dönme merkezi (geri tepme buradan ölçülür)
 var recoil := 0.0
@@ -36,6 +42,8 @@ var stuck_pos := Vector3.INF
 var patrol_b := Vector3.ZERO
 var los_ok := true
 var supplied := true       # ikmal hattında mı (Game her saniye günceller)
+var hold_pos := Vector3.INF   # boştaki birimin nöbet yeri (kovalarken buradan LEASH'ten fazla uzaklaşmaz)
+var figs: Array = []          # piyade: [{n, body, legs: [sol, sağ], phase, kick, down}]
 
 
 func setup(id: String, t: int, def: Dictionary) -> void:
@@ -45,6 +53,13 @@ func setup(id: String, t: int, def: Dictionary) -> void:
 	turret = model.get_node_or_null("turret")
 	if turret != null:
 		turret_base = turret.position
+	for i in model.get_child_count():
+		var f: Node3D = model.get_child(i)
+		var body: Node3D = f.get_node_or_null("body")
+		if body != null:
+			figs.append({n = f, body = body, legs = [f.get_node("leg_l"), f.get_node("leg_r")],
+				knees = [f.get_node("leg_l/knee"), f.get_node("leg_r/knee")], phase = randf() * TAU,
+				kick = 0.0, kick_t = -1.0, down = false})
 	_last_pos = position
 	if d.has("ew"):
 		ew_ring = Models.ring(float(d.ew), Color(0.35, 0.85, 1.0))
@@ -61,6 +76,10 @@ func muzzle_pos() -> Vector3:
 
 func _on_fired() -> void:
 	recoil = 1.0
+	# mangadaki askerler sırayla tetik çeker
+	for f in figs:
+		if not f.down:
+			f.kick_t = randf_range(0.0, 0.3)
 
 
 func damage_base() -> float:
@@ -133,6 +152,7 @@ func go(p: Vector3, attack_move: bool) -> void:
 	dest = Game.I.terrain.nearest_free(Vector3(p.x, 0, p.z))
 	order = "amove" if attack_move else "move"
 	target = null
+	hold_pos = Vector3.INF
 	near_t = 0.0
 	nav_goal = Vector3.INF
 
@@ -146,6 +166,7 @@ func stop() -> void:
 	order = "idle"
 	target = null
 	retreating = false
+	hold_pos = Vector3.INF
 
 
 func weapon_range() -> float:
@@ -159,8 +180,11 @@ func _process(dt: float) -> void:
 	scan_timer -= dt
 	reveal_t -= dt
 	valid_target()
+	if order != "attack":
+		air_first(dt, weapon_range())
 	match order:
 		"move":
+			_fire_on_move(dt)
 			if _step(dest, dt):
 				order = "idle"
 				retreating = false
@@ -198,19 +222,68 @@ func _process(dt: float) -> void:
 			elif _step(dest, dt):
 				order = "idle"
 		_:
+			if hold_pos == Vector3.INF:
+				hold_pos = position
 			_scan()
 			if target != null:
 				_engage(dt, not d.get("no_chase", false) and not guard)
+			if target != null and flat(position, hold_pos) > LEASH and garrison == null and not entrenched:
+				# Fazla uzaklaştı: hedefi bırakıp nöbet yerine dön (dönerken menzildekine ateş eder).
+				var home := hold_pos
+				go(home, false)
 	_animate(dt)
+
+
+## Yürürken menzile giren düşmana durmadan ateş: kule hedefi izler, piyade yürüyerek ateş eder.
+## Topçu yürürken ateş edemez. Hedef menzilden çıkınca bırakılır; birim yoluna devam eder.
+func _fire_on_move(dt: float) -> void:
+	if not has_weapon() or d.get("no_chase", false):
+		return
+	if target == null:
+		if scan_timer > 0.0:
+			return
+		scan_timer = 0.3
+		target = find_target(weapon_range(), float(d.get("min_range", 0.0)))
+		los_t = 0.0
+		if target == null:
+			return
+	var dist: float = flat(position, target.position) - target.radius
+	if dist > weapon_range() + 0.5:
+		target = null
+		return
+	los_t -= dt
+	if los_t <= 0.0:
+		los_t = 0.5
+		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position)
+	if not los_ok:
+		target = null
+		return
+	var aimed := true
+	if turret != null:
+		aimed = _aim_turret(target.position, dt)
+	elif armor != "inf":
+		var to: Vector3 = target.position - position
+		aimed = absf(angle_difference(rotation.y, atan2(to.x, to.z))) < 0.35
+	if aimed and cd_timer <= 0.0:
+		fire(target)
+
+
+## Kuleyi dünyadaki p noktasına döndürür; nişan alındıysa true.
+func _aim_turret(p: Vector3, dt: float) -> bool:
+	var to := p - position
+	var want := atan2(to.x, to.z) - rotation.y
+	# hava savunma taretleri hızlı döner
+	var spd := TURRET_SPEED * (2.2 if cls in ["spaag", "laser", "ads"] else 1.0)
+	turret.rotation.y = rotate_toward(turret.rotation.y, want, dt * spd)
+	return absf(angle_difference(turret.rotation.y, want)) < 0.1
 
 
 func _scan() -> void:
 	if target != null or scan_timer > 0.0 or not has_weapon():
 		return
 	scan_timer = 0.3
-	var r := weapon_range()
-	if not d.get("no_chase", false) or order == "amove":
-		r = maxf(r, vision * 0.85)
+	# Görüş alanındaki her düşmana kendiliğinden saldırır (topçu menzilindekine, gördüğü kadarıyla).
+	var r := maxf(weapon_range(), vision)
 	target = find_target(r, float(d.get("min_range", 0.0)))
 
 
@@ -222,6 +295,9 @@ func _engage(dt: float, chase: bool) -> void:
 	if los_t <= 0.0:
 		los_t = 0.5
 		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position)
+	if turret != null and target != null:
+		# Kule hedefi hep izler: yaklaşırken de namlu hedefe döner.
+		_aim_turret(target.position, dt)
 	if not los_ok:
 		# Arada engel var: görüş hattı açılana kadar yaklaş.
 		if chase:
@@ -241,9 +317,7 @@ func _engage(dt: float, chase: bool) -> void:
 		var aimed := true
 		if turret != null:
 			# Gövde yerinde kalır, kule hedefe döner; nişan alınmadan ateş edilmez.
-			var want := atan2(dir.x, dir.z) - rotation.y
-			turret.rotation.y = rotate_toward(turret.rotation.y, want, dt * 3.2)
-			aimed = absf(angle_difference(turret.rotation.y, want)) < 0.12
+			aimed = absf(angle_difference(turret.rotation.y, atan2(dir.x, dir.z) - rotation.y)) < 0.1
 		else:
 			_face(dir, dt)
 		if aimed and cd_timer <= 0.0:
@@ -271,6 +345,11 @@ func _waypoint(p: Vector3, dt: float) -> Vector3:
 		return nav_wp
 	nav_t = 0.25
 	var ter := Game.I.terrain
+	if nav_ver != ter.ver:
+		# geçilebilirlik değişti (köprü yıkıldı ya da onarıldı): eski yol geçersiz
+		nav_ver = ter.ver
+		nav = PackedVector3Array()
+		nav_goal = Vector3.INF
 	if flat(position, p) < 26.0 and ter.line_clear(position, p):
 		nav = PackedVector3Array()
 		nav_goal = p
@@ -333,7 +412,14 @@ func _step(p: Vector3, dt: float) -> bool:
 	var dir := to / l
 	var ter := Game.I.terrain
 	var sp := speed * ter.speed_mult(position, armor) * (1.25 if retreating else 1.0) * (1.0 if supplied else Defs.OOS_SPEED)
-	position += dir * minf(sp * dt, l)
+	var nxt := position + dir * minf(sp * dt, l)
+	if ter.solid(nxt) and not ter.solid(position) and ter.bld[ter.cell(nxt).y * ter.gw + ter.cell(nxt).x] == 0:
+		# önü su ya da yıkık köprü: geçemez, yolu yeniden hesapla
+		nav_goal = Vector3.INF
+		nav_t = 0.0
+		nav = PackedVector3Array()
+		return false
+	position = nxt
 	position.y = lerpf(position.y, ter.height(position), minf(1.0, dt * 6.0))
 	position.x = clampf(position.x, -Defs.MAP_W * 0.5 + 1.0, Defs.MAP_W * 0.5 - 1.0)
 	position.z = clampf(position.z, -Defs.MAP_H * 0.5 + 1.0, Defs.MAP_H * 0.5 - 1.0)
@@ -361,16 +447,7 @@ func _animate(dt: float) -> void:
 	if garrison != null:
 		return
 	if armor == "inf":
-		# Yürürken adım atar ve öne eğilir; dururken ateş ediyorsa çömelir.
-		if moving:
-			anim_t += dt * 9.0
-		var crouch := 0.78 if ((target != null or entrenched or order == "dig") and not moving) else 1.0
-		for i in model.get_child_count():
-			var f: Node3D = model.get_child(i)
-			var hop := absf(sin(anim_t + i * 1.7)) * 0.13 if moving else 0.0
-			f.position.y = lerpf(f.position.y, hop, minf(1.0, dt * 18.0))
-			f.rotation.x = lerpf(f.rotation.x, (0.25 if moving else 0.0) - recoil * 0.2, minf(1.0, dt * 12.0))
-			f.scale.y = lerpf(f.scale.y, crouch, minf(1.0, dt * 8.0))
+		_animate_figures(dt, v)
 		return
 	# Araç: giderken hafif sallanır, ateş edince geri teper, arkasında toz kaldırır.
 	anim_t += dt * v * 1.6
@@ -379,7 +456,11 @@ func _animate(dt: float) -> void:
 	var kick := recoil * (0.4 if heavy else 0.08)
 	if turret != null:
 		if target == null:
-			turret.rotation.y = rotate_toward(turret.rotation.y, 0.0, dt * 1.6)
+			# Boşta kule ağır ağır çevreyi gözler; yürürken öne döner.
+			var look := 0.0
+			if order == "idle" and not moving:
+				look = sin(Game.I.time * 0.22 + get_instance_id() % 97) * 0.7
+			turret.rotation.y = rotate_toward(turret.rotation.y, look, dt * 0.7)
 		turret.position = turret_base + Vector3(-sin(turret.rotation.y), 0, -cos(turret.rotation.y)) * kick
 		model.rotation.x = lerpf(model.rotation.x, -kick * 0.12 * cos(turret.rotation.y), minf(1.0, dt * 14.0))
 		model.rotation.z = lerpf(model.rotation.z, kick * 0.12 * sin(turret.rotation.y), minf(1.0, dt * 14.0))
@@ -394,6 +475,49 @@ func _animate(dt: float) -> void:
 			Game.I.fx_puff(global_position + back + Vector3(randf_range(-0.5, 0.5), 0.3, 0), Game.I.dust_color, 1.0, 0.8, 0.5)
 
 
+## Piyade askerleri: adım uzunluğuna göre bacak salınımı ve gövde inip kalkması (ayak kaymaz), çatışmada diz çökme,
+## atışta sırayla geri tepme, boşta etrafa bakınma. Gövde biraz öne eğik yürür, geri çekilirken koşar.
+func _animate_figures(dt: float, v: float) -> void:
+	var stance := 0.0     # 0 ayakta, 1 diz çökmüş
+	if not moving and (target != null or entrenched or order == "dig"):
+		stance = 1.0
+	var run := 1.0 if retreating else 0.0
+	var k := minf(1.0, dt * 10.0)
+	var t: float = Game.I.time
+	for f in figs:
+		if f.down:
+			continue
+		var n: Node3D = f.n
+		var body: Node3D = f.body
+		var legs: Array = f.legs
+		if f.kick_t >= 0.0:
+			f.kick_t -= dt
+			if f.kick_t < 0.0:
+				f.kick = 1.0
+		f.kick = maxf(0.0, f.kick - dt * 6.0)
+		var knees: Array = f.knees
+		var swing := 0.0
+		var bob := 0.0
+		var bend := [0.0, 0.0]
+		if moving:
+			f.phase += v * dt * (5.2 - run * 1.2)
+			swing = sin(f.phase) * lerpf(0.5, 0.75, run)
+			bob = absf(cos(f.phase)) * 0.04
+			# öne salınan bacağın dizi bükülür
+			bend = [maxf(0.0, cos(f.phase)) * (0.9 + run * 0.4), maxf(0.0, -cos(f.phase)) * (0.9 + run * 0.4)]
+		var lean := (0.12 + run * 0.18) if moving else 0.0
+		var look := 0.0 if moving or stance > 0.0 else sin(t * 0.4 + f.phase) * 0.35
+		# diz çökme: sol uyluk öne, baldır dik; sağ diz yerde, baldır geriye yatık
+		legs[0].rotation.x = lerpf(legs[0].rotation.x, lerpf(swing, -1.35, stance), k)
+		legs[1].rotation.x = lerpf(legs[1].rotation.x, lerpf(-swing, 0.05, stance), k)
+		knees[0].rotation.x = lerpf(knees[0].rotation.x, lerpf(bend[0], 1.45, stance), k)
+		knees[1].rotation.x = lerpf(knees[1].rotation.x, lerpf(bend[1], 1.5, stance), k)
+		n.position.y = lerpf(n.position.y, bob - stance * 0.29, k)
+		body.rotation.x = lerpf(body.rotation.x, lean - f.kick * 0.22, k * 1.5)
+		body.position.z = lerpf(body.position.z, -f.kick * 0.06, k * 1.5)
+		n.rotation.y = lerp_angle(n.rotation.y, look, minf(1.0, dt * 2.0))
+
+
 func _on_damaged(attacker) -> void:
 	update_figures()
 	if order == "idle" and target == null and attacker != null and is_instance_valid(attacker) and attacker.alive and can_hit(attacker):
@@ -401,10 +525,52 @@ func _on_damaged(attacker) -> void:
 
 
 func update_figures() -> void:
-	# Mangada can azaldıkça asker sayısı düşer.
-	if armor != "inf":
+	# Mangada can azaldıkça asker sayısı düşer: vurulan asker yere yığılır, bir süre sonra kaybolur.
+	# Onarılınca geri gelir.
+	if armor != "inf" or figs.is_empty():
 		return
-	var n := model.get_child_count()
-	var keep := int(ceil(clampf(hp / max_hp, 0.0, 1.0) * n))
+	var n := figs.size()
+	var keep := maxi(int(ceil(clampf(hp / max_hp, 0.0, 1.0) * n)), 1) if alive else 0
 	for i in n:
-		model.get_child(i).visible = i < maxi(keep, 1)
+		var f: Dictionary = figs[i]
+		var fn: Node3D = f.n
+		if i < keep and f.down:
+			f.down = false
+			if f.has("tw") and f.tw.is_valid():
+				f.tw.kill()
+			fn.visible = true
+			fn.rotation = Vector3.ZERO
+			fn.position.y = 0.0
+		elif i >= keep and not f.down:
+			f.down = true
+			f.tw = _fall(fn)
+
+
+## Askerin yere yığılması: devrilir, bir süre yatar, sonra toprağa karışıp kaybolur.
+static func _fall(fn: Node3D) -> Tween:
+	var side := 1.0 if randf() < 0.5 else -1.0
+	var tw := fn.create_tween()
+	tw.tween_property(fn, "rotation", Vector3(-1.45, fn.rotation.y + randf_range(-0.6, 0.6), 0.25 * side), 0.45) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.parallel().tween_property(fn, "position:y", 0.08, 0.45)
+	tw.tween_interval(3.5)
+	tw.tween_property(fn, "position:y", -0.5, 1.2)
+	tw.tween_callback(func(): fn.visible = false)
+	return tw
+
+
+## Ölen manganın askerleri yerde kalır ve yığılır (patlama yerine).
+func die() -> void:
+	if armor == "inf" and garrison == null and model.visible and not figs.is_empty():
+		var m := model
+		var xf := m.global_transform
+		remove_child(m)
+		Game.I.add_child(m)
+		m.global_transform = xf
+		m.visible = seen
+		for f in figs:
+			if not f.down:
+				f.down = true
+				_fall(f.n)
+		get_tree().create_timer(6.0, false).timeout.connect(func(): if is_instance_valid(m): m.queue_free())
+	super.die()
