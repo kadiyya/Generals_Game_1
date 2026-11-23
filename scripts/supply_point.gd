@@ -29,8 +29,7 @@ var last_hit := -100.0
 
 func setup_point(p: Vector3, inc: float, ct: float, k: String, nm: String) -> void:
 	position = p
-	# ikmal noktası az para getirir (asıl işi ikmal); kasaba ve petrol tesisi değerini korur
-	income = inc * (0.5 if k == "supply" else 1.0)
+	income = inc
 	cap_time = ct
 	kind = k
 	pname = nm

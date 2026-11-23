@@ -663,7 +663,7 @@ func _run() -> void:
 		if p.kind == "supply":
 			sup = p
 			break
-	_check("ikmal noktasi az para getirir, genis alani besler", sup != null and sup.income <= 1.01 and SupplyPoint.SUPPLY_R >= 60.0)
+	_check("ikmal noktasi $2 getirir, genis alani besler", sup != null and is_equal_approx(sup.income, 2.0) and SupplyPoint.SUPPLY_R >= 60.0)
 	# balistik füze: hava savunması canını düşürür
 	var s := Shot.new()
 	g.add_child(s)

@@ -81,7 +81,7 @@ dronları (FPV, dolanan mühimmat, İHA'lar) zırhlılara %15 fazla vurur. Büt�
 **Bölgeli harita:** kaynaklar (ikmal noktası, kasaba, petrol, kaynak yatakları) bölgelerden en az 52 birim uzaktadır;
 bölgedeki bağımsız kuvvetler ve oradaki birlikler onları bölgeden vuramaz.
 
-**Kaynaklar.** Gelir çok düşüktür: karargâh $8/sn, ikmal noktası $1 (asıl işi ikmal), kasaba $3, petrol/gaz $4-6. Maç boyunca haritanın
+**Kaynaklar.** Gelir çok düşüktür: karargâh $8/sn, ikmal noktası $2, kasaba $3, petrol/gaz $4-6. Maç boyunca haritanın
 rastgele yerlerinde **kaynak yatakları** belirir ve herkese duyurulur (küçük haritada yanıp söner). Yatağın üstüne
 Maden Ocağı ilk kuran takımın olur ($4-6,5/sn; kurulumu $1600, yanında kendi birliğin olmalı); yatağın rezervi bitince
 tükenir. **Bütün kaynaklar tahrip edilebilir:** ikmal noktaları ve madenler hasar aldıkça daha az gelir getirir, sıfıra
