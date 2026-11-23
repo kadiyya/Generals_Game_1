@@ -108,7 +108,7 @@ func _ready() -> void:
 	for p in Defs.MAP.points:
 		var sp := SupplyPoint.new()
 		add_child(sp)
-		sp.setup_point(Vector3(p[0], 0, p[1]), p[2], p[3], p[4], p[5])
+		sp.setup_point(clear_of_zones(Vector3(p[0], 0, p[1])), p[2], p[3], p[4], p[5])
 		points.append(sp)
 	for bd in terrain.bridge_data:
 		var br := Bridge.new()
@@ -483,6 +483,8 @@ func spawn_deposit(announce: bool) -> Deposit:
 		for dp in deposits:
 			if Entity.flat(p, dp.position) < 55.0:
 				ok = false
+		if _near_zone(p):
+			ok = false
 		for e in entities:
 			if e.is_building and Entity.flat(p, e.position) < 12.0:
 				ok = false
@@ -905,6 +907,58 @@ func place_building(team: int, kind: String, pos: Vector3) -> bool:
 	if team == Defs.PLAYER and not b.crane_active:
 		hud.toast("Vinç meşgul: inşaat sıraya alındı. İnşa menüsünden vinç alabilirsin.")
 	return true
+
+
+## Bölgeli haritada kaynaklar (ikmal noktası, kasaba, petrol, maden yatağı) bölgelerden ZONE_CLEAR uzakta durur:
+## bölgeyi tutan bağımsız kuvvetler ve oradaki birlikler onları bölgeden vuramasın.
+## (Bölge yarıçapı 16, savunucular merkezden ~10 içeride, en uzun menzil 25, tepeden +%15.)
+const ZONE_CLEAR := 52.0
+
+
+func _near_zone(p: Vector3) -> bool:
+	if Defs.IND < 0:
+		return false
+	for z in Defs.MAP.get("zones", []):
+		if Vector2(p.x - float(z[0]), p.z - float(z[1])).length() < ZONE_CLEAR:
+			return true
+	return false
+
+
+## Bölgeye yakın kaynağı, en yakın bölgenin tersi yönünde düz ve boş bir yere taşır.
+func clear_of_zones(p: Vector3) -> Vector3:
+	if not _near_zone(p):
+		return p
+	var best_z := Vector2.ZERO
+	var bd := 1e9
+	for z in Defs.MAP.zones:
+		var dd := Vector2(p.x - float(z[0]), p.z - float(z[1])).length()
+		if dd < bd:
+			bd = dd
+			best_z = Vector2(float(z[0]), float(z[1]))
+	var away := Vector2(p.x, p.z) - best_z
+	if away.length() < 0.1:
+		away = Vector2(1, 0)
+	var base_ang := away.angle()
+	for step in range(0, 30):
+		var r := ZONE_CLEAR + 2.0 + step * 2.0
+		for k in [0, 1, -1, 2, -2, 3, -3, 4, -4, 6, -6]:
+			var a: float = base_ang + k * 0.2
+			var q := Vector3(best_z.x + cos(a) * r, 0, best_z.y + sin(a) * r)
+			if absf(q.x) > Defs.MAP_W * 0.5 - 10.0 or absf(q.z) > Defs.MAP_H * 0.5 - 10.0 or _near_zone(q):
+				continue
+			var ok := true
+			for off in [Vector3.ZERO, Vector3(4, 0, 0), Vector3(-4, 0, 0), Vector3(0, 0, 4), Vector3(0, 0, -4)]:
+				if not terrain.is_land(q + off) or terrain.solid(q + off):
+					ok = false
+			for t in Defs.N:
+				if Entity.flat(q, Defs.MAP.team_bases[t]) < 50.0:
+					ok = false
+			for pt in points:
+				if Entity.flat(q, pt.position) < 20.0:
+					ok = false
+			if ok:
+				return q
+	return p
 
 
 ## İnşaat hâlindeki binayı iptal eder: parası tamamen geri verilir, bina kaldırılır.

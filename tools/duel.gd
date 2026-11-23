@@ -1,7 +1,7 @@
 extends Node
 ## Geliştirme aracı: denge için sınıf düelloları. Aynı bütçeyle ($2400) iki tarafı açık arazide çarpıştırır
 ## ve her tarafın elinde kalan değeri (bütçenin yüzdesi, cana göre) yazar.
-## Kullanım: godot --headless --path . --fixed-fps 30 -- --duel --scn=0 [--hepsi]
+## Kullanım: godot --headless --path . --fixed-fps 30 -- --duel --scn=0 [--hepsi | --cift=ifv,tank]
 ##   varsayılan: kara sınıfları birbirine karşı (aynı ülke, sınıfın temel fiyatı)
 ##   --hepsi: ayrıca hava savunma araçları, hava birimleri kara birimlerine karşı, ve ayna düellolar
 ##            (aynı sınıf, iki ülkenin kendi birimi, doktrin fiyatıyla). Satırlar "DUEL", "HAVA", "AYNA" ile başlar.
@@ -44,6 +44,15 @@ func _run() -> void:
 		if hq != null:
 			hq.max_hp = 1e12
 			hq.hp = 1e12
+	# --cift=a,b: yalnızca bu iki sınıfın düellosu (hızlı deneme)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--cift="):
+			var pr: PackedStringArray = arg.trim_prefix("--cift=").split(",")
+			var rp := await _duel(g, pr[0], pr[1])
+			if not rp.is_empty():
+				print("DUEL  %-5s vs %-5s  ->  %4d%% / %4d%%" % [pr[0], pr[1], int(rp[0] * 100), int(rp[1] * 100)])
+			get_tree().quit()
+			return
 	var all := OS.get_cmdline_user_args().has("--hepsi")
 	# kontrol: iki tarafta birebir aynı birim; sonuç eşit çıkmalı (düzenek adil mi)
 	for c in ["inf", "ifv"]:

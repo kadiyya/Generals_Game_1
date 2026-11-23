@@ -401,9 +401,19 @@ func _run() -> void:
 	var rslots: Array = Defs.BUILDINGS[Defs.bid(1, "fabrika")].slots
 	_check("bos yuva yerinde kalir (yuva duzeni ulkeden bagimsiz)", fslots.size() == rslots.size() and fslots.has("") and fslots[fslots.find("") ] == "")
 	var fpv_id := g.unit_of(0, "sdrone_fpv")
-	_check("IHA doktrininde dronlar ucuz", g.unit_cost(0, fpv_id) < int(Defs.UNITS[fpv_id].cost) * 0.75)
+	_check("IHA doktrininde dronlar ucuz", g.unit_cost(0, fpv_id) <= int(Defs.UNITS[fpv_id].cost) * 0.76)
 	var bra := g.unit_of(0, "ifv")
-	_check("IHA doktrininde zirhli pahali", g.unit_cost(0, bra) > int(Defs.UNITS[bra].cost) * 1.2)
+	_check("IHA doktrininde zirhli pahali", g.unit_cost(0, bra) > int(Defs.UNITS[bra].cost) * 1.1)
+	# doktrin fiyat çarpanları 0,75 ile 1,3 arasında kalır (aynı birim ülkeler arasında en çok ~1,7 kat farklı)
+	var span_ok := true
+	for dk in Scenarios.DOCTRINES:
+		for mk in Scenarios.DOCTRINES[dk].mods:
+			if String(mk).begins_with("cost_"):
+				var mv := float(Scenarios.DOCTRINES[dk].mods[mk])
+				if mv < 0.75 or mv > 1.3:
+					span_ok = false
+					print("   doktrin %s %s = %.2f" % [dk, mk, mv])
+	_check("doktrin fiyat carpanlari 0,75-1,3 arasinda", span_ok)
 	var expn := 0
 	for id in Defs.UNITS:
 		if Defs.UNITS[id].get("exp", false):
@@ -566,11 +576,11 @@ func _run() -> void:
 		_check("%s: ayni turden iki ucak yok" % cc, int(cnt.get("fighter", 0)) <= 1 and int(cnt.get("striker", 0)) <= 1 and int(cnt.get("stealth", 0)) <= 1)
 	var ads_id := g.unit_of(0, "ads")
 	var adsd: Dictionary = Defs.UNITS[ads_id]
-	_check("zirhli hava savunma ucaga sert, yere orta, tanka zayif vurur", float(adsd.mult.air) >= 1.2 and float(adsd.mult.heavy) < 0.3 and float(adsd.mult.light) >= 0.5)
+	_check("zirhli hava savunma ucaga sert, yere zayif-orta vurur (zirhli aracin isini yapmaz)", float(adsd.mult.air) >= 1.2 and float(adsd.mult.heavy) < 0.3 and float(adsd.mult.light) < 0.5 and float(adsd.mult.inf) < 0.5)
 	_check("buyuk hava savunmanin ucaga etkisi %20 azaldi, fuze onleme ayni", is_equal_approx(float(adsd.mult.air), 1.28) and is_equal_approx(float(adsd.mult.missile), 1.6)
 		and is_equal_approx(float(Defs.BUILDINGS[Defs.bid(0, "sam")].mult.air), 0.8))
 	var ua_fpv: Dictionary = Defs.UNITS[g.unit_of(0, "sdrone_fpv")]
-	_check("Ukrayna dronlari zirhliya %15 fazla vurur", Defs.COUNTRY[0] == "ua" and is_equal_approx(float(ua_fpv.mult.light), 1.2 * 1.15) and is_equal_approx(float(ua_fpv.mult.heavy), 0.8 * 1.15) and is_equal_approx(float(ua_fpv.mult.inf), 0.8))
+	_check("Ukrayna dronlari zirhliya %15 fazla vurur", Defs.COUNTRY[0] == "ua" and is_equal_approx(float(ua_fpv.mult.light), 1.2 * 1.15) and is_equal_approx(float(ua_fpv.mult.heavy), 0.65 * 1.15) and is_equal_approx(float(ua_fpv.mult.inf), 0.8))
 	_check("piyade %10 hizli, kara araci %5 yavas", is_equal_approx(float(Defs.UNITS[g.unit_of(0, "inf")].speed), 3.4 * 1.1) and is_equal_approx(float(Defs.UNITS[g.unit_of(0, "ifv")].speed), 5.2 * 0.95))
 	_check("IHA gorusu genis", float(Defs.UNITS[g.unit_of(0, "uav_strike")].vision) >= 30.0)
 	for r in Scenarios.RESEARCH:

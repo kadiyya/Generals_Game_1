@@ -58,6 +58,27 @@ func _zones(g: Game, o: Dictionary) -> void:
 	_check("her bolgede bagimsiz savunucu var", per.all(func(n): return n >= 6))
 	_check("bagimsizlar birlik sinirina ve imha sayimina girmez", g.teams[0].pop <= 4 and g.foe_left.size() == 2)
 	_check("bolgeler basta tarafsiz", g.regions.all(func(r): return r.owner_side == -1))
+	# kaynaklar bölgelerden uzakta: bölgedeki birlikler onları vuramaz
+	var near_res := 0
+	for p in g.points:
+		for rg in g.regions:
+			if Entity.flat(p.position, rg.position) < Game.ZONE_CLEAR - 3.0:
+				near_res += 1
+				print("   bolgeye yakin kaynak: %s %s" % [p.pname, p.position])
+	_check("kaynaklar bolgelerin menzili disinda", near_res == 0)
+	var reach := 0.0
+	for e in g.entities:
+		if e.team == Defs.IND and e.has_weapon():
+			reach = maxf(reach, e.wrange() * 1.15)
+	_check("bolge mesafesi savunucularin menzilinden buyuk", Game.ZONE_CLEAR > Region.RADIUS * 0.6 + reach + 4.0)
+	for i in 3:
+		g.spawn_deposit(false)
+	var dep_near := 0
+	for dp in g.deposits:
+		for rg in g.regions:
+			if Entity.flat(dp.position, rg.position) < Game.ZONE_CLEAR - 3.0:
+				dep_near += 1
+	_check("kaynak yataklari bolgelere yakin cikmaz", dep_near == 0)
 	# Bağımsızlar iki orduya da saldırır.
 	var r0: Region = g.regions[0]
 	var r1: Region = g.regions[1]

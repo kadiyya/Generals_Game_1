@@ -73,8 +73,13 @@ görür. Geniş ormanlar ve ağaç hatları piyadeyi her zaman, aracı dururken 
 görüşü keser. Kasabalarda köy evleri (2 birlik), yıkık apartmanlar (3 birlik, üst kattan uzağı görür) ve terk edilmiş
 fabrikalar (4 birlik) vardır.
 
+**Denge (23 Kasım):** tank 800$ ve zırhlıya daha az etkili (her şeyi yenmesin), zırhlı aracın tanka hasarı artırıldı (tanksavar füzesi), FPV paketi 280$ ve tanka daha az etkili, kamikaze İHA 450$, roketatar 950$ ve 5,5 sn'de bir atar, zırhlı hava savunmanın yer gücü azaltıldı, piyade 300 can / 12 hasar. Eşit bütçeli düello sonuçları için `tools/duel.gd --hepsi`.
+
 **Hız ve ülke farkları:** piyade %10 hızlı, kara araçları %5 yavaş (zırhlı piyadeden kolayca kaçamaz). Ukrayna'nın
 dronları (FPV, dolanan mühimmat, İHA'lar) zırhlılara %15 fazla vurur. Bütün birim değerleri: [docs/DENGE.md](docs/DENGE.md).
+
+**Bölgeli harita:** kaynaklar (ikmal noktası, kasaba, petrol, kaynak yatakları) bölgelerden en az 52 birim uzaktadır;
+bölgedeki bağımsız kuvvetler ve oradaki birlikler onları bölgeden vuramaz.
 
 **Kaynaklar.** Gelir çok düşüktür: karargâh $8/sn, ikmal noktası $1 (asıl işi ikmal), kasaba $3, petrol/gaz $4-6. Maç boyunca haritanın
 rastgele yerlerinde **kaynak yatakları** belirir ve herkese duyurulur (küçük haritada yanıp söner). Yatağın üstüne
@@ -86,7 +91,7 @@ birliği varken ve çevrede düşman yokken ilerler. Kaynakların (ikmal noktala
 topçu ve füzeler onları görmeden de vurabilir. Maden Ocağı elinde kaldıkça verimi artar (10 dakikada en çok %20).
 Başta 3 yatak belirir, sonra her 120-200 saniyede yenisi gelir (aynı anda en çok 6); rezervleri (bir yatağın toplam vereceği para) $9000-15000'dir.
 
-**Doktrinler** fiyatı belirler: doktrine uyan birimler %25-40 ucuz, uymayanlar %20-60 pahalıdır (kartta yeşil ▼ ya da
+**Doktrinler** fiyatı belirler: doktrine uyan birimler %15-25 ucuz, uymayanlar %15-30 pahalıdır (çarpanlar 0,75 ile 1,3 arasında: aynı birim ülkeler arasında en çok ~1,7 kat farklı) (kartta yeşil ▼ ya da
 kırmızı ▲). Bazı ülkelerde bazı birimler hiç yoktur: Ukrayna'nın tankı yoktur (İHA'larla Rus zırhını avlar), İsrail'in
 çok namlulu roketatarı yoktur. Her ülkede uzun menzilli topçu/roketatardan yalnızca bir tane vardır (Zırhlı/Topçu
 doktrinli Rusya'da iki), dron savar hava savunmadan bir tane, uçaklardan da her türden (çok amaçlı, taarruz, görünmez)
