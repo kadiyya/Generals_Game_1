@@ -61,8 +61,8 @@ func _run() -> void:
 			var start: Vector3 = s0 if k == 0 else s1
 			var back := -dir if k == 0 else dir
 			var goal: Vector3 = ter.nearest_free(s1 + dir * 20.0 if k == 0 else s0 - dir * 20.0)
-				goal.x = clampf(goal.x, -Defs.MAP_W * 0.5 + 14.0, Defs.MAP_W * 0.5 - 14.0)
-				goal.z = clampf(goal.z, -Defs.MAP_H * 0.5 + 14.0, Defs.MAP_H * 0.5 - 14.0)
+			goal.x = clampf(goal.x, -Defs.MAP_W * 0.5 + 14.0, Defs.MAP_W * 0.5 - 14.0)
+			goal.z = clampf(goal.z, -Defs.MAP_H * 0.5 + 14.0, Defs.MAP_H * 0.5 - 14.0)
 			var us: Array = []
 			for i in PER_SIDE:
 				var p := ter.nearest_free(start + back * (i / 2) * 4.5 + side * ((i % 2) * 4.0 - 2.0))
