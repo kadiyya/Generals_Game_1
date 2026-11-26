@@ -31,12 +31,15 @@ func _run() -> void:
 		"senaryo":
 			if Scenarios.chosen == 1:
 				await _zones(g, o)
+			elif o.get("strategic", false) or Scenarios.objective(1).get("strategic", false):
+				await _strategic(g, o)
 			else:
-				await _reveal(g, o)
+				await _hold(g, o)
 		"imha":
 			await _annihilate(g, o)
 		"tut":
 			_check("bolgeyi tut gorevi", o.type == "hold" and o.point == 0)
+			await _hold(g, o)
 	print("OBJTEST BITTI  hata=%d" % fails)
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -125,20 +128,73 @@ func _zones(g: Game, o: Dictionary) -> void:
 	for rg in g.regions:
 		rg.owner_side = me
 		rg.respawn_t = -1.0
+	# Süre kesintisiz: bölgelerden biri elden çıkınca sayaç sıfırlanır.
+	g.teams[0].obj_prog = 30.0
+	await _wait(0.5)
+	_check("dort bolge tutulurken sure isler", g.teams[0].obj_prog > 30.2)
+	g.regions[2].owner_side = -1
+	await _wait(0.3)
+	_check("bir bolge kaybedilince sayac sifirlanir", is_zero_approx(g.teams[0].obj_prog))
+	g.regions[2].owner_side = me
+	g.regions[2].respawn_t = -1.0
+	for e in g.entities.duplicate():
+		if e.alive and e.team == Defs.IND:
+			e.take_damage(1e9)
 	g.teams[0].obj_prog = float(o.secs) - 1.0
 	await _wait(2.0)
 	_check("dort bolge tutulunca zafer", g.over and g.winner == me)
 	_check("zafer nedeni gorev", g.end_reason.begins_with("Görev tamamlandı"))
 
 
-func _reveal(g: Game, o: Dictionary) -> void:
-	_check("Pakistan'in gorevi uretim tesisleri", o.type == "destroy")
-	var k := g.spawn_building(Defs.bid(1, "kisla"), 1, g.terrain.nearest_free(g.teams[1].hq.position + Vector3(0, 0, 18)), true)
-	g.fog.recompute()
-	_check("ilk iki dakikada hedef gizli", not k.discovered and not g.is_obj_target(k))
-	g.time = Game.REVEAL_AT + 1.0
-	g._reveal_targets()
-	_check("2. dakikadan sonra hedef haritada", k.discovered and g.is_obj_target(k))
+## Pakistan–Hindistan: üç üretim tesisi düşman üssünde değil, ileri hatta hazır kurulu ve işaretli.
+func _strategic(g: Game, o: Dictionary) -> void:
+	var need: int = Defs.MAP.strategic.size()
+	if Scenarios.side == 1:
+		var mine := 0
+		for e in g.entities:
+			if e.strategic and e.team == Defs.PLAYER:
+				mine += 1
+		_check("tesisler oyuncunun", mine == need)
+		_check("dusmanin gorevi stratejik tesisler", Scenarios.objective(1).get("strategic", false))
+		return
+	_check("gorev isaretli uretim tesisleri", o.type == "destroy" and o.get("strategic", false) and int(o.count) == need)
+	var targets: Array = []
+	for e in g.entities:
+		if e.strategic:
+			targets.append(e)
+	_check("%d tesis kurulu" % need, targets.size() == need)
+	var near := 1e9
+	for e in targets:
+		for t in Defs.N:
+			if Defs.foe(Defs.PLAYER, t) and t < g.teams.size() and g.teams[t].hq != null:
+				near = minf(near, Entity.flat(e.position, g.teams[t].hq.position))
+	print("  en yakin tesis - dusman karargahi: %.0f" % near)
+	_check("tesisler dusman ussunden uzakta", near > 60.0)
+	_check("tesisler dusmanin ve hep gorunur", targets.all(func(e): return Defs.foe(Defs.PLAYER, e.team) and e.discovered and g.is_obj_target(e)))
+	# Düşmanın kendi kurduğu üretim binası sayılmaz.
+	var extra := g.spawn_building(Defs.bid(1, "kisla"), 1, g.terrain.nearest_free(g.teams[1].hq.position + Vector3(0, 0, 16)), true)
+	extra.take_damage(extra.max_hp * 10.0)
+	await _wait(0.2)
+	_check("isaretsiz kisla gorevi ilerletmez", is_zero_approx(g.teams[0].obj_prog))
+	for i in targets.size():
+		targets[i].take_damage(targets[i].max_hp * 10.0)
+		await _wait(0.2)
+	_check("tesisler yikilinca zafer", g.over and g.winner == Defs.SIDE[Defs.PLAYER])
+
+
+## Tutma görevi: süre kesintisizdir; nokta elden çıkınca sayaç sıfırlanır.
+func _hold(g: Game, o: Dictionary) -> void:
+	_check("tutma gorevi", o.type == "hold")
+	var pt: SupplyPoint = g.points[o.point]
+	pt.claim(0)
+	await _wait(1.5)
+	_check("tutulan sure artar", g.teams[0].obj_prog > 0.5)
+	pt.claim(1)
+	await _wait(0.3)
+	_check("nokta kaybedilince sayac sifirlanir", is_zero_approx(g.teams[0].obj_prog))
+	pt.claim(0)
+	await _wait(1.0)
+	_check("geri alininca sayac bastan baslar", g.teams[0].obj_prog > 0.3 and g.teams[0].obj_prog < 1.5)
 	# Düşman görevini bitirirse yenilgi nedeni doğru yazılır.
 	g.points[0].claim(1)
 	g.teams[1].obj_prog = 599.5

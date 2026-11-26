@@ -1552,14 +1552,22 @@ func _objective(t: int, dt: float) -> void:
 		return
 	var ts: TeamState = teams[t]
 	var need := 1.0
-	if o.type == "hold":
+	if o.type == "hold" or o.type == "zones":
+		# Süre kesintisiz olmalı: nokta ya da bölgelerden biri elden çıkınca sayaç baştan başlar.
 		need = float(o.secs)
-		if Defs.ally(points[o.point].owner_team, t):
+		var held: bool
+		if o.type == "hold":
+			held = Defs.ally(points[o.point].owner_team, t)
+		else:
+			held = regions_held(Defs.SIDE[t]) >= regions.size() and not regions.is_empty()
+		if held:
 			ts.obj_prog += dt
-	elif o.type == "zones":
-		need = float(o.secs)
-		if regions_held(Defs.SIDE[t]) >= regions.size() and not regions.is_empty():
-			ts.obj_prog += dt
+		elif ts.obj_prog > 0.0:
+			if ts.obj_prog >= 3.0:
+				var what: String = (points[o.point].d.name if o.type == "hold" else "Bölgelerden biri")
+				hud.toast(("%s elden çıktı: görev sayacı sıfırlandı." if Defs.friendly(t) else "Düşman tuttuğu yeri kaybetti (%s): sayacı sıfırlandı.") % what, 6.0)
+			ts.obj_prog = 0.0
+			ts.obj_note = 0
 	elif o.type == "annihilate":
 		var left: int = foe_left[1 - Defs.SIDE[t]]
 		ts.obj_prog = 1.0 if left == 0 and time > 2.0 else 0.0

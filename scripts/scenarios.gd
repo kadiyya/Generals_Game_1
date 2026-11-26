@@ -524,6 +524,9 @@ const MAPS := {
 			{e = [-120, 60, 28, 18]}, {e = [90, 100, 30, 18]}, {e = [-60, 140, 25, 15]}, {e = [210, 60, 22, 18]},
 		],
 		trees = [], ruins = [],
+		# Pakistan'ın hedefi olan üç askerî üretim tesisi: Hindistan tarafında, üssün dibinde değil cephenin yakınında
+		# hazır kurulu; haritada işaretli, çevrelerinde bağımsız savunucular.
+		strategic = [[65, -55, "kisla"], [95, 60, "fabrika"], [100, -5, "havaalani"]],
 		roads = [
 			{p = [[-360, 40], [-220, 60], [-170, 90], [-60, 100], [40, 110], [130, 105], [200, 110], [300, 90], [360, 80]], w = 6.0, asphalt = true},
 			{p = [[-360, -70], [-250, -60], [-150, -60], [-60, -20], [30, -10], [110, -10], [200, -30], [300, -60], [360, -60]], w = 4.0},
@@ -636,7 +639,7 @@ const TIPS := {
 # ---------------------------------------------------------------- görev seçimi (menüden)
 const GOALS := [
 	{id = "senaryo", name = "Senaryo Görevi", desc = "Her ülkenin senaryoya özel görevi (bölge tutma ya da hedef yok etme). Karargâhı yıkılan kaybeder."},
-	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı toplam 10 dakika elinde tutmaya çalışır. Karargâhı yıkılan kaybeder."},
+	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı kesintisiz 10 dakika elinde tutmaya çalışır; nokta elden çıkarsa sayaç baştan başlar. Karargâhı yıkılan kaybeder."},
 	{id = "imha", name = "Tam İmha", desc = "Düşmanın bütün binalarını ve birliklerini yok et. Karargâh yıkılsa da savaş sürer."},
 ]
 
@@ -648,8 +651,8 @@ const LIST := [
 		geo = {c = Vector2(36.5, 49.8), zoom = 9.0, a = Vector2(34.6, 49.8), b = Vector2(38.6, 50.4), col = Color(1.0, 0.72, 0.25), label = "Harkiv – Severski Donets"},
 		desc = "Harkiv'in doğusu: Severski Donets ve Oskil nehirleri, köprüler, Peçenihi barajı, geniş ormanlar ve ağaç hatlarıyla bölünmüş tarlalar. Ukrayna'nın tankı yok; drone'larla Rus zırhını avlar. Rusya ağır zırh ve topçuya güvenir.",
 		obj = {
-			a = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
-			b = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
+			a = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını kesintisiz 10 dakika elinde tut"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını kesintisiz 10 dakika elinde tut"},
 		},
 	},
 	{
@@ -657,8 +660,8 @@ const LIST := [
 		geo = {c = Vector2(42.0, 31.8), zoom = 6.0, a = Vector2(35.0, 31.6), b = Vector2(49.5, 31.5), col = Color(0.3, 0.85, 0.75), label = "Huzistan – Zagros"},
 		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. Dört kilit bölgeyi iki orduya da saldıran bağımsız kuvvetler tutuyor. İsrail görünmez uçaklarla, İran balistik füzelerle bölgeleri almaya çalışır.",
 		obj = {
-			a = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü birlikte 1,5 dk tut"},
-			b = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü birlikte 1,5 dk tut"},
+			a = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü kesintisiz 1,5 dk tut"},
+			b = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü kesintisiz 1,5 dk tut"},
 		},
 	},
 	{
@@ -666,8 +669,8 @@ const LIST := [
 		geo = {c = Vector2(74.5, 33.0), zoom = 10.0, a = Vector2(72.8, 33.4), b = Vector2(76.3, 32.6), col = Color(0.55, 0.9, 0.4), label = "Keşmir – Kontrol Hattı"},
 		desc = "Kontrol Hattı: kuzeyde Himalaya eteklerinin çam ormanları ve hâkim tepeler, güneyde kanallarla bölünmüş Pencap ovası; Chenab, Jhelum ve Tawi nehirleri. Pakistan balistik füzelere, Hindistan insan gücüne güvenir.",
 		obj = {
-			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla", "fuze"], count = 3, text = "3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla, füze üssü)"},
-			b = {type = "hold", point = 0, secs = 600.0, text = "Akhnur köprübaşını toplam 10 dakika elinde tut"},
+			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla"], count = 3, strategic = true, text = "Haritada işaretli 3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla)"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Akhnur köprübaşını kesintisiz 10 dakika elinde tut"},
 		},
 	},
 	{name = "Çin – ABD: Tayvan Çıkarması", locked = true, geo = {c = Vector2(120.5, 24.0), zoom = 6.0, col = Color(0.9, 0.35, 0.3)}, desc = "Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır. Deniz moduyla açılacak."},
@@ -827,7 +830,7 @@ static func objective(team: int) -> Dictionary:
 	match GOALS[clampi(goal, 0, GOALS.size() - 1)].id:
 		"tut":
 			var pt: Array = MAPS[scn.map].points[0]
-			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını toplam 10 dakika elinde tut" % pt[5]}
+			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını kesintisiz 10 dakika elinde tut" % pt[5]}
 		"imha":
 			return {type = "annihilate", text = "Düşmanı tamamen yok et: bütün binalarını ve birliklerini"}
 	return scn.obj.a if Defs.COUNTRY[team] == scn.a else scn.obj.b

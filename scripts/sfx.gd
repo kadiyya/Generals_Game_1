@@ -11,7 +11,9 @@ const RATE := 22050
 const MRATE := 16000
 const POOL := 16
 const VARIANTS := 3
-const MUSIC_VER := 2
+const MUSIC_VER := 3
+const SOFT_HZ := 2500.0    # efektlerin üst frekans sınırı: tiz, cızırtılı kısımlar kısılır
+const MUSIC_SOFT_HZ := 3000.0
 
 static var _cache := {}
 static var _music_cache := {}
@@ -97,7 +99,7 @@ func play(name: String, pos := Vector3.INF) -> void:
 	if now - float(_last.get(name, -10.0)) < lv[1]:
 		return
 	var vol: float = lv[0]
-	var pitch := randf_range(0.94, 1.06)
+	var pitch := randf_range(0.92, 1.0)
 	if pos != Vector3.INF and Game.I != null:
 		var cam := Game.I.cam
 		var d := Vector2(pos.x - cam.focus.x, pos.z - cam.focus.z).length()
@@ -123,7 +125,7 @@ static func stream(name: String) -> AudioStreamWAV:
 		var list: Array = []
 		for v in VARIANTS:
 			seed(hash(name) + v * 7919)
-			list.append(_wav(_normalize(_make(name), 0.92), RATE))
+			list.append(_wav(_normalize(_soften(_make(name), RATE, SOFT_HZ), 0.92), RATE))
 		randomize()
 		_cache[name] = list
 	var l: Array = _cache[name]
@@ -149,7 +151,7 @@ static func _make(name: String) -> PackedFloat32Array:
 			# ateşleme + yükselen kükreme
 			return _mix([_lp(_burst(0.15, 25.0), 0.4), _roar(1.3, 0.04, 0.35, 0.9)])
 		"beam":
-			return _mix([_saw_sweep(0.4, 900.0, 380.0, 0.35, 35.0), _hp(_burst(0.4, 6.0), 0.8, 0.15)])
+			return _mix([_saw_sweep(0.4, 450.0, 200.0, 0.35, 35.0), _lp(_burst(0.4, 6.0), 0.3, 0.1)])
 		"boom_s":
 			var s := _mix([_hp(_burst(0.06, 80.0), 0.5), _thump(0.6, 70.0, 30.0, 6.0, 1.0), _lp(_burst(1.1, 3.5), 0.06), _debris(1.0, 40, 0.25)])
 			return _echo(s, [[0.15, 0.25], [0.36, 0.12]])
@@ -157,14 +159,14 @@ static func _make(name: String) -> PackedFloat32Array:
 			var s := _mix([_hp(_burst(0.09, 50.0), 0.45), _thump(1.6, 55.0, 22.0, 2.4, 1.3), _lp(_burst(2.4, 1.6), 0.03), _debris(2.0, 90, 0.3)])
 			return _echo(s, [[0.22, 0.3], [0.5, 0.16], [0.9, 0.08]])
 		"click":
-			return _mix([_tone([1900.0], 0.03, 0.35, 140.0), _hp(_burst(0.012, 300.0), 0.7, 0.2)])
+			return _mix([_tone([700.0], 0.035, 0.35, 120.0), _lp(_burst(0.012, 300.0), 0.3, 0.2)])
 		"alert":
 			# iki kez yükselip alçalan uyarı sireni
-			return _concat([_siren(0.32, 620.0, 980.0), _silence(0.05), _siren(0.32, 620.0, 980.0)])
+			return _concat([_siren(0.32, 330.0, 520.0), _silence(0.05), _siren(0.32, 330.0, 520.0)])
 		"capture":
-			return _echo(_concat([_pluck(523.25, 0.16), _pluck(659.25, 0.16), _pluck(783.99, 0.4)]), [[0.12, 0.25]])
+			return _echo(_concat([_pluck(261.63, 0.16), _pluck(329.63, 0.16), _pluck(392.0, 0.4)]), [[0.12, 0.25]])
 		"rank":
-			return _echo(_concat([_brass(587.33, 0.14), _brass(783.99, 0.14), _brass(987.77, 0.42)]), [[0.13, 0.22]])
+			return _echo(_concat([_brass(293.66, 0.14), _brass(392.0, 0.14), _brass(493.88, 0.42)]), [[0.13, 0.22]])
 		"jam":
 			return _mix([_lp(_burst(0.4, 2.0), 0.6, 0.5), _warble(0.4, 220.0, 0.2)])
 		"jet":
@@ -200,6 +202,18 @@ static func _normalize(s: PackedFloat32Array, peak: float) -> PackedFloat32Array
 	var k := peak / m
 	for i in s.size():
 		s[i] *= k
+	return s
+
+
+## İki kademeli alçak geçiren süzgeç (hz üstü kısılır): bütün efektler ve müzik bundan geçer, tiz sesler yormasın.
+static func _soften(s: PackedFloat32Array, rate: int, hz: float) -> PackedFloat32Array:
+	var a := 1.0 - exp(-TAU * hz / float(rate))
+	var y1 := 0.0
+	var y2 := 0.0
+	for i in s.size():
+		y1 += (s[i] - y1) * a
+		y2 += (y1 - y2) * a
+		s[i] = y2
 	return s
 
 
@@ -590,6 +604,7 @@ func _make_music(which: String) -> void:
 	var n := int(total * MRATE)
 	for i in range(n, out.size()):
 		out[i - n] += out[i]
+	out = _soften(out, MRATE, MUSIC_SOFT_HZ)
 	var peak := 0.001
 	for i in n:
 		peak = maxf(peak, absf(out[i]))

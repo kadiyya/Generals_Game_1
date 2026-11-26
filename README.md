@@ -51,7 +51,7 @@ zekâ ordusu, karşında iki düşman üssü). Aynı taraftakiler görüşü ve 
 karargâhları yıkılınca ya da görev tamamlanınca maç biter.
 
 **Görev seçimi (menüden):** *Senaryo Görevi* (her ülkenin kendi görevi), *Bölgeyi Tut* (iki taraf da haritanın
-ortasındaki kilit noktayı toplam 10 dakika tutmaya çalışır) ya da *Tam İmha* (düşmanın bütün binalarını ve birliklerini
+ortasındaki kilit noktayı kesintisiz 10 dakika tutmaya çalışır; nokta elden çıkarsa sayaç baştan başlar) ya da *Tam İmha* (düşmanın bütün binalarını ve birliklerini
 yok et; karargâh yıkılsa da savaş sürer, düşmanın binası kalmayınca kalan birlikleri küçük haritada gösterilir).
 Maç bitince ekranda gerçek neden yazar (karargâhın yıkıldı, düşman görevini tamamladı, ordun tamamen yok edildi...).
 
@@ -189,15 +189,17 @@ hedefe 12 bomba bırakıp döner; hava alanı gerekmez; hava savunması uçaklar
 Doyurma Salvosu (Balistik Füze), Seferberlik (Dengeli).
 
 **Görev hedefleri:** karargâhı yıkmanın yanında her tarafın kendi görevi var: Rusya – Ukrayna'da Çuhuiv köprübaşını
-10 dakika tutmak; Pakistan'ın 3 üretim tesisini yıkması, Hindistan'ın Akhnur köprübaşını tutması.
+kesintisiz 10 dakika tutmak; Pakistan'ın 3 üretim tesisini (kışla, fabrika, hava alanı) yıkması, Hindistan'ın Akhnur
+köprübaşını tutması. Pakistan'ın hedefleri Hindistan üssünün dibinde değil, cephenin yakınındaki ileri hatta hazır kuruludur;
+haritada kırmızı nişangâhla işaretlidir ve çevrelerinde bağımsız savunucular vardır (düşmanın kendi kurduğu binalar sayılmaz).
 İran – İsrail'de iki tarafın görevi aynıdır: **4 bölgeyi ele geçirmek** (Kerhe Tepesi, Karun Sırtı, Şuş Sanayi Bölgesi,
-Mahşehr Depoları) ve dördünü birlikte toplam 1,5 dakika tutmak. Bölgeleri baştan **bağımsız kuvvetler** tutar (siper
+Mahşehr Depoları) ve dördünü birlikte kesintisiz 1,5 dakika tutmak. Bölgeleri baştan **bağımsız kuvvetler** tutar (siper
 kazmış piyade, tanksavar, dron savar, zırhlı ve tank; kum sarısı renkte). Gelen her iki orduya da saldırırlar, yerlerinden
 ayrılmazlar. Bir bölgenin bağımsız kuvvetleri tükenince yaklaşık 2 dakika sonra orada daha zayıf bir grup (2 piyade,
 tanksavar, bazen zırhlı; %60 can) yeniden belirir ve bölgeyi kim tutuyorsa onunla çarpışır. Bölge, alanda yalnızca bir
 ordunun kara birliği kalınca 20 saniyede o tarafın olur; sahibi yokken alanı bağımsızlar tutarsa yeniden tarafsızlaşır.
-Bölgeler küçük haritada halka olarak görünür (sahibinin renginde; alınırken dolan yay). Yok etme
-görevlerinde düşmanın hedef binaları 2. dakikadan sonra haritada gösterilir. Ekranın üstünde senin ve düşmanın
+Bölgeler küçük haritada halka olarak görünür (sahibinin renginde; alınırken dolan yay). Bütün tutma
+sürelerinde sayaç kesintisizdir: nokta ya da bölgelerden biri elden çıkınca sayaç sıfırlanır. Ekranın üstünde senin ve düşmanın
 ilerlemesi görünür.
 
 **Saldırı uyarısı:** kendi binan ya da kaynağın vurulunca küçük haritada o yer kırmızı yanıp söner, binanın üstünde
@@ -222,7 +224,8 @@ götür); otomatik kayıt (dakikada bir, menüye dönüşte ve uygulama arka pla
 **Ses ve görsellik:** bütün sesler ve müzik kodla sentezlenir (ses dosyası yok). Sesler katmanlıdır (keskin çatırtı,
 gümbürtü, uzayan kuyruk, açık arazi yankısı); her sesin üç çeşidi vardır; piyade tüfeği, araç topu, tank topu,
 topçu, füze kükremesi, lazer, küçük ve büyük patlama (moloz çıtırtısıyla), uçak geçişi, dron vızıltısı, önleme,
-inşaat bitti, uyarı sireni, nokta alma ve terfi fanfarı. Sesler kameraya uzaklığa göre kısılır ve pesleşir. Giriş
+inşaat bitti, uyarı sireni, nokta alma ve terfi fanfarı. Sesler kameraya uzaklığa göre kısılır ve pesleşir. Tiz
+sesler yormasın diye efektler ~2,5 kHz, müzik ~3 kHz alçak geçiren süzgeçten geçer; uyarı, tık, nokta alma ve terfi tonları pestir. Giriş
 ekranında marş havasında, maçta daha gergin bir müzik çalar (yaylılar, bas, davul, nefesli melodi); müzik ilk açılışta
 üretilip telefona kaydedilir. Uçaklar ve büyük İHA'lar pistten kalkar,
 mühimmatı bitince piste iner, silahlanıp yeniden kalkar. Yok edilen araçlar yanmış enkaz, binalar moloz bırakır;
@@ -328,8 +331,8 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--menutest`: giriş ekranında parmakla kaydırmayı, kaydırırken düğmeye basılmamasını, sesleri ve müziği dener (pencere gerekir).
 - `godot --headless --path . -s tools/balance.gd -- docs/DENGE.md`: bütün birimlerin oyundaki değerlerini (fiyat, can, hız, menzil,
   zırh sınıfına göre saniyede hasar) [docs/DENGE.md](docs/DENGE.md) tablosuna yazar. Denge değişince yeniden çalıştır.
-- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (bölgeler, bağımsız kuvvetler ve yeniden doğmaları, hedeflerin
-  2. dakikada açılması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
+- `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (bölgeler, bağımsız kuvvetler ve yeniden doğmaları, tutma
+  sayacının kayıpta sıfırlanması, Pakistan'ın ileri hattaki hedefleri, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
 - `--duel --scn=0`: denge için aynı bütçeyle sınıf düelloları yapar ve kalan değerleri yazar.
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).
