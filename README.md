@@ -67,7 +67,9 @@ büyütür. Alan tek parça sarı olarak çizilir, içi ve ileri üslerin çevre
 
 **Taktik arazi.** Köprüler yıkılabilir (topçu, füze, uçak ya da "Köprü Yık" emri; köprünün yeri bilinir, görmeden de
 vurulur, hasarlıyken canı üstünde yazar); yıkılan köprünün üstündekiler suya düşer, nehir orada geçilmez olur. Araçlar
-köprünün tabliyesinin üstünden geçer. Yıkık köprü, son 30 saniyede vurulmadıysa ve yanında yalnızca bir tarafın askerî
+köprünün tabliyesinin üstünden geçer. Köprüler yoldan geniştir (iki araç yan yana sığar); tabliyedeki birlikler
+birbirini yalnızca hafifçe iter, karşılıklı gelen kollar sıyrılıp geçer, köprüdeki ya da köprü kuyruğundaki birlik
+"takıldım" deyip durmaz. Yıkık köprü, son 30 saniyede vurulmadıysa ve yanında yalnızca bir tarafın askerî
 birlikleri varsa 40 saniyede onarılır. Tepeyi tutmak: görüş %30, menzil %15 ve hasar %15 artar; tepedeki atıcı ağaçların ve yıkıntıların üstünden
 görür. Geniş ormanlar ve ağaç hatları piyadeyi her zaman, aracı dururken gizler (yalnızca yakından görülür), derin orman
 görüşü keser. Kasabalarda köy evleri (2 birlik), yıkık apartmanlar (3 birlik, üst kattan uzağı görür) ve terk edilmiş
@@ -81,13 +83,13 @@ inen nokta kimsesiz kalır ve 90 saniye **tahrip** durumda kalır (gelir yok, el
 90 saniye yeni maden kurulamaz. Vurulan kaynak 20 saniye onarılamaz; sonra onarım yalnızca yanında kendi tarafının askerî
 birliği varken ve çevrede düşman yokken ilerler. Kaynakların (ikmal noktaları ve madenler) yeri herkesçe bilinir: birlikler,
 topçu ve füzeler onları görmeden de vurabilir. Maden Ocağı elinde kaldıkça verimi artar (10 dakikada en çok %20).
-Başta 5 yatak belirir, sonra her 50-95 saniyede yenisi gelir (aynı anda en çok 11).
+Başta 3 yatak belirir, sonra her 130-220 saniyede yenisi gelir (aynı anda en çok 6); köprü başlarına çıkmaz.
 
 **Doktrinler** fiyatı belirler: doktrine uyan birimler %25-40 ucuz, uymayanlar %20-60 pahalıdır (kartta yeşil ▼ ya da
 kırmızı ▲). Bazı ülkelerde bazı birimler hiç yoktur: Ukrayna'nın tankı yoktur (İHA'larla Rus zırhını avlar), İsrail'in
-çok namlulu roketatarı yoktur. Her ülkede uzun menzilli topçu/roketatardan yalnızca bir tane vardır (Zırhlı/Topçu
-doktrinli Rusya'da iki), dron savar hava savunmadan bir tane, uçaklardan da her türden (çok amaçlı, taarruz, görünmez)
-en çok bir tane. Üretim panelinde birimler sabit yuvalara dizilir; ülkede olmayan
+çok namlulu roketatarı yoktur. Her ülkede uzun menzilli topçu/roketatardan yalnızca bir tane vardır, dron savar hava savunmadan bir tane, uçaklardan da her türden (çok amaçlı, taarruz, görünmez)
+en çok bir tane. Rusya'nın tankları T-72B3 ve deneysel T-14 Armata'dır; topçusu Tornado-S'tir (T-90M ve Msta-S
+çıkarıldı, Rus yapay zekâsı da daha az tank ve topçu alır). Üretim panelinde birimler sabit yuvalara dizilir; ülkede olmayan
 birimin yuvası boş kalır, diğerleri kaymaz.
 
 **Deneysel silahlar (Kademe 3)** turuncu kartla gösterilir; %50 pahalı, %50 daha çok hasar ve %30 daha çok can:
@@ -102,7 +104,7 @@ haritanın üslubunu alır.
 **Hava araçlarının mühimmatı:** her silahlı uçak ve İHA'nın üstünde dolu ve boş füzeleri simge olarak görünür
 (dost birimlerde "3/4" sayısı da yazar); silahlanırken "silahlanıyor" yazar.
 
-**Ülkeler kendi silahlarını kullanır** (her ülkede 16-19 birim). Örnekler: T-72B3, T-90M, T-14 Armata, Merkava Mk 4,
+**Ülkeler kendi silahlarını kullanır** (her ülkede 16-19 birim). Örnekler: T-72B3, T-14 Armata, Merkava Mk 4,
 Karrar, Al-Khalid, Arjun; F-16, Su-24M, Su-35, Su-34, Su-57, F-35I, F-15I, F-14A, JF-17, J-10C, Rafale, Su-30MKI;
 Bayraktar TB2, Akıncı, Shahed-136, Geran-2, Lancet-3, Harop, Mohajer-6, MQ-9B; HIMARS, Tornado-S, Pinaka; Buk-M1/M3,
 Machbet, Herz-9, HQ-16FE, Akash; Patriot, S-400, Iron Dome, Bavar-373.
@@ -111,6 +113,11 @@ Machbet, Herz-9, HQ-16FE, Akash; Patriot, S-400, Iron Dome, Bavar-373.
 - Kara: piyade, tanksavar timi, hafif zırhlı araç, tank, obüs, çok namlulu roketatar, dron savar hava savunma,
   zırhlı hava savunma (Kademe 2: uçakları ve büyük İHA'ları uzaktan sert vurur, yerdeki hedeflere neredeyse etkisiz).
 - Keşif ve silahlı İHA'ların görüşü geniştir (kamikazeler hariç). Araç modelleri okunur olsun diye büyüktür.
+- Küçük keşif dronlarını (Mavic, Orlan, Orbiter...) piyade ve tanksavar timi vuramaz; bunlara dron savar, EH ve uçaklar
+  karşı koyar. Piyadenin ateş gücü her hedefe karşı %15 yüksektir.
+- **Ukrayna'nın İHA'ları** zırha karşı daha ölümcüldür: FPV (tanka 1,7, hafif zırhlıya 1,45 kat), Switchblade 600 (tanka 1,55 kat), Liutyi ve
+  Peklo (tanka 1,7-1,8 kat), Bayraktar TB2 (daha dayanıklı, 3 füze, tanka 1,45 kat), Baba Yaga (3 bomba, daha dayanıklı),
+  Mavic (daha dayanıklı, daha geniş görüş).
 - Küçük İHA (kışladan, elden atılır): keşif dronu, FPV kamikaze (3'lü paket, uçuş süresi sınırlı), bombardıman dronu, dolanan mühimmat.
 - Büyük İHA (hava alanı gerekir): keşif, silahlı, ağır silahlı, uzun menzilli kamikaze.
 - Uçak (hava alanı gerekir, alan başına 4 pist): çok amaçlı, taarruz, görünmez. Görünmez uçağı hava savunma ancak yakından görür.
@@ -262,6 +269,9 @@ godot --path . -- --gallery --scn=0 --shots=KLASÖR
 - `--objtest --scn=N [--goal=N] [--side=N]`: görev sistemini doğrular (stratejik tesisler ve savunucuları, hedeflerin
   2. dakikada açılması, tam imha, zafer/yenilgi nedeni). `--goal`: 0 senaryo görevi, 1 bölgeyi tut, 2 tam imha.
 - `--diff=N`: yapay zekâ zorluğu (0 Kolay, 1 Orta, 2 Zor); `--autotest` ile birlikte kullanılabilir.
+- `--bridgetest --scn=N [--n=20] [--oblique] [--blocker] [--amove]`: her köprüden iki araç kolunu karşılıklı geçirir;
+  varan ve köprüde kalan birlikleri sayar. `--watch --mode=2 --mins=14` ile yapay zekâ orduları oynarken köprü
+  çevresinde ilerleyemeyen birlikleri yazar.
 - `--duel --scn=0`: denge için aynı bütçeyle sınıf düelloları yapar ve kalan değerleri yazar.
 - `--animtest`: iki küçük grubu çarpıştırır; hareket, kule dönüşü ve geri tepmeyi doğrular (`--shots=KLASÖR` ile görüntü alır).
 - Menü görüntüsü: `godot --path . -- --scn=N --menushot=DOSYA.png`.

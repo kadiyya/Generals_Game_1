@@ -178,6 +178,8 @@ func _ready() -> void:
 		add_child(load("res://tools/objtest.gd").new())
 	elif args.has("--duel"):
 		add_child(load("res://tools/duel.gd").new())
+	elif args.has("--bridgetest"):
+		add_child(load("res://tools/bridgetest.gd").new())
 
 
 # ---------------------------------------------------------------- çarpanlar
@@ -452,6 +454,9 @@ func spawn_deposit(announce: bool) -> Deposit:
 		for dp in deposits:
 			if Entity.flat(p, dp.position) < 55.0:
 				ok = false
+		for br in bridges:
+			if br.dist_to(p) < 14.0:
+				ok = false
 		for e in entities:
 			if e.is_building and Entity.flat(p, e.position) < 12.0:
 				ok = false
@@ -512,8 +517,13 @@ func _separate() -> void:
 			ground.append(e)
 	var n := ground.size()
 	var prev: Array = []
+	# Köprü tabliyesindeki birlikler birbirini yalnızca hafifçe iter: dar köprüde karşılıklı gelen kollar
+	# itişip kilitlenmeden yan yana sıyrılıp geçer.
+	var on_deck := {}
 	for u in ground:
 		prev.append(u.position)
+		if terrain.on_bridge(u.position):
+			on_deck[u] = true
 	for i in n:
 		var a: Entity = ground[i]
 		for bn in nearby(a.position, 8.0):
@@ -522,7 +532,7 @@ func _separate() -> void:
 				continue
 			var dx := a.position.x - b.position.x
 			var dz := a.position.z - b.position.z
-			var min_d := (a.radius + b.radius) * 0.85
+			var min_d := (a.radius + b.radius) * (0.4 if on_deck.has(a) or on_deck.has(b) else 0.85)
 			var d2 := dx * dx + dz * dz
 			if d2 < min_d * min_d:
 				var dd := sqrt(d2)
@@ -545,9 +555,18 @@ func _separate() -> void:
 				var dd := sqrt(d2)
 				var over_d := min_d - dd
 				a.position += Vector3(dx, 0, dz) / dd * over_d + Vector3(-dz, 0, dx) / dd * over_d * 0.5
+	# Suya ya da engele itilen birlik geri alınır; ama itişin engele paralel kısmı korunur (kıyıda ve
+	# köprüde kayarak ilerler, yerinde çakılıp kalmaz).
 	for i in n:
-		if terrain.solid(ground[i].position) and not terrain.solid(prev[i]):
-			ground[i].position = prev[i]
+		var u: Entity = ground[i]
+		if terrain.solid(u.position) and not terrain.solid(prev[i]):
+			var p: Vector3 = prev[i]
+			if not terrain.solid(Vector3(u.position.x, p.y, p.z)):
+				u.position = Vector3(u.position.x, u.position.y, p.z)
+			elif not terrain.solid(Vector3(p.x, p.y, u.position.z)):
+				u.position = Vector3(p.x, u.position.y, u.position.z)
+			else:
+				u.position = p
 
 
 # ---------------------------------------------------------------- olaylar

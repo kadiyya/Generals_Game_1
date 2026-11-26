@@ -20,7 +20,7 @@ const FAST := ["ifv", "tank"]
 const MIX := {
 	"iha": {inf = 4, at = 2, sdrone_fpv = 6, sdrone_bomb = 3, loiter = 4, ifv = 2, tank = 0, arty = 1, mlrs = 1, spaag = 2,
 		uav_strike = 3, uav_heavy = 1, uav_kami = 3, fighter = 1, striker = 0, stealth = 0},
-	"zirh": {inf = 5, at = 2, sdrone_fpv = 1, sdrone_bomb = 0, loiter = 1, ifv = 3, tank = 8, arty = 3, mlrs = 2, spaag = 2,
+	"zirh": {inf = 6, at = 3, sdrone_fpv = 1, sdrone_bomb = 0, loiter = 1, ifv = 2, tank = 5, arty = 1, mlrs = 1, spaag = 2,
 		uav_strike = 1, uav_heavy = 0, uav_kami = 0, fighter = 2, striker = 1, stealth = 1},
 	"hava": {inf = 3, at = 2, sdrone_fpv = 0, sdrone_bomb = 0, loiter = 2, ifv = 2, tank = 3, arty = 1, mlrs = 0, spaag = 2,
 		uav_strike = 2, uav_heavy = 1, uav_kami = 2, fighter = 4, striker = 3, stealth = 2},

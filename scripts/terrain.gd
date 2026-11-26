@@ -314,7 +314,7 @@ static func _roads(g: Dictionary, m: Dictionary) -> void:
 				elif (not wet or t + 0.5 > l) and run_start >= 0.0:
 					var ba := a + dir * maxf(0.0, run_start - 2.5)
 					var bb := a + dir * minf(l, t + 2.5)
-					var br := {a = ba, b = bb, w = float(r.w) + 2.0, cells = []}
+					var br := {a = ba, b = bb, w = float(r.w) + 4.0, cells = []}   # yoldan geniş: iki araç yan yana geçer
 					_mark_bridge(g, br)
 					if not br.cells.is_empty():
 						g.bridges.append(br)
@@ -397,6 +397,13 @@ func center(c: Vector2i) -> Vector3:
 
 func solid(p: Vector3) -> bool:
 	return astar.is_point_solid(cell(p))
+
+
+## Köprünün tabliyesinde mi (kıyıdaki uçlar dahil).
+func on_bridge(p: Vector3) -> bool:
+	var c := cell(p)
+	var idx := c.y * gw + c.x
+	return kind[idx] == BRIDGE or deck.has(idx)
 
 
 ## Bina kurulabilir mi: yalnızca düz kara ve yol.

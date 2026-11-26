@@ -303,8 +303,9 @@ func _step(p: Vector3, dt: float) -> bool:
 			return true
 	else:
 		near_t = 0.0
-	# Sıkışma: 1,5 saniyede neredeyse hiç ilerlemediyse yolu yeniden hesapla ve yana kay;
-	# üst üste üç kez sıkışırsa vardığını kabul et (kalabalık geçitte sonsuza dek itişmesin).
+	# Sıkışma: 1,5 saniyede neredeyse hiç ilerlemediyse yolu yeniden hesapla ve yana kay.
+	# Hedefin yakınındaki kalabalıkta üst üste üç kez sıkışırsa vardığını kabul et (sonsuza dek itişmesin);
+	# hedef uzaktaysa (köprü ya da geçit kuyruğu) pes etmez, sırası gelince geçer. Köprüde hiç durmaz.
 	stuck_t += dt
 	if stuck_t >= 1.5:
 		stuck_t = 0.0
@@ -312,10 +313,12 @@ func _step(p: Vector3, dt: float) -> bool:
 			stuck_n += 1
 			nav_goal = Vector3.INF
 			nav_t = 0.0
+			var ter0 := Game.I.terrain
 			var side := Vector3(-(p.z - position.z), 0, p.x - position.x).normalized() * (1.0 if stuck_n % 2 == 0 else -1.0)
-			if not Game.I.terrain.solid(position + side * 1.2):
+			if not ter0.solid(position + side * 1.2):
 				position += side * 0.9
-			if stuck_n >= 3:
+			var give_up := 3 if dist < 14.0 else 12
+			if stuck_n >= give_up and not ter0.on_bridge(position):
 				stuck_n = 0
 				stuck_pos = Vector3.INF
 				return true

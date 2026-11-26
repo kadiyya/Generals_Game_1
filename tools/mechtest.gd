@@ -540,6 +540,24 @@ func _run() -> void:
 	var adsd: Dictionary = Defs.UNITS[ads_id]
 	_check("zirhli hava savunma ucaga sert, yere zayif vurur", float(adsd.mult.air) >= 1.5 and float(adsd.mult.heavy) < 0.1 and float(adsd.mult.inf) < 0.1)
 	_check("IHA gorusu genis", float(Defs.UNITS[g.unit_of(0, "uav_strike")].vision) >= 30.0)
+	# ---- denge: Rus zırhı azaltıldı, Ukrayna İHA'ları zırha güçlü, keşif dronu piyadeye dokunulmaz
+	var ru_tanks := 0
+	for u in Scenarios.COUNTRIES.ru.units:
+		if u[2] == "tank":
+			ru_tanks += 1
+	_check("Rusya'da iki tank (T-72B3, T-14) var, Msta-S yok", ru_tanks == 2 and not Defs.UNITS.has("ru_t90") and not Defs.UNITS.has("ru_msta"))
+	var ua_fpv: Dictionary = Defs.UNITS["ua_fpv"]
+	_check("Ukrayna FPV tanka sert vurur", float(ua_fpv.dmg) * float(ua_fpv.mult.heavy) >= 170.0)
+	_check("Ukrayna TB2 tanka sert vurur", float(Defs.UNITS["ua_tb2"].mult.heavy) >= 1.2 and int(Defs.UNITS["ua_tb2"].ammo) == 3)
+	_check("piyadenin atesi guclendi", float(Scenarios.CLASSES.inf.dmg) >= 11.0)
+	var rc := g.spawn_unit(g.unit_of(0, "sdrone_recon"), 0, g.teams[0].hq.position + Vector3(0, 0, 14))
+	var foe_inf := g.spawn_unit(g.unit_of(1, "inf"), 1, rc.position + Vector3(3, 0, 0))
+	var foe_aa := g.spawn_unit(g.unit_of(1, "spaag"), 1, rc.position + Vector3(-3, 0, 0))
+	_check("piyade kesif dronunu vuramaz", not foe_inf.can_hit(rc) and foe_aa.can_hit(rc))
+	var fpv_u := g.spawn_unit(g.unit_of(0, "sdrone_fpv"), 0, rc.position + Vector3(0, 0, 3))
+	_check("piyade FPV dronunu hala vurabilir", foe_inf.can_hit(fpv_u))
+	for x in [rc, foe_inf, foe_aa, fpv_u]:
+		x.die()
 	for r in Scenarios.RESEARCH:
 		_check("arastirma aciklamasi: %s" % r.id, String(r.desc).length() > 20)
 	fixer.die()

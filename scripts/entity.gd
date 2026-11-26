@@ -120,6 +120,9 @@ func can_hit(e) -> bool:
 	if float(d.mult.get(e.armor, 0.0)) <= 0.0:
 		return false
 	if e.is_air:
+		# Küçük keşif dronu piyadenin tüfek menzilinin üstünde uçar: piyade ve tanksavar timi vuramaz.
+		if armor == "inf" and e.cls == "sdrone_recon":
+			return false
 		# Hava hedefleri radarla görülür. Görünmez uçak ancak yakından tespit edilir.
 		if e.d.get("stealth", false) and flat(global_position, e.global_position) > maxf(8.0, wrange() * 0.45):
 			return false
