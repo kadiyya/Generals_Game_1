@@ -371,13 +371,16 @@ func _run() -> void:
 	var jam = g.spawn_unit(g.unit_of(0, "ifv"), 0, jp)
 	jam.go(jp + Vector3(20, 0, 0), false)
 	jam.speed = 0.0001
+	# Hedef uzaktayken (köprü ya da geçit kuyruğu) hemen pes etmez, ama sonunda vazgeçer.
 	var gave_up := false
-	for n in 12:
+	var early := false
+	for n in 50:
 		await _wait(0.5)
 		if jam.order == "idle":
 			gave_up = true
+			early = n < 16
 			break
-	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up)
+	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up and not early)
 	var far := 0
 	for e in g.nearby(Vector3.ZERO, 10.0):
 		if Entity.flat(e.global_position, Vector3.ZERO) > 10.0 + Game.BUCKET * 2.0:

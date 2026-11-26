@@ -60,7 +60,9 @@ func _run() -> void:
 		for k in 2:
 			var start: Vector3 = s0 if k == 0 else s1
 			var back := -dir if k == 0 else dir
-			var goal: Vector3 = s1 + dir * 20.0 if k == 0 else s0 - dir * 20.0
+			var goal: Vector3 = ter.nearest_free(s1 + dir * 20.0 if k == 0 else s0 - dir * 20.0)
+				goal.x = clampf(goal.x, -Defs.MAP_W * 0.5 + 14.0, Defs.MAP_W * 0.5 - 14.0)
+				goal.z = clampf(goal.z, -Defs.MAP_H * 0.5 + 14.0, Defs.MAP_H * 0.5 - 14.0)
 			var us: Array = []
 			for i in PER_SIDE:
 				var p := ter.nearest_free(start + back * (i / 2) * 4.5 + side * ((i % 2) * 4.0 - 2.0))
@@ -147,10 +149,11 @@ func _watch() -> void:
 				if absf(ax.normalized().dot(u.position - near_br.position)) > 4.0:
 					side_of[u] = sd
 			# İlerleme ölçütü: hedefe olan uzaklık 20 saniyede 2 birimden az azaldıysa (itişip bocalıyorsa) takılmıştır.
+			# Takılma: yürümek isteyip (hedefsiz) 16 saniyede net 4 birimden az yer değiştiren birlik (yerinde itişip bocalıyor).
 			var wants: bool = u.order in ["move", "amove", "patrol"] and u.target == null
 			var gd := Entity.flat(u.position, u.dest)
-			if not last.has(u) or gd < float(last[u][0]) - 2.0 or not wants or gd < 6.0:
-				last[u] = [gd, 0.0, u.position, 0.0]
+			if not last.has(u) or not wants or gd < 6.0 or Entity.flat(u.position, last[u][0]) > 4.0:
+				last[u] = [u.position, 0.0, u.position, 0.0]
 				continue
 			last[u][1] += 2.0
 			last[u][3] += Entity.flat(u.position, last[u][2])
