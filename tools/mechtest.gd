@@ -371,13 +371,16 @@ func _run() -> void:
 	var jam = g.spawn_unit(g.unit_of(0, "ifv"), 0, jp)
 	jam.go(jp + Vector3(20, 0, 0), false)
 	jam.speed = 0.0001
+	# Hedef uzaktayken (köprü ya da geçit kuyruğu) hemen pes etmez, ama sonunda vazgeçer.
 	var gave_up := false
-	for n in 12:
+	var early := false
+	for n in 50:
 		await _wait(0.5)
 		if jam.order == "idle":
 			gave_up = true
+			early = n < 16
 			break
-	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up)
+	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up and not early)
 	var far := 0
 	for e in g.nearby(Vector3.ZERO, 10.0):
 		if Entity.flat(e.global_position, Vector3.ZERO) > 10.0 + Game.BUCKET * 2.0:
@@ -812,10 +815,13 @@ func _run() -> void:
 		var x_sp: Vector3 = g.terrain.nearest_free(x_tp + Vector3(cos(x_ang), 0, sin(x_ang)) * (x_tb.radius + 14.0 + float(x_ud.get("min_range", 0.0))))
 		var x_su = g.spawn_unit(x_id, 0, x_sp)
 		x_shooters.append(x_su)
+	g.fog.recompute()
 	g.order_attack(x_shooters, x_tb)
 	await _wait(25.0)
 	for x_su in x_shooters:
 		_check("%s binaya ates eder" % x_su.d.name, x_su.alive and x_su.xp > 0.0)
+		if not (x_su.alive and x_su.xp > 0.0):
+			print("    emir=%s hedef=%s uzaklik=%.1f menzil=%.1f vurabilir=%s gorus=%s alive=%s" % [x_su.order, x_su.target == x_tb, Entity.flat(x_su.position, x_tb.position) - x_tb.radius, x_su.weapon_range(), x_su.can_hit(x_tb), g.terrain.los_clear(x_su.global_position, x_tb.global_position, Entity.los_skip(x_tb)), x_su.alive])
 		x_su.die()
 	x_tb.die()
 

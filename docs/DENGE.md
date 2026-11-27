@@ -11,7 +11,7 @@ küçük dron. Hız birim/sn (piyade %10 artırılmış, kara araçları %5 dü�
 
 | Sınıf | Tür | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| inf | Kara | 150 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| inf | Kara | 150 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | at | Kara | 220 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | ifv | Kara | 380 | 620 | 4.9 | 15 | 9 | 16 / 0.40 sn | 48 | 32 | 24 | 16 | – | 12 |  |
 | tank | Kara | 800 | 1100 | 4.0 | 14 | 10 | 75 / 2.20 sn | 27 | 34 | 34 | 34 | – | – |  |
@@ -39,29 +39,29 @@ Hava Savunma binası: can 800, menzil 26, 140 hasar / 3.0 sn. SnH: piyade 26, ha
 
 ## Ukrayna — İHA Doktrini
 
-Küçük dronlar ve İHA'lar %25 ucuz. Tank yok; zırhlı %15, dron savar %20, topçu ve uçaklar %30 pahalı. Ülke farkı: dronlar zırhlılara %15 fazla vurur.
+Küçük dronlar ve İHA'lar %25 ucuz. Tank yok; zırhlı %15, dron savar %20, topçu ve uçaklar %30 pahalı. Ülke farkı: dronlar zırhlılara %35 fazla vurur.
 
 
 Yetenek: **Sürü Saldırısı** ($600, 120 sn bekleme) — Görülen bir noktaya, en yakın birliğinden 8 FPV dronu birden fırlatır. Hava savunmasını doyurur.
 
 | Birim | Sınıf | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | Javelin Timi | at | 220 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | Bukovel-AD | ew | 650 | 480 | 3.8 | 16 | – | – | – | – | – | – | – | – | EH 16: küçük dronları düşürür, büyükleri karıştırır |
-| DJI Mavic 3 | sdrone_recon | 90 | 40 | 6.0 | 30 | – | – | – | – | – | – | – | – |  |
-| FPV Kamikaze | sdrone_fpv | 210 | 25 | 7.5 | 11 | – | 130 | 312 | 538 | 292 | 117 | – | – | kamikaze (SnH = tek vuruş); 3'li paket; uçuş 70 sn |
-| Baba Yaga | sdrone_bomb | 240 | 70 | 5.0 | 20 | 3 | 90 / 2.00 sn | 54 | 52 | 31 | 22 | – | – | alan 2.5; 2 mühimmat |
-| Switchblade 600 | loiter | 195 | 35 | 8.5 | 15 | – | 280 | 112 | 419 | 322 | 112 | – | – | kamikaze (SnH = tek vuruş); uçuş 110 sn |
+| DJI Mavic 3 | sdrone_recon | 90 | 55 | 6.0 | 34 | – | – | – | – | – | – | – | – |  |
+| FPV Kamikaze | sdrone_fpv | 210 | 25 | 7.5 | 11 | – | 130 | 312 | 632 | 342 | 117 | – | – | kamikaze (SnH = tek vuruş); 3'li paket; uçuş 70 sn |
+| Baba Yaga | sdrone_bomb | 240 | 85 | 5.0 | 20 | 3 | 90 / 2.00 sn | 54 | 61 | 36 | 22 | – | – | alan 2.5; 3 mühimmat |
+| Switchblade 600 | loiter | 195 | 35 | 8.5 | 15 | – | 280 | 112 | 491 | 378 | 112 | – | – | kamikaze (SnH = tek vuruş); uçuş 110 sn |
 | M2 Bradley | ifv | 437 | 620 | 4.9 | 15 | 9 | 16 / 0.40 sn | 48 | 32 | 24 | 16 | – | 12 |  |
 | Gepard | spaag | 660 | 560 | 4.0 | 14 | 14 | 22 / 0.35 sn | 69 | 47 | 9 | 16 | 38 | 63 |  |
 | Buk-M1 | ads | 950 | 950 | 3.7 | 20 | 25 | 150 / 2.60 sn | 17 | 20 | 14 | 17 | 74 | 9 |  |
 | M142 HIMARS | mlrs | 1235 | 420 | 3.4 | 12 | 42 | 95 / 5.50 sn | 21 | 17 | 7 | 21 | – | – | alan 7.5; en az 12; kovalamaz |
-| Bayraktar TB2 | uav_strike | 600 | 220 | 7.0 | 32 | 11 | 160 / 3.50 sn | 27 | 63 | 53 | 37 | – | – | 2 mühimmat |
-| AN-196 Liutyi | uav_kami | 338 | 90 | 6.5 | 14 | – | 380 | 228 | 437 | 262 | 570 | – | – | kamikaze (SnH = tek vuruş); alan 3.0 |
+| Bayraktar TB2 | uav_strike | 600 | 270 | 7.0 | 32 | 11 | 160 / 3.50 sn | 27 | 74 | 62 | 37 | – | – | 3 mühimmat |
+| AN-196 Liutyi | uav_kami | 338 | 90 | 6.5 | 14 | – | 380 | 228 | 513 | 308 | 570 | – | – | kamikaze (SnH = tek vuruş); alan 3.0 |
 | F-16 | fighter | 1950 | 380 | 13.0 | 22 | 15 | 100 / 2.00 sn | 20 | 50 | 45 | 45 | 60 | 15 | 4 mühimmat |
 | Su-24M (Storm Shadow) | striker | 2340 | 470 | 12.0 | 22 | 14 | 195 / 2.50 sn | 62 | 94 | 86 | 109 | – | – | alan 3.0; 3 mühimmat |
-| Peklo Füze-Drone (deneysel) | uav_kami | 788 | 143 | 10.0 | 14 | – | 630 | 378 | 724 | 435 | 945 | – | – | kamikaze (SnH = tek vuruş); alan 3.0 |
+| Peklo Füze-Drone (deneysel) | uav_kami | 788 | 143 | 10.0 | 14 | – | 630 | 378 | 850 | 510 | 945 | – | – | kamikaze (SnH = tek vuruş); alan 3.0 |
 
 Füzeler: Hrim-2 ($1690, 1170 hasar, alan 7.0, 70 sn)
 
@@ -74,7 +74,7 @@ Yetenek: **Topçu Barajı** ($700, 120 sn bekleme) — Görülen bir alana 7 san
 
 | Birim | Sınıf | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Motorize Piyade | inf | 150 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| Motorize Piyade | inf | 150 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | Kornet Timi | at | 220 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | Silok | ew | 650 | 480 | 3.8 | 16 | – | – | – | – | – | – | – | – | EH 16: küçük dronları düşürür, büyükleri karıştırır |
 | Orlan-10 | sdrone_recon | 156 | 40 | 6.0 | 30 | – | – | – | – | – | – | – | – |  |
@@ -82,10 +82,8 @@ Yetenek: **Topçu Barajı** ($700, 120 sn bekleme) — Görülen bir alana 7 san
 | Lancet-3 | loiter | 338 | 35 | 8.5 | 15 | – | 280 | 112 | 364 | 280 | 112 | – | – | kamikaze (SnH = tek vuruş); uçuş 110 sn |
 | BMP-3 | ifv | 323 | 620 | 4.9 | 15 | 9 | 16 / 0.40 sn | 48 | 32 | 24 | 16 | – | 12 |  |
 | T-72B3 | tank | 680 | 1320 | 4.0 | 14 | 10 | 75 / 2.20 sn | 27 | 34 | 34 | 34 | – | – |  |
-| T-90M | tank | 723 | 1560 | 4.0 | 14 | 10 | 75 / 2.20 sn | 27 | 34 | 34 | 34 | – | – |  |
 | Pantsir-S1 | spaag | 550 | 560 | 4.0 | 14 | 14 | 22 / 0.35 sn | 69 | 47 | 9 | 16 | 38 | 63 |  |
 | Buk-M3 | ads | 950 | 950 | 3.7 | 20 | 25 | 150 / 2.60 sn | 17 | 20 | 14 | 17 | 74 | 9 |  |
-| 2S19 Msta-S | arty | 720 | 624 | 2.8 | 12 | 34 | 110 / 5.00 sn | 18 | 15 | 13 | 35 | – | – | alan 3.5; en az 9; kovalamaz |
 | Tornado-S | mlrs | 760 | 504 | 3.4 | 12 | 42 | 95 / 5.50 sn | 21 | 17 | 7 | 21 | – | – | alan 7.5; en az 12; kovalamaz |
 | Orion | uav_strike | 1040 | 220 | 7.0 | 32 | 11 | 160 / 3.50 sn | 27 | 55 | 46 | 37 | – | – | 2 mühimmat |
 | Geran-2 | uav_kami | 585 | 90 | 6.5 | 14 | – | 380 | 228 | 380 | 228 | 570 | – | – | kamikaze (SnH = tek vuruş); alan 3.0 |
@@ -106,7 +104,7 @@ Yetenek: **Hava Akını** ($900, 150 sn bekleme) — İki bombardıman uçağı 
 
 | Birim | Sınıf | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | Spike Timi | at | 220 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | Drone Dome | ew | 650 | 480 | 3.8 | 16 | – | – | – | – | – | – | – | – | EH 16: küçük dronları düşürür, büyükleri karıştırır |
 | Orbiter | sdrone_recon | 120 | 40 | 6.0 | 30 | – | – | – | – | – | – | – | – |  |
@@ -135,7 +133,7 @@ Yetenek: **Doyurma Salvosu** ($1600, 180 sn bekleme) — Görülen bir noktaya a
 
 | Birim | Sınıf | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | Dehlaviyeh Timi | at | 220 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | Kobra V8 | ew | 650 | 480 | 3.8 | 16 | – | – | – | – | – | – | – | – | EH 16: küçük dronları düşürür, büyükleri karıştırır |
 | Ababil-2 | sdrone_recon | 120 | 40 | 6.0 | 30 | – | – | – | – | – | – | – | – |  |
@@ -164,7 +162,7 @@ Yetenek: **Doyurma Salvosu** ($1600, 180 sn bekleme) — Görülen bir noktaya a
 
 | Birim | Sınıf | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| Piyade Mangası | inf | 150 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | Baktar-Shikan Timi | at | 220 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | EH Karıştırıcı | ew | 650 | 480 | 3.8 | 16 | – | – | – | – | – | – | – | – | EH 16: küçük dronları düşürür, büyükleri karıştırır |
 | Uqab | sdrone_recon | 120 | 40 | 6.0 | 30 | – | – | – | – | – | – | – | – |  |
@@ -192,7 +190,7 @@ Yetenek: **Seferberlik** ($400, 150 sn bekleme) — Karargâhın yanında anınd
 
 | Birim | Sınıf | Fiyat | Can | Hız | Görüş | Menzil | Hasar / aralık | SnH: piyade | hafif | tank | bina | uçak | dron | Not |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Piyade Mangası | inf | 120 | 300 | 3.7 | 14 | 8 | 12 / 0.50 sn | 24 | 14 | 4 | 7 | – | 6 | nokta alır |
+| Piyade Mangası | inf | 120 | 300 | 3.7 | 14 | 8 | 13 / 0.50 sn | 28 | 17 | 4 | 8 | – | 7 | nokta alır |
 | Nag Timi | at | 165 | 180 | 3.7 | 14 | 12 | 70 / 3.00 sn | 3 | 30 | 37 | 12 | – | – |  |
 | D4 Drone Sistemi | ew | 650 | 480 | 3.8 | 16 | – | – | – | – | – | – | – | – | EH 16: küçük dronları düşürür, büyükleri karıştırır |
 | Switch UAV | sdrone_recon | 120 | 40 | 6.0 | 30 | – | – | – | – | – | – | – | – |  |

@@ -1,17 +1,17 @@
 # Proje durumu
 
-Son güncelleme: **26 Kasım 2026**. Bu dosya her oturumun sonunda güncellenir; yeni oturum işe buradan başlar.
+Son güncelleme: **27 Kasım 2026**. Bu dosya her oturumun sonunda güncellenir; yeni oturum işe buradan başlar.
 
 ## En güncel dal
 
-**`ccr-f541d790-8wiqi3`** — bütün işler bu dalda birleşik. Oyun sürümü **0.18** (Android sürüm kodu 18).
+**`claude/sleepy-wozniak-lcj6lg`** — bütün işler bu dalda birleşik. Oyun sürümü **0.19** (Android sürüm kodu 19).
 
 Yeni bir oturum başka bir daldan açıldıysa (deponun varsayılan dalı `claude/adoring-faraday-ga7ahx` çok eskidir),
 çalışmaya başlamadan önce en güncel dalı oturumun kendi dalına birleştir:
 
 ```bash
-git fetch origin ccr-f541d790-8wiqi3
-git merge origin/ccr-f541d790-8wiqi3     # oturumun kendi dalındayken
+git fetch origin claude/sleepy-wozniak-lcj6lg
+git merge origin/claude/sleepy-wozniak-lcj6lg     # oturumun kendi dalındayken
 ```
 
 Başka dallarda bu dala alınmamış iş var mı diye bak: `git fetch origin && git branch -r -v`. Bu daldan daha yeni bir
@@ -19,7 +19,8 @@ commit taşıyan dal varsa (başka bir sohbette yapılmış iş), onu da birleş
 
 | Dal | Durum |
 |---|---|
-| `ccr-f541d790-8wiqi3` | **Güncel.** Aşağıdakilerin hepsi. |
+| `claude/sleepy-wozniak-lcj6lg` | **Güncel (0.19).** 0.18'in üstüne iki istek turu. Geçmişinde 0.10 tabanlı eski bir deneme (0.11) de var; içeriği 0.18 ile değiştirildi, işler 0.18 üstünde yeniden yapıldı. |
+| `ccr-f541d790-8wiqi3` | 0.18. Güncel dala birleştirildi. |
 | `ccr-23b978b4-5cb2r3` | Başka bir sohbetin işi (tutma süresi sıfırlama, Pakistan hedefleri, yumuşak ses). 26 Kasım'da güncel dala birleştirildi. |
 | `claude/trusting-cannon-0uccd0` | Logo, yeni menü, büyük haritalar. Güncel dala birleştirildi. |
 | `claude/adoring-faraday-ga7ahx` | Deponun varsayılan dalı; eski (0.8 civarı). |
@@ -33,6 +34,34 @@ dokular, sesler ve müzik kodla üretilir (dosya yok). Ayrıntılı tanıtım `R
 Senaryolar: Rusya–Ukrayna (Harkiv), İran–İsrail (Huzistan, 4 bölgeli harita), Pakistan–Hindistan (Keşmir).
 
 ## Son oturumlarda yapılanlar (yeniden eskiye)
+
+**0.19 (27 Kasım)** — İki istek turu:
+- *Ukrayna dronları:* kamikazeler (FPV, Switchblade, Liutyi, Peklo) zırhlılara %70 (`kami_armor = 1.7`), silahlı
+  İHA'lar ve Baba Yaga %35 (`drone_armor = 1.35`) fazla vurur; TB2 270 can/3 füze/9 sn silahlanma, Baba Yaga 85 can/3
+  bomba, Mavic 55 can/34 görüş.
+- *Rusya:* T-90M ve 2S19 Msta-S çıkarıldı (tank: T-72B3, T-14; topçu: Tornado-S). Zırhlı/Topçu yapay zekâsının hedef
+  ordusu tank 8→5, topçu 3→0, roketatar 2→1, piyade 5→6, tanksavar 2→3.
+- *Kaynak yatakları:* başta 2, en çok 4, her 200-320 sn'de bir; köprülerin 14 birim yakınına çıkmaz.
+- *Keşif dronu* (sdrone_recon) piyade ve tanksavar timince vurulamaz. *Piyade* hasarı 12→13,8 (%15).
+- *Köprüler:* asıl takılma nedeni bulundu: 0.14'teki "önü su ise dur ve yolu yeniden hesapla" kuralı köprü kenarındaki
+  birimi bir hücre köşesinde sonsuza dek durduruyordu. Artık engelin kenarı boyunca kayar, köşeye sıkışırsa hücrenin
+  ortasına çekilir; `line_clear` iki kat sık örnekler. Ayrıca köprüler yoldan 4 birim geniş, tabliyede itişme yumuşak,
+  köprüde ve uzak hedefte birim "vardım" deyip durmaz (uzakta 18 sn bekler), suya itilen birlik kenar boyunca kayar.
+  Ölçüm (`--bridgetest --watch`, 10 dk, 2'ye 2 Zor): önce 3 takılan birlik, sonra 0.
+- *Sahada onarım:* piyade/tanksavar yanındaki kendi binasını (%0,7/sn) ve zırhlısını (%1/sn) onarır; son vuruştan
+  8 sn sonra başlar, ikmal dışında yarı hız; üstünde yeşil artı. Maden ve stratejik tesis hariç.
+- *Birlik sınırı* 45 (Dengeli 57); sınır doluyken oyuncunun birimi kuyruğa girer, sırada bekler (yapay zekâ beklemez).
+- *Füze Üssü düğmesi* (sol panel): üs kurulunca açılır, binayı seçer/kamerayı götürür (füze düğmeleri füzenin
+  kademesine kadar gizli olduğu için kullanıcı üssü bulamıyordu).
+- *Saldırı simgeleri* (sağda, Menü'nün altında): en çok 5, yeniden eskiye, basınca kamera gider; bina, kaynak ve
+  birlik saldırıları; 25 sn vuruş yoksa kalkar.
+- *Engel Kur* kaldırıldı (`order_task` "obstacle"u reddeder).
+- *Karargâhı Yık* görevi eklendi (bölge, tutma, stratejik hedef yok). İran–İsrail'in 4 bölgesi ve bağımsız kuvvetleri
+  yalnızca Senaryo Görevi'nde kurulur (`Scenarios.zones_on`).
+- *Füzeler* yalnızca o an görülen yere atılır (bilinen kaynak/tesis istisnası kaldırıldı).
+- *Binaya ateş:* hedef binanın kendi hücreleri görüş hattını kesiyordu (birlik binaya yürüyordu); `los_clear`'a hedef
+  yarıçapı eklendi, binanın dibindeki birlik görüş aramadan ateş eder; açık saldırı emrindeki bina sis kenarında
+  kaybolsa da hedefte kalır. `--firetest` dört ülkede bütün silahlı kara birliklerini dener.
 
 **0.18 (26 Kasım)** — Paralel sohbetin dalı birleştirildi: tutma ve dört bölge görevlerinde süre kesintisizdir
 (nokta ya da bir bölge kaybedilince süre sıfırlanır), Pakistan'ın hedefi Hindistan'ın ileri hattındaki 3 hazır üretim
@@ -74,6 +103,11 @@ birlikler görüş alanındaki düşmana kendiliğinden saldırır.
 
 ## Açık konular ve öneriler
 
+- **0.19 dengesi ölçülmedi:** Ukrayna dron artışı `tools/duel.gd` ile ölçülmedi (düello aynı ülkede çalışıyor, Ukrayna'nın
+  tankı yok); oyunda fazla güçlü gelirse `kami_armor` 1,7 → 1,5 denenebilir.
+- **"Karargâhı Yık" yorumu:** kullanıcı "karargâhı yık görevinde ele geçirilecek alanlar olmayacak" dedi; ayrı bir görev
+  olarak eklendi ve bölgeler yalnızca Senaryo Görevi'ne bağlandı. İkmal noktaları (ekonomi) her görevde duruyor.
+
 - **Doktrin fiyat farkı:** zıt doktrinli iki ülke arasında aynı birim hâlâ ~1,35 kat farklı (ör. Ukrayna zırhlı aracı
   437$, Rusya 323$). Kullanıcıya aralığı 0,85–1,2'ye daraltmak önerildi, cevap bekleniyor.
 - **Yapay zekâ yavaş:** bölgeli haritada yapay zekâ orduyu yavaş kuruyor (ilk bölgeyi ~17. dakikada aldı).
@@ -97,7 +131,7 @@ yes | sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$S/sdk "platform-tools"
 # test anahtarı ve Godot editör ayarları (java_sdk_path, android_sdk_path, debug_keystore) -> ~/.config/godot/editor_settings-4.3.tres
 keytool -genkeypair -keystore $S/debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 # APK (JAVA_TOOL_OPTIONS proxy ayarı bozar, kaldır)
-unset JAVA_TOOL_OPTIONS; godot --headless --path . --export-debug "Android" GeneralsGame-0.18.apk
+unset JAVA_TOOL_OPTIONS; godot --headless --path . --export-debug "Android" GeneralsGame-0.19.apk
 ```
 
 APK'lar test anahtarıyla imzalı; telefonda farklı imzalı sürüm varsa önce kaldırılmalı. Her yeni APK'da
@@ -119,6 +153,8 @@ APK'lar test anahtarıyla imzalı; telefonda farklı imzalı sürüm varsa önce
 | `--animtest --scn=0 --side=1` (pencere) | Animasyon, emir önceliği, taret, kayıp |
 | `--menutest` (pencere) | Menüde parmakla kaydırma, sesler, müzik |
 | `--viewtest --scn=N --shots=KLASÖR` (pencere) | Harita görüntüleri |
+| `--firetest --scn=N [--side=1]` | Bütün silahlı kara birlikleri düşman binasına ateş eder |
+| `--bridgetest --scn=N [--n=20]` / `--watch --mode=2 --mins=10` | Köprü geçişi; gerçek maçta köprüde takılan birlik |
 | `--duel --scn=N [--hepsi \| --cift=ifv,tank]` | Eşit bütçeli denge düelloları (her biri 4 tekrar) |
 | `-s tools/balance.gd -- docs/DENGE.md` | Birim değer tablosunu yeniden üretir |
 

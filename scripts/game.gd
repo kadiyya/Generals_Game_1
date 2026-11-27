@@ -193,6 +193,8 @@ func _ready() -> void:
 		add_child(load("res://tools/viewtest.gd").new())
 	elif args.has("--mapshot"):
 		add_child(load("res://tools/mapshot.gd").new())
+	elif args.has("--firetest"):
+		add_child(load("res://tools/firetest.gd").new())
 	elif args.has("--bridgetest"):
 		add_child(load("res://tools/bridgetest.gd").new())
 	elif args.has("--objtest"):

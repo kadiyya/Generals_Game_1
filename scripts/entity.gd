@@ -104,6 +104,11 @@ func reveal_dist() -> float:
 func valid_target() -> bool:
 	if target == null:
 		return false
+	# Açıkça "saldır" emri verilen bina, görüşün kenarında bir an sisin içine düşse de hedefte kalır
+	# (binalar yerinden oynamaz); birlik emri bırakıp boşta kalmasın.
+	if is_instance_valid(target) and target.alive and target.is_building and self is Unit and self.order == "attack" \
+			and float(d.get("mult", {}).get(target.armor, 0.0)) > 0.0 and target.team >= 0 and Defs.foe(team, target.team):
+		return true
 	if not is_instance_valid(target) or not target.alive or not can_hit(target):
 		target = null
 		return false
