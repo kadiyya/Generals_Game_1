@@ -7,6 +7,7 @@ var MM_W := 260.0
 var MM_H := 160.0
 
 var root: Control
+var touch: TouchScroll
 var overlay: Control
 var top: PanelContainer
 var lbl_top: Label
@@ -19,11 +20,8 @@ var toast_lbl: Label
 var end_panel: ColorRect
 var obj_lbl: Label
 var ab_btn: Button
-var fuze_btn: Button          # Füze Üssü kurulunca açılır: binayı seçer
-var _fuze_i := 0
-var alert_box: VBoxContainer  # sağ kenar: saldırı simgeleri (yeniden eskiye)
-var alert_btns: Array = []
-const ALERT_MAX := 5
+var mis_box: HBoxContainer
+var mis_btns: Array = []
 var tip_panel: PanelContainer
 var tip_lbl: Label
 var flipped := {}      # birim kimliği -> kart arkaya dönük mü
@@ -44,6 +42,14 @@ func _ready() -> void:
 	root = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Kamera deliği / çentik: arayüz güvenli alanın içinde kalır.
+	var ins := TouchScroll.safe_insets(get_viewport())
+	root.offset_left = ins.x
+	root.offset_top = ins.y
+	root.offset_right = -ins.z
+	root.offset_bottom = -ins.w
+	touch = TouchScroll.new()
+	add_child(touch)
 	var th := Theme.new()
 	th.default_font_size = 19
 	root.theme = th
@@ -122,45 +128,21 @@ func _ready() -> void:
 	ab_btn.pressed.connect(func(): Game.I.begin_ability())
 	ab_btn.tooltip_text = Game.I.ability(Defs.PLAYER).get("desc", "")
 	side.add_child(ab_btn)
-	fuze_btn = Button.new()
-	fuze_btn.custom_minimum_size = Vector2(260, 52)
-	fuze_btn.focus_mode = Control.FOCUS_NONE
-	fuze_btn.add_theme_font_size_override("font_size", 16)
-	fuze_btn.visible = false
-	fuze_btn.tooltip_text = "Füze Üssünü seçer (birden çok varsa sırayla)."
-	fuze_btn.pressed.connect(_select_fuze)
-	side.add_child(fuze_btn)
-
-	alert_box = VBoxContainer.new()
-	alert_box.anchor_left = 1.0
-	alert_box.anchor_right = 1.0
-	alert_box.offset_left = -208.0
-	alert_box.offset_right = -8.0
-	alert_box.offset_top = 108.0
-	alert_box.add_theme_constant_override("separation", 4)
-	root.add_child(alert_box)
-	var red := StyleBoxFlat.new()
-	red.bg_color = Color(0.55, 0.08, 0.06, 0.88)
-	red.border_color = Color(1.0, 0.45, 0.3)
-	red.set_border_width_all(2)
-	red.set_corner_radius_all(6)
-	var red_hi := red.duplicate()
-	red_hi.bg_color = Color(0.75, 0.15, 0.1, 0.95)
-	for i in ALERT_MAX:
-		var ab := Button.new()
-		ab.custom_minimum_size = Vector2(200, 50)
-		ab.focus_mode = Control.FOCUS_NONE
-		ab.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		ab.clip_text = true
-		ab.add_theme_font_size_override("font_size", 14)
-		ab.add_theme_stylebox_override("normal", red)
-		ab.add_theme_stylebox_override("hover", red_hi)
-		ab.add_theme_stylebox_override("pressed", red_hi)
-		ab.visible = false
-		ab.pressed.connect(_goto_alert.bind(i))
-		alert_box.add_child(ab)
-		alert_btns.append(ab)
-		blockers.append(ab)
+	# Füze Üssü varken füzeler buradan atılır: binayı seçmeye gerek yok.
+	mis_box = HBoxContainer.new()
+	mis_box.add_theme_constant_override("separation", 4)
+	mis_box.visible = false
+	side.add_child(mis_box)
+	for i in 3:
+		var mb := Button.new()
+		mb.custom_minimum_size = Vector2(84, 54)
+		mb.focus_mode = Control.FOCUS_NONE
+		mb.add_theme_font_size_override("font_size", 13)
+		mb.clip_text = true
+		mb.pressed.connect(_side_missile.bind(i))
+		mb.pressed.connect(func(): Game.I.sfx.play("click"))
+		mis_box.add_child(mb)
+		mis_btns.append(mb)
 
 	obj_lbl = Label.new()
 	obj_lbl.anchor_left = 0.5
@@ -213,6 +195,7 @@ func _ready() -> void:
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vb.add_child(sc)
+	touch.watch(sc)
 	actions = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
 	sc.add_child(actions)
@@ -292,65 +275,8 @@ func _process(_dt: float) -> void:
 	minimap.queue_redraw()
 	_update_objective()
 	_update_ability()
-	_update_fuze_btn()
-	_update_alerts()
+	_update_missiles()
 	_run_refreshers()
-
-
-func _player_fuze() -> Array:
-	var out: Array = []
-	for e in Game.I.entities:
-		if e.is_building and e.alive and e.team == Defs.PLAYER and e.kind == "fuze" and e.built:
-			out.append(e)
-	return out
-
-
-func _update_fuze_btn() -> void:
-	var fz := _player_fuze()
-	fuze_btn.visible = not fz.is_empty()
-	if fz.is_empty():
-		return
-	var ready := 0
-	for b in fz:
-		for t in b.missile_ready:
-			if float(t) <= 0.0:
-				ready += 1
-	fuze_btn.text = "Füze Üssü" + (" (%d)" % fz.size() if fz.size() > 1 else "") + ("  —  %d füze hazır" % ready if ready > 0 else "  —  hazırlanıyor")
-
-
-func _select_fuze() -> void:
-	var fz := _player_fuze()
-	if fz.is_empty():
-		return
-	_fuze_i = (_fuze_i + 1) % fz.size()
-	var b = fz[_fuze_i]
-	Game.I.select([b])
-	Game.I.cam.focus = b.global_position
-
-
-var _alert_pos: Array = []
-
-
-func _update_alerts() -> void:
-	var g := Game.I
-	var list: Array = g.attack_list()
-	_alert_pos.clear()
-	for i in ALERT_MAX:
-		var ab: Button = alert_btns[i]
-		if i >= list.size():
-			ab.visible = false
-			continue
-		var a: Dictionary = list[i]
-		var ago := int(g.time - float(a.last))
-		ab.visible = true
-		ab.text = "(!) %s\n%s" % [a.what if a.what != "" else "Saldırı", "şimdi" if ago < 3 else "%d sn önce" % ago]
-		ab.modulate.a = 1.0 if ago < 3 or fmod(g.time, 1.0) > 0.25 else 0.75
-		_alert_pos.append(a.pos)
-
-
-func _goto_alert(i: int) -> void:
-	if i < _alert_pos.size():
-		Game.I.cam.focus = _alert_pos[i]
 
 
 # ---------------------------------------------------------------- simgeler
@@ -478,6 +404,7 @@ func _rebuild_now() -> void:
 		if foot > 0:
 			_btn("Siper Kaz\n%d sn" % int(Defs.DIG_TIME), _task.bind("dig"))
 			_btn("Mayın Döşe\n$%d" % Defs.MINE_COST, _task.bind("mine"))
+			_btn("Engel Kur\n$%d" % int(Defs.BUILDINGS[Defs.bid(0, "engel")].cost), _task.bind("obstacle"))
 			title.text += "   (eve girmek için bir eve dokun)"
 		_btn("Seçimi Bırak", g.clear_selection)
 		return
@@ -488,6 +415,9 @@ func _rebuild_now() -> void:
 	if g.selection.size() == 1 and g.selection[0] is Building:
 		var b: Building = g.selection[0]
 		refreshers.append(_refresh_building_title.bind(b))
+		if not b.built and b.team == Defs.PLAYER:
+			var cb := _btn("İnşaatı İptal Et\n+$%d geri" % int(b.d.get("cost", 0)), g.cancel_building.bind(b))
+			cb.add_theme_color_override("font_color", Color(1.0, 0.6, 0.5))
 		if b.built:
 			for id in b.d.get("slots", b.d.get("produces", [])):
 				if id == "":
@@ -658,7 +588,7 @@ func _update_objective() -> void:
 	var g := Game.I
 	var o := Scenarios.objective(Defs.PLAYER)
 	if o.is_empty():
-		obj_lbl.text = "Görev: düşmanın karargâhını yık" if Scenarios.hq_only() else ""
+		obj_lbl.text = ""
 		return
 	var ts = g.teams[Defs.PLAYER]
 	var prog := ""
@@ -667,9 +597,58 @@ func _update_objective() -> void:
 		return
 	if o.type == "hold":
 		prog = "%d:%02d / %d:%02d" % [int(ts.obj_prog) / 60, int(ts.obj_prog) % 60, int(o.secs) / 60, int(o.secs) % 60]
+	elif o.type == "zones":
+		var me: int = Defs.SIDE[Defs.PLAYER]
+		prog = "bölge %d/%d (düşman %d)  —  %d:%02d / %d:%02d" % [g.regions_held(me), g.regions.size(), g.regions_held(1 - me),
+			int(ts.obj_prog) / 60, int(ts.obj_prog) % 60, int(o.secs) / 60, int(o.secs) % 60]
 	else:
 		prog = "%d / %d" % [int(ts.obj_prog), int(o.count)]
 	obj_lbl.text = "Görev: %s  —  %s      Düşman görevi: %%%d" % [o.text, prog, int(g.objective_fraction(Defs.ENEMY) * 100.0)]
+
+
+## Sol paneldeki füze düğmeleri: her füze için en erken hazır olan Füze Üssü kullanılır.
+func _missile_site(i: int):
+	var best = null
+	for e in Game.I.entities:
+		if e is Building and e.alive and e.built and e.team == Defs.PLAYER and e.kind == "fuze" and i < e.missile_ready.size():
+			if best == null or e.missile_ready[i] < best.missile_ready[i]:
+				best = e
+	return best
+
+
+func _side_missile(i: int) -> void:
+	var b = _missile_site(i)
+	if b != null:
+		Game.I.begin_targeting(b, i)
+
+
+func _update_missiles() -> void:
+	var g := Game.I
+	var ms: Array = Scenarios.country(Defs.PLAYER).missiles
+	var any := false
+	var ts = g.teams[Defs.PLAYER]
+	for i in mis_btns.size():
+		var btn: Button = mis_btns[i]
+		var b = _missile_site(i) if i < ms.size() else null
+		if b == null:
+			btn.visible = false
+			continue
+		var m := g.missile_info(Defs.PLAYER, i)
+		if ts.tier < int(m.tier):
+			btn.visible = false
+			continue
+		any = true
+		btn.visible = true
+		var nm: String = m.name
+		if b.missile_ready[i] > 0.0:
+			btn.text = "%s\n%d sn" % [nm, int(ceil(b.missile_ready[i]))]
+			btn.disabled = true
+		else:
+			btn.text = "%s\n$%d" % [nm, int(m.cost)]
+			btn.disabled = ts.money < float(m.cost) or not b.powered()
+		btn.tooltip_text = "%s: %d hasar, %.0f alan. Dokun, sonra haritada hedefi göster." % [nm, int(m.dmg), float(m.splash)]
+		btn.modulate = Color(1.0, 0.75, 0.6) if g.targeting == b and g.targeting_i == i else Color(1, 1, 1)
+	mis_box.visible = any
 
 
 func _update_ability() -> void:
@@ -845,8 +824,6 @@ func _refresh_building_title(b: Building) -> void:
 	elif not b.queue.is_empty():
 		s += "  |  Üretim: %s %%%d  |  Kuyruk: %d" % [
 			Defs.UNITS[b.queue[0]].name, int(b.prod_fraction() * 100.0), b.queue.size()]
-		if b.waiting_cap():
-			s += "  |  Birlik sınırı dolu: sırada bekliyor"
 	elif b.research_id != "":
 		s += "  |  Araştırma: %s" % b.research_def().name
 	elif b.kind == "teknoloji":
@@ -985,19 +962,6 @@ func _draw_overlay() -> void:
 		overlay.draw_arc(pt3 + Vector2(0, -6), 9.0, 0.0, TAU, 16, tc, 2.0)
 		overlay.draw_string_outline(font, pt3 + Vector2(14, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0, 0.85))
 		overlay.draw_string(font, pt3 + Vector2(14, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, tc)
-	# piyadenin onardığı dost bina ve zırhlılar: yeşil artı
-	for e in g.entities:
-		if not e.alive or e.repair_until < g.time or not Defs.friendly(e.team):
-			continue
-		var wr: Vector3 = e.global_position + Vector3(0, (5.0 if e.is_building else 3.2), 0)
-		if cam.is_position_behind(wr):
-			continue
-		var pr := cam.unproject_position(wr)
-		if not view.has_point(pr):
-			continue
-		var gc := Color(0.45, 1.0, 0.5, 0.6 + 0.4 * absf(sin(g.time * 4.0)))
-		overlay.draw_rect(Rect2(pr.x - 7, pr.y - 2, 14, 4), gc)
-		overlay.draw_rect(Rect2(pr.x - 2, pr.y - 7, 4, 14), gc)
 	# köprülerin canı: hasarlıysa ya da köprü yıkma seçiliyken her zaman
 	for br in g.bridges:
 		if br.hp >= br.max_hp and not g.bridge_pick and not br.down:
@@ -1124,6 +1088,16 @@ func _draw_minimap() -> void:
 			var ra := 5.0 + fmod(g.time * 16.0, 14.0)
 			minimap.draw_arc(_mm(ap[0]), ra, 0.0, TAU, 20, Color(1.0, 0.2, 0.15, 1.0 - (ra - 5.0) / 14.0), 2.5)
 			minimap.draw_circle(_mm(ap[0]), 3.0, Color(1.0, 0.2, 0.15))
+	# bölgeler: sahibinin renginde halka; ele geçirilirken dolan yay
+	for rg in g.regions:
+		var rc := Color(0.92, 0.8, 0.3)
+		if rg.owner_side >= 0:
+			rc = Defs.TEAM_COLORS[Defs.leader(rg.owner_side)].lightened(0.2)
+		var rq := _mm(rg.position)
+		var rr := maxf(5.0, Region.RADIUS / Defs.MAP_W * MM_W)
+		minimap.draw_arc(rq, rr, 0.0, TAU, 20, rc, 2.5)
+		if rg.cap_t > 0.0:
+			minimap.draw_arc(rq, rr + 3.0, -PI * 0.5, -PI * 0.5 + TAU * rg.progress(), 20, Color(1, 1, 1, 0.9), 2.0)
 	for pt in g.points:
 		var c := Color(0.9, 0.9, 0.9)
 		if pt.owner_team != Defs.NEUTRAL:

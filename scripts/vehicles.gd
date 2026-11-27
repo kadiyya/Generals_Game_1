@@ -69,13 +69,29 @@ static func design(id: String, h: Kit, t: Kit) -> float:
 # ---------------------------------------------------------------- piyade
 
 ## Tek asker (ayakta, tüfek önde). launcher: omzunda tanksavar füzesi. Ölçek görünürlük için biraz büyük.
-static func soldier(k: Kit, launcher: bool) -> void:
-	k.push(Vector3.ZERO, Vector3.ZERO, 0.68)
+## part: "body" (gövde, kollar, baş, silah), "thigh_l/r" (uyluk) ya da "shin_l/r" (baldır ve bot). Bacaklar ayrı
+## mesh'tir; Unit onları kalçadan (HIP) ve dizden (KNEE) döndürerek yürütür, diz çöktürür. Parçalar asıl yerlerinde kurulur (çamur ve gölge doğru düşer).
+const SOLDIER_S := 0.68
+const HIP := 0.92
+const KNEE := 0.5
+
+
+static func soldier(k: Kit, launcher: bool, part := "body") -> void:
+	k.push(Vector3.ZERO, Vector3.ZERO, SOLDIER_S)
+	if part != "body":
+		var sx := -1.0 if part.ends_with("_l") else 1.0
+		if part.begins_with("thigh"):
+			k.box("uniform", Vector3(0.18, 0.46, 0.21), Vector3(0.11 * sx, 0.71, 0.0))
+		else:
+			k.box("dark", Vector3(0.15, 0.12, 0.3), Vector3(0.11 * sx, 0.06, 0.04))
+			k.box("uniform", Vector3(0.16, 0.44, 0.19), Vector3(0.11 * sx, 0.32, 0.0))
+			k.box("uniform", Vector3(0.18, 0.1, 0.21), Vector3(0.11 * sx, 0.52, 0.02))
+		k.pop()
+		return
 	for sx in [-1.0, 1.0]:
-		k.box("dark", Vector3(0.15, 0.12, 0.3), Vector3(0.11 * sx, 0.06, 0.04))
-		k.box("uniform", Vector3(0.17, 0.8, 0.2), Vector3(0.11 * sx, 0.5, 0.0), Vector3(-4.0 * sx, 0, 0))
 		k.box("vest", Vector3(0.12, 0.14, 0.08), Vector3(0.13 * sx, 1.02, 0.17))
 		k.box("helmet", Vector3(0.03, 0.12, 0.14), Vector3(0.27 * sx, 1.42, 0.0))
+	k.box("uniform", Vector3(0.4, 0.16, 0.22), Vector3(0, 0.92, 0))
 	k.box("uniform", Vector3(0.48, 0.6, 0.24), Vector3(0, 1.2, 0))
 	k.box("vest", Vector3(0.44, 0.44, 0.3), Vector3(0, 1.2, 0.0))
 	k.box("canvas2", Vector3(0.34, 0.42, 0.18), Vector3(0, 1.24, -0.22))

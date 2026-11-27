@@ -70,14 +70,6 @@ func powered() -> bool:
 	return int(d.get("power", 0)) >= 0 or ts.power_used <= ts.power_prod
 
 
-## Üretimi bitmiş ama birlik sınırı dolu olduğu için sırada bekleyen birim var mı.
-func waiting_cap() -> bool:
-	if queue.is_empty() or prod_t < float(Defs.UNITS[queue[0]].time):
-		return false
-	var ts = Game.I.teams[team]
-	return ts.pop + int(Defs.UNITS[queue[0]].get("pop", 1)) > ts.pop_cap
-
-
 func prod_fraction() -> float:
 	if queue.is_empty():
 		return 0.0
@@ -175,6 +167,7 @@ func _process(dt: float) -> void:
 		cd_timer -= dt
 		scan_timer -= dt
 		valid_target()
+		air_first(dt, wrange())
 		if target == null and scan_timer <= 0.0:
 			scan_timer = 0.3
 			target = find_target(wrange())

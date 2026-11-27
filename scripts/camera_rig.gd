@@ -1,14 +1,15 @@
 class_name CameraRig
 extends Node3D
-## Eğik kuşbakışı kamera. focus yerdeki bakış noktası, dist uzaklık.
+## Eğik kuşbakışı kamera. focus yerdeki bakış noktası, dist uzaklık. Açılışta yakın durur: asker ekran
+## genişliğinin ~%2'si, ağaçlar askerin ~7 katı görünür; uzaklaştırınca bütün cephe görülür.
 
 const PITCH := 1.0   # radyan, aşağı bakış açısı
-const MIN_DIST := 22.0
+const MIN_DIST := 14.0
 const MAX_DIST := 210.0
 
 var camera: Camera3D
 var focus := Vector3.ZERO
-var dist := 60.0
+var dist := 46.0
 
 
 func _ready() -> void:

@@ -109,7 +109,7 @@ func _run() -> void:
 	# 4) yere dokun -> hareket emri
 	var goal := m.position + Vector3(6, 0, 5)
 	await _tap(_screen(goal))
-	_check("yere dokununca birim yola cikar", m.order == "amove" and Entity.flat(m.dest, goal) < 1.0)
+	_check("yere dokununca birim yola cikar", m.order == "move" and Entity.flat(m.dest, goal) < 1.0)
 
 	# 5) çift dokun -> aynı tipin hepsi
 	await _tap(_screen(m.aim_pos()))

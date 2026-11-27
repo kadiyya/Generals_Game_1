@@ -140,6 +140,8 @@ func _act() -> void:
 		used["dig"] = g.order_task([inf[0]], "dig")
 	if g.time > 60.0 and not used.has("mine") and inf.size() >= 2:
 		used["mine"] = g.order_task([inf[1]], "mine")
+	if g.time > 80.0 and not used.has("engel") and inf.size() >= 2:
+		used["engel"] = g.order_task([inf[1]], "obstacle")
 	if g.time > 100.0 and not used.has("ev") and inf.size() >= 1:
 		var best = null
 		for h in g.houses:
@@ -192,7 +194,8 @@ func _process(dt: float) -> void:
 			money.append(int(g.teams[t].money))
 			tiers.append(g.teams[t].tier)
 		for e in g.entities:
-			c[e.team] += 1
+			if e.team >= 0 and e.team < c.size():
+				c[e.team] += 1
 		for p in g.points:
 			if p.owner_team >= 0:
 				own[p.owner_team] += 1
@@ -211,6 +214,8 @@ func _process(dt: float) -> void:
 			garr.append(0)
 			dug.append(0)
 		for e in g.entities:
+			if e.team < 0 or e.team >= ranks.size():
+				continue
 			ranks[e.team] = maxi(ranks[e.team], e.rank)
 			if e is Unit:
 				if e.garrison != null:
@@ -225,6 +230,11 @@ func _process(dt: float) -> void:
 		print("MEKANIK  denenen=%s  rutbe=%s  evde=%s  siperde=%s  mayin=[%d,%d]  gorev=[%d%%,%d%%]" % [
 			used, ranks, garr, dug, g.team_mines(0), g.team_mines(1),
 			int(g.objective_fraction(0) * 100.0), int(g.objective_fraction(1) * 100.0)])
+		if not g.regions.is_empty():
+			var owners: Array = []
+			for rg in g.regions:
+				owners.append(rg.owner_side)
+			print("BOLGE  sahipler=%s  oyuncu=%d  dusman=%d" % [owners, g.regions_held(0), g.regions_held(1)])
 		set_process(false)
 		await get_tree().create_timer(0.2, true, false, true).timeout
 		get_tree().quit()

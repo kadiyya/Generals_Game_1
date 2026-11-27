@@ -68,14 +68,14 @@ const SAVE_PATH := "user://kayit.json"
 const SAVE_V := 3
 var _tick_t := 0.0
 var deposits: Array = []
+var no_supply_rules := false   # geliştirme araçları için (denge düellosu): ikmal cezası yok
+var regions: Array = []      # Region: bağımsız kuvvetlerin tuttuğu, ele geçirilecek bölgeler
 var _dep_t := 90.0
 var _supply_t := 0.0
 var _supply_src: Array = [[], []]   # [taraf] -> [[konum, yarıçap], ...]
 var _oos_note := -100.0
 var pings: Array = []               # küçük haritada yanıp sönen yerler: [konum, bitiş zamanı]
 var attack_pings: Array = []        # saldırı altındaki kendi yerlerin: [konum, bitiş zamanı]
-var attack_log: Array = []          # sağdaki saldırı simgeleri: {pos, what, first, last} (yakın saldırılar birleşir)
-const ATTACK_KEEP := 25.0           # son vuruştan sonra simgenin kalma süresi (sn)
 var _reveal_note := false
 var _left_t := 0.0
 var foe_left := [0, 0]              # tam imha: [taraf] -> kalan bina + birlik
@@ -92,19 +92,23 @@ func _ready() -> void:
 	for t in Defs.N:
 		teams.append(TeamState.new())
 		apply_mods(t, Scenarios.doctrine(t).mods)
+	if Defs.IND >= 0:
+		teams.append(TeamState.new())
 	_build_world()
 	terrain = Terrain.new()
 	add_child(terrain)
 	fog = Fog.new()
 	add_child(fog)
+	if Settings.get_v("nature"):
+		add_child(Birds.new())
 	sfx = Sfx.new()
 	add_child(sfx)
 	cam = CameraRig.new()
 	add_child(cam)
-	for p in ([] if Scenarios.hq_only() else Defs.MAP.points):
+	for p in Defs.MAP.points:
 		var sp := SupplyPoint.new()
 		add_child(sp)
-		sp.setup_point(Vector3(p[0], 0, p[1]), p[2], p[3], p[4], p[5])
+		sp.setup_point(clear_of_zones(Vector3(p[0], 0, p[1])), p[2], p[3], p[4], p[5])
 		points.append(sp)
 	for bd in terrain.bridge_data:
 		var br := Bridge.new()
@@ -118,6 +122,15 @@ func _ready() -> void:
 		for i in Defs.DEPOSIT_FIRST:
 			spawn_deposit(false)
 		_spawn_strategic()
+	for z in Defs.MAP.get("zones", []):
+		if Defs.IND < 0:
+			break
+		var rg := Region.new()
+		add_child(rg)
+		rg.setup_region(terrain.nearest_free(Vector3(z[0], 0, z[1])), z[2])
+		regions.append(rg)
+		if not loading:
+			rg.garrison(true)
 	for h in terrain.house_data:
 		var g := Garrison.new()
 		add_child(g)
@@ -174,14 +187,14 @@ func _ready() -> void:
 		add_child(load("res://tools/uishot.gd").new())
 	elif args.has("--maptest"):
 		add_child(load("res://tools/maptest.gd").new())
+	elif args.has("--viewtest"):
+		add_child(load("res://tools/viewtest.gd").new())
 	elif args.has("--mapshot"):
 		add_child(load("res://tools/mapshot.gd").new())
 	elif args.has("--objtest"):
 		add_child(load("res://tools/objtest.gd").new())
 	elif args.has("--duel"):
 		add_child(load("res://tools/duel.gd").new())
-	elif args.has("--bridgetest"):
-		add_child(load("res://tools/bridgetest.gd").new())
 
 
 # ---------------------------------------------------------------- çarpanlar
@@ -222,25 +235,35 @@ func unit_cost(team: int, id: String) -> int:
 # ---------------------------------------------------------------- dünya
 
 func _build_world() -> void:
+	# Hafif puslu gün ışığı: sıcak güneş, serin gölge, uzakta incelen pus. Zemin ve doğa Terrain'dedir.
+	var ground: Color = Defs.MAP.ground
+	var haze := Color(0.62, 0.7, 0.76).lerp(ground, 0.2)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.05, 0.07, 0.09)
+	env.background_color = haze.darkened(0.45)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.78, 0.8, 0.86)
-	env.ambient_light_energy = 0.45
+	env.ambient_light_color = Color(0.72, 0.8, 0.92)
+	env.ambient_light_energy = 0.5
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_white = 1.6
+	env.fog_enabled = true
+	env.fog_light_color = haze
+	env.fog_density = 0.0007
+	env.fog_sun_scatter = 0.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-52, 35, 0)
-	sun.light_energy = 0.8
+	sun.rotation_degrees = Vector3(-48, 38, 0)
+	sun.light_color = Color(1.0, 0.95, 0.84)
+	sun.light_energy = 1.0
 	sun.shadow_enabled = Settings.get_v("shadows")
 	sun.directional_shadow_max_distance = 110.0
 	# Tek geçişli gölge: kuşbakışı kamerada bölmeli gölge gereksiz ve büyük haritada çok pahalı.
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	add_child(sun)
 
-	dust_color = (Defs.MAP.ground as Color).lerp(Color(0.75, 0.7, 0.6), 0.55)
+	dust_color = ground.lerp(Color(0.75, 0.7, 0.6), 0.55)
 
 
 func _setup_base(team: int, pos: Vector3) -> void:
@@ -288,7 +311,7 @@ func _process(dt: float) -> void:
 		var ts: TeamState = teams[t]
 		var inc := 0.0
 		if ts.hq != null and is_instance_valid(ts.hq) and ts.hq.alive:
-			inc += Defs.HQ_INCOME * (2.0 if Scenarios.hq_only() else 1.0)
+			inc += Defs.HQ_INCOME
 		for p in points:
 			if p.owner_team == t:
 				inc += p.current_income()
@@ -393,39 +416,6 @@ func _heal(dt: float) -> void:
 				if e is Unit:
 					e.update_figures()
 				break
-	_field_repair(dt)
-
-
-## Sahada onarım: kendi piyadesi (piyade ya da tanksavar timi) yanındaki binayı ve zırhlı aracı onarır.
-## Son vuruştan sonra REPAIR_PAUSE saniye beklenir; ikmal hattı dışında onarım yarı hızdadır.
-## Maden Ocağı kendi kuralıyla onarılır, inşaatı süren bina onarılmaz.
-func _field_repair(dt: float) -> void:
-	for e in entities:
-		if not e.alive or e.is_air or e.hp >= e.max_hp or time - e.last_dmg < Defs.REPAIR_PAUSE:
-			continue
-		var rate := 0.0
-		var reach := Defs.REPAIR_R
-		if e.is_building:
-			if not e.built or e.kind == "maden":
-				continue
-			rate = Defs.REPAIR_BLD
-			reach += e.radius
-		elif e.armor == "light" or e.armor == "heavy":
-			rate = Defs.REPAIR_VEH
-			reach += e.radius
-		else:
-			continue
-		var fixer = null
-		for f in nearby(e.global_position, reach + 2.0):
-			if f.alive and f is Unit and f.armor == "inf" and f.team == e.team and f.garrison == null and Entity.flat(f.global_position, e.global_position) <= reach:
-				fixer = f
-				break
-		if fixer == null:
-			continue
-		if not fixer.supplied:
-			rate *= 0.5
-		e.hp = minf(e.max_hp, e.hp + e.max_hp * rate * dt)
-		e.repair_until = time + 0.6
 
 
 # ---------------------------------------------------------------- lojistik ve kaynak yatakları
@@ -454,6 +444,10 @@ func _supply_tick() -> void:
 
 
 func supplied(team: int, pos: Vector3) -> bool:
+	if no_supply_rules:
+		return true
+	if team == Defs.IND:
+		return true   # bağımsız kuvvetler kendi bölgelerinde ikmallidir
 	for s in _supply_src[Defs.SIDE[team]]:
 		if Entity.flat(pos, s[0]) <= s[1]:
 			return true
@@ -489,9 +483,8 @@ func spawn_deposit(announce: bool) -> Deposit:
 		for dp in deposits:
 			if Entity.flat(p, dp.position) < 55.0:
 				ok = false
-		for br in bridges:
-			if br.dist_to(p) < 14.0:
-				ok = false
+		if _near_zone(p):
+			ok = false
 		for e in entities:
 			if e.is_building and Entity.flat(p, e.position) < 12.0:
 				ok = false
@@ -552,13 +545,8 @@ func _separate() -> void:
 			ground.append(e)
 	var n := ground.size()
 	var prev: Array = []
-	# Köprü tabliyesindeki birlikler birbirini yalnızca hafifçe iter: dar köprüde karşılıklı gelen kollar
-	# itişip kilitlenmeden yan yana sıyrılıp geçer.
-	var on_deck := {}
 	for u in ground:
 		prev.append(u.position)
-		if terrain.on_bridge(u.position):
-			on_deck[u] = true
 	for i in n:
 		var a: Entity = ground[i]
 		for bn in nearby(a.position, 8.0):
@@ -567,7 +555,7 @@ func _separate() -> void:
 				continue
 			var dx := a.position.x - b.position.x
 			var dz := a.position.z - b.position.z
-			var min_d := (a.radius + b.radius) * (0.4 if on_deck.has(a) or on_deck.has(b) else 0.85)
+			var min_d := (a.radius + b.radius) * 0.85
 			var d2 := dx * dx + dz * dz
 			if d2 < min_d * min_d:
 				var dd := sqrt(d2)
@@ -590,18 +578,9 @@ func _separate() -> void:
 				var dd := sqrt(d2)
 				var over_d := min_d - dd
 				a.position += Vector3(dx, 0, dz) / dd * over_d + Vector3(-dz, 0, dx) / dd * over_d * 0.5
-	# Suya ya da engele itilen birlik geri alınır; ama itişin engele paralel kısmı korunur (kıyıda ve
-	# köprüde kayarak ilerler, yerinde çakılıp kalmaz).
 	for i in n:
-		var u: Entity = ground[i]
-		if terrain.solid(u.position) and not terrain.solid(prev[i]):
-			var p: Vector3 = prev[i]
-			if not terrain.solid(Vector3(u.position.x, p.y, p.z)):
-				u.position = Vector3(u.position.x, u.position.y, p.z)
-			elif not terrain.solid(Vector3(p.x, p.y, u.position.z)):
-				u.position = Vector3(p.x, u.position.y, u.position.z)
-			else:
-				u.position = p
+		if terrain.solid(ground[i].position) and not terrain.solid(prev[i]):
+			ground[i].position = prev[i]
 
 
 # ---------------------------------------------------------------- olaylar
@@ -634,6 +613,7 @@ func on_building_done(b: Building) -> void:
 		_show_zone()
 	_msg(b.team, "%s hazır." % b.d.name)
 	if b.team == Defs.PLAYER:
+		sfx.play("build")
 		hud.rebuild()
 
 
@@ -646,32 +626,13 @@ func on_point_captured(p: SupplyPoint) -> void:
 
 
 func on_missile_intercepted(src_team: int) -> void:
+	sfx.play("intercept")
 	hud.toast("Füzen hava savunma tarafından önlendi." if src_team == Defs.PLAYER else "Düşman füzesi önlendi!")
-
-
-## Saldırı kaydı: sağ kenardaki simge listesine ekler ya da yakındaki kaydı tazeler.
-func log_attack(pos: Vector3, what: String) -> void:
-	for a in attack_log:
-		if Entity.flat(a.pos, pos) < 24.0:
-			a.last = time
-			a.pos = pos
-			if what != "" and a.what == "":
-				a.what = what
-			return
-	attack_log.append({pos = pos, what = what, first = time, last = time})
-
-
-## Saldırı simgeleri: yeniden eskiye (son vuruşa göre).
-func attack_list() -> Array:
-	var out := attack_log.filter(func(a): return time - a.last < ATTACK_KEEP)
-	out.sort_custom(func(x, y): return x.last > y.last)
-	return out
 
 
 ## Kendi binan ya da kaynağın vuruldu: küçük haritada kırmızı yanıp söner, binanın üstünde uyarı çıkar.
 func alert_base(pos := Vector3.INF, what := "") -> void:
 	if pos != Vector3.INF:
-		log_attack(pos, what)
 		var merged := false
 		for a in attack_pings:
 			if Entity.flat(a[0], pos) < 24.0:
@@ -773,18 +734,14 @@ func queue_unit(b: Building, id: String) -> bool:
 	if ud.cls in Defs.PLANE_CLASSES and plane_count(b.team) >= Defs.PLANES_PER_AIRFIELD * count_kind(b.team, "havaalani"):
 		_msg(b.team, "Pistler dolu: uçak için yeni bir Hava Alanı kur.")
 		return false
-	# Birlik sınırı doluysa oyuncunun birimi yine kuyruğa girer, yer açılınca çıkar (sırada bekler).
-	# Yapay zekâ paranı boşa bağlamasın diye sınırda üretim emri vermez.
-	var full := ts.pop + queued_pop(b.team) + int(ud.get("pop", 1)) > ts.pop_cap
-	if full and b.team != Defs.PLAYER:
+	if ts.pop + queued_pop(b.team) + int(ud.get("pop", 1)) > ts.pop_cap:
+		_msg(b.team, "Birlik sınırı doldu.")
 		return false
 	if ts.money < cost:
 		_msg(b.team, "Yetersiz para.")
 		return false
 	ts.money -= cost
 	b.queue.append(id)
-	if full:
-		_msg(b.team, "Birlik sınırı dolu (%d): birim sırada bekleyecek, yer açılınca çıkar." % ts.pop_cap)
 	return true
 
 
@@ -950,6 +907,75 @@ func place_building(team: int, kind: String, pos: Vector3) -> bool:
 	if team == Defs.PLAYER and not b.crane_active:
 		hud.toast("Vinç meşgul: inşaat sıraya alındı. İnşa menüsünden vinç alabilirsin.")
 	return true
+
+
+## Bölgeli haritada kaynaklar (ikmal noktası, kasaba, petrol, maden yatağı) bölgelerden ZONE_CLEAR uzakta durur:
+## bölgeyi tutan bağımsız kuvvetler ve oradaki birlikler onları bölgeden vuramasın.
+## (Bölge yarıçapı 16, savunucular merkezden ~10 içeride, en uzun menzil 25, tepeden +%15.)
+const ZONE_CLEAR := 52.0
+
+
+func _near_zone(p: Vector3) -> bool:
+	if Defs.IND < 0:
+		return false
+	for z in Defs.MAP.get("zones", []):
+		if Vector2(p.x - float(z[0]), p.z - float(z[1])).length() < ZONE_CLEAR:
+			return true
+	return false
+
+
+## Bölgeye yakın kaynağı, en yakın bölgenin tersi yönünde düz ve boş bir yere taşır.
+func clear_of_zones(p: Vector3) -> Vector3:
+	if not _near_zone(p):
+		return p
+	var best_z := Vector2.ZERO
+	var bd := 1e9
+	for z in Defs.MAP.zones:
+		var dd := Vector2(p.x - float(z[0]), p.z - float(z[1])).length()
+		if dd < bd:
+			bd = dd
+			best_z = Vector2(float(z[0]), float(z[1]))
+	var away := Vector2(p.x, p.z) - best_z
+	if away.length() < 0.1:
+		away = Vector2(1, 0)
+	var base_ang := away.angle()
+	for step in range(0, 30):
+		var r := ZONE_CLEAR + 2.0 + step * 2.0
+		for k in [0, 1, -1, 2, -2, 3, -3, 4, -4, 6, -6]:
+			var a: float = base_ang + k * 0.2
+			var q := Vector3(best_z.x + cos(a) * r, 0, best_z.y + sin(a) * r)
+			if absf(q.x) > Defs.MAP_W * 0.5 - 10.0 or absf(q.z) > Defs.MAP_H * 0.5 - 10.0 or _near_zone(q):
+				continue
+			var ok := true
+			for off in [Vector3.ZERO, Vector3(4, 0, 0), Vector3(-4, 0, 0), Vector3(0, 0, 4), Vector3(0, 0, -4)]:
+				if not terrain.is_land(q + off) or terrain.solid(q + off):
+					ok = false
+			for t in Defs.N:
+				if Entity.flat(q, Defs.MAP.team_bases[t]) < 50.0:
+					ok = false
+			for pt in points:
+				if Entity.flat(q, pt.position) < 20.0:
+					ok = false
+			if ok:
+				return q
+	return p
+
+
+## İnşaat hâlindeki binayı iptal eder: parası tamamen geri verilir, bina kaldırılır.
+func cancel_building(b: Building) -> void:
+	if b == null or not is_instance_valid(b) or b.built or not b.alive:
+		return
+	var cost := float(b.d.get("cost", 0))
+	teams[b.team].money += cost
+	if b.deposit != null and is_instance_valid(b.deposit):
+		b.deposit.mine = null
+	b.alive = false
+	b.visible = false
+	on_entity_died(b)
+	b.queue_free()
+	if b.team == Defs.PLAYER:
+		hud.toast("%s inşaatı iptal edildi: $%d geri geldi." % [b.d.name, int(cost)])
+		hud.rebuild()
 
 
 func begin_placing(kind: String) -> void:
@@ -1174,9 +1200,8 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	if not b.powered():
 		_msg(b.team, "Enerji yetersiz.")
 		return false
-	# Füze yalnızca o an görülen bir yere atılır (keşif dronu, İHA ya da birlik gözü gerekir).
-	if not fog.sees(b.team, pos):
-		_msg(b.team, "Hedef görülmüyor. Füze yalnızca görebildiğin bir yere atılır: önce keşif yap.")
+	if not fog.sees(b.team, pos) and not known_spot(b.team, pos):
+		_msg(b.team, "Hedef görülmüyor. Önce keşif yap (kaynaklar ve stratejik hedefler görmeden de vurulabilir).")
 		return false
 	if ts.money < float(m.cost):
 		_msg(b.team, "Yetersiz para.")
@@ -1203,13 +1228,7 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	s.splash = float(m.splash)
 	s.boom = 6.0
 	s.trail = true
-	if not m.get("hypersonic", false):
-		for e in entities:
-			if e.is_building and Defs.foe(b.team, e.team) and e.kind == "sam" and e.built and e.powered():
-				if Entity.flat(e.position, pos) <= e.wrange() and randf() < Defs.INTERCEPT_CHANCE:
-					s.intercept_at = randf_range(0.6, 0.85)
-					fx_tracer(e.muzzle_pos(), e.muzzle_pos() + Vector3(0, 30, 0), Color(1, 1, 1), 0.15, 0.4)
-					break
+	_arm_ballistic(s, m)
 	add_child(s)
 	s.launch()
 	if b.team == Defs.PLAYER:
@@ -1357,17 +1376,36 @@ func order_attack(units: Array, e: Entity) -> void:
 			if u.has_weapon() and u.can_hit(e):
 				u.target = e
 		elif u is Unit:
+			# Hedefe ateş edemeyen birlik (dron savar, EH aracı...) yerinde kalır; düşmanın dibine girmez.
 			if u.has_weapon() and u.can_hit(e):
 				u.attack(e)
-			else:
-				# Bu hedefe ateş edemeyen birlik (silahsız keşif, EH...) hedefin içine girmeye çalışmaz:
-				# kenarının yakınına kadar gider, orada bekler.
-				var away: Vector3 = u.global_position - e.global_position
-				away.y = 0.0
-				var stand: Vector3 = e.global_position + (away.normalized() if away.length() > 0.1 else Vector3.RIGHT) * (float(e.radius) + float(u.radius) + 4.0)
-				u.go(stand, true)
 	if not units.is_empty() and units[0].team == Defs.PLAYER:
 		fx_marker(e.global_position, Color(1.0, 0.3, 0.2))
+		var none := true
+		for u in units:
+			if u.has_weapon() and u.can_hit(e):
+				none = false
+		if none:
+			hud.toast("Seçili birlikler bu hedefe ateş edemez.")
+
+
+## Bir dosta saldırı var: yakındaki boşta (emirsiz) silahlı dost birlikler saldırgana yönelir. Yürüyen birlik emrini
+## bozmaz. Saldırgan görülmüyorsa (topçu, uzaktan füze) yardıma gelen saldırının geldiği yöne bakar.
+const HELP_R := 26.0
+
+
+func call_help(victim, attacker) -> void:
+	if victim.team == Defs.IND:
+		return
+	for u in nearby(victim.global_position, HELP_R + 4.0):
+		if not (u is Unit) or not u.alive or u == victim or u.guard or not Defs.ally(u.team, victim.team):
+			continue
+		if u.order != "idle" or u.target != null or u.garrison != null:
+			continue
+		if Entity.flat(u.global_position, victim.global_position) > HELP_R:
+			continue
+		if u.has_weapon() and u.can_hit(attacker):
+			u.target = attacker
 
 
 func order_stop(units: Array) -> void:
@@ -1392,13 +1430,11 @@ func order_retreat(units: Array) -> void:
 			u.retreating = true
 
 
-## Piyade görevleri: siper kaz, mayın döşe. Yalnızca piyade ve tanksavar timi yapabilir.
+## Piyade görevleri: siper kaz, mayın döşe, engel kur. Yalnızca piyade ve tanksavar timi yapabilir.
 func order_task(units: Array, kind: String) -> int:
 	var n := 0
 	for u in units:
 		if u is Unit and u.armor == "inf" and u.alive:
-			if kind == "obstacle":
-				continue   # tanksavar engeli oyundan kaldırıldı
 			if kind == "dig" and (u.entrenched or u.garrison != null):
 				continue
 			u.do_task(kind)
@@ -1516,10 +1552,22 @@ func _objective(t: int, dt: float) -> void:
 		return
 	var ts: TeamState = teams[t]
 	var need := 1.0
-	if o.type == "hold":
+	if o.type == "hold" or o.type == "zones":
+		# Süre kesintisiz olmalı: nokta ya da bölgelerden biri elden çıkınca sayaç baştan başlar.
 		need = float(o.secs)
-		if Defs.ally(points[o.point].owner_team, t):
+		var held: bool
+		if o.type == "hold":
+			held = Defs.ally(points[o.point].owner_team, t)
+		else:
+			held = regions_held(Defs.SIDE[t]) >= regions.size() and not regions.is_empty()
+		if held:
 			ts.obj_prog += dt
+		elif ts.obj_prog > 0.0:
+			if ts.obj_prog >= 3.0:
+				var what: String = (points[o.point].d.name if o.type == "hold" else "Bölgelerden biri")
+				hud.toast(("%s elden çıktı: görev sayacı sıfırlandı." if Defs.friendly(t) else "Düşman tuttuğu yeri kaybetti (%s): sayacı sıfırlandı.") % what, 6.0)
+			ts.obj_prog = 0.0
+			ts.obj_note = 0
 	elif o.type == "annihilate":
 		var left: int = foe_left[1 - Defs.SIDE[t]]
 		ts.obj_prog = 1.0 if left == 0 and time > 2.0 else 0.0
@@ -1551,9 +1599,10 @@ func _count_left() -> void:
 			continue
 		if not e.is_building and e.d.has("life"):
 			continue
+		if e.team == Defs.IND:
+			continue
 		foe_left[Defs.SIDE[e.team]] += 1
 	attack_pings = attack_pings.filter(func(a): return time < a[1])
-	attack_log = attack_log.filter(func(a): return time - a.last < ATTACK_KEEP)
 
 
 ## Yok etme görevinde hedefler: 2. dakikadan sonra düşmanın hedef binaları haritada açılır ve işaretlenir.
@@ -1652,8 +1701,29 @@ func objective_fraction(t: int) -> float:
 	var o := Scenarios.objective(t)
 	if o.is_empty() or o.type == "annihilate":
 		return 0.0
-	var need := float(o.secs) if o.type == "hold" else float(o.count)
+	var need := float(o.secs) if o.type in ["hold", "zones"] else float(o.count)
 	return clampf(teams[t].obj_prog / need, 0.0, 1.0)
+
+
+## Bir tarafın elindeki bölge sayısı.
+func regions_held(side: int) -> int:
+	var n := 0
+	for rg in regions:
+		if rg.owner_side == side:
+			n += 1
+	return n
+
+
+func on_region_changed(rg: Region, before: int) -> void:
+	var me: int = Defs.SIDE[Defs.PLAYER]
+	if rg.owner_side == me:
+		hud.toast("%s ele geçirildi (%d/%d bölge)." % [rg.rname, regions_held(me), regions.size()], 6.0)
+		sfx.play("rank")
+	elif before == me:
+		hud.toast("%s elden çıktı!" % rg.rname, 6.0)
+		alert_base(rg.position, rg.rname)
+	elif rg.owner_side >= 0:
+		hud.toast("Düşman %s bölgesini aldı (%d/%d)." % [rg.rname, regions_held(rg.owner_side), regions.size()], 6.0)
 
 
 # ---------------------------------------------------------------- doktrin yeteneği
@@ -1723,8 +1793,8 @@ func use_ability(team: int, pos: Vector3) -> bool:
 			for i in 8:
 				var u = spawn_unit(id, team, from + Vector3(randf_range(-3, 3), 0, randf_range(-3, 3)))
 				u.set_patrol(pos + Vector3(randf_range(-5, 5), 0, randf_range(-5, 5)))
-		"ikmal":
-			ts.tanker_until = time + 60.0
+		"akin":
+			_air_raid(team, pos)
 		"baraj":
 			for i in 14:
 				get_tree().create_timer(0.5 * i, false).timeout.connect(
@@ -1733,14 +1803,9 @@ func use_ability(team: int, pos: Vector3) -> bool:
 			var src = nearest_building(team, "fuze", pos)
 			var start: Vector3 = (src.muzzle_pos() if src != null else ts.hq.position + Vector3(0, 6, 0))
 			var m := missile_info(team, 0)
-			var sams: Array = []
-			for e in entities:
-				if e.is_building and Defs.foe(team, e.team) and e.kind == "sam" and e.built and e.powered() and Entity.flat(e.position, pos) <= e.wrange():
-					sams.append(e)
 			for i in 4:
-				# Her batarya en çok bir füzeyi önleyebilir: doyurma saldırısı.
-				var stop := i < sams.size() and randf() < Defs.INTERCEPT_CHANCE + 0.3
-				_missile_shot(team, start, pos + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)), float(m.dmg) * 0.8, float(m.splash), stop, src)
+				# Doyurma: hava savunmasının silahı her atışta bir füzeye yetişir; dört füzeyi birden durduramaz.
+				_missile_shot(team, start, pos + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)), float(m.dmg) * 0.8, float(m.splash), false, src)
 		"seferberlik":
 			var id := unit_of(team, "inf")
 			var hq = ts.hq
@@ -1775,6 +1840,28 @@ func _nearest_own(team: int, pos: Vector3) -> Vector3:
 	return best
 
 
+## Hava Akını: takımın bombardıman (yoksa savaş) uçağından iki tanesi üssün arkasından kalkar, hedefe girer,
+## bomba bırakıp geri döner ve harita dışında kaybolur. Gerçek birlik oldukları için hava savunması onları vurabilir.
+func _air_raid(team: int, pos: Vector3) -> void:
+	var id := unit_of(team, "striker")
+	if id == "":
+		id = unit_of(team, "fighter")
+	if id == "":
+		id = unit_of(team, "uav_heavy")
+	var hq = teams[team].hq
+	var from: Vector3 = hq.position if hq != null and is_instance_valid(hq) else Vector3(-signf(pos.x) * Defs.MAP_W * 0.5, 0, pos.z)
+	var back := Vector3(signf(from.x) * (Defs.MAP_W * 0.5 + 20.0), 0, from.z)
+	for i in 2:
+		var def: Dictionary = Defs.UNITS[id].duplicate()
+		def.pop = 0
+		var u: AirUnit = AirUnit.new()
+		add_child(u)
+		u.position = back + Vector3(0, 0, (i - 0.5) * 8.0)
+		u.setup(id, team, def)
+		entities.append(u)
+		u.start_raid(pos + Vector3((i - 0.5) * 5.0, 0, (i - 0.5) * 3.0), back)
+
+
 func _sky_shell(team: int, pos: Vector3) -> void:
 	if over:
 		return
@@ -1795,6 +1882,13 @@ func _sky_shell(team: int, pos: Vector3) -> void:
 	s.boom = 2.0
 	add_child(s)
 	s.launch()
+
+
+## Balistik füzenin canı: savaş başlığıyla orantılı; hipersonik füze daha dayanıklı ve önlemesi zor.
+func _arm_ballistic(s: Shot, m: Dictionary) -> void:
+	s.hypersonic = m.get("hypersonic", false)
+	s.bhp_max = (260.0 + float(m.dmg) * 0.12) * (1.8 if s.hypersonic else 1.0)
+	s.bhp = s.bhp_max
 
 
 func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: float, intercepted: bool, src = null) -> void:
@@ -1820,6 +1914,7 @@ func _missile_shot(team: int, start: Vector3, pos: Vector3, dmg: float, splash: 
 	s.trail = true
 	if intercepted:
 		s.intercept_at = randf_range(0.6, 0.85)
+	_arm_ballistic(s, {dmg = dmg})
 	add_child(s)
 	s.launch()
 
@@ -2050,6 +2145,9 @@ func save_game() -> void:
 		if is_instance_valid(dp):
 			data.deposits.append([snappedf(dp.position.x, 0.01), snappedf(dp.position.z, 0.01), dp.rich, snappedf(dp.reserve, 1.0)])
 	data.dep_t = _dep_t
+	data.regions = []
+	for rg in regions:
+		data.regions.append([rg.owner_side, rg.cap_side, snappedf(rg.cap_t, 0.1), snappedf(rg.respawn_t, 0.1), rg.waves])
 	for ts in teams:
 		data.teams.append({
 			money = ts.money, tier = ts.tier, upgrading = ts.upgrading, upgrade_t = ts.upgrade_t,
@@ -2189,6 +2287,13 @@ func _restore(data: Dictionary) -> void:
 		terrain.block_circle(dp.position, 1.6, true)
 		deposits.append(dp)
 	_dep_t = float(data.get("dep_t", 90.0))
+	var rd: Array = data.get("regions", [])
+	for i in mini(rd.size(), regions.size()):
+		regions[i].owner_side = int(rd[i][0])
+		regions[i].cap_side = int(rd[i][1])
+		regions[i].cap_t = float(rd[i][2])
+		regions[i].respawn_t = float(rd[i][3])
+		regions[i].waves = int(rd[i][4])
 	for e in entities:
 		if e is Building and e.kind == "maden":
 			var dp = deposit_at(e.position)

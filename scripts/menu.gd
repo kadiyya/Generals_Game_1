@@ -3,6 +3,8 @@ extends Control
 ## Oyuncu her senaryoda iki tarafı da oynayabilir.
 
 var list: VBoxContainer
+var touch: TouchScroll
+var sfx: Sfx
 var detail: VBoxContainer
 var world: WorldMap
 var logo: Logo
@@ -27,7 +29,7 @@ func _ready() -> void:
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--maptest") or args.has("--uishot") or args.has("--objtest") or args.has("--bridgetest"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--viewtest") or args.has("--maptest") or args.has("--uishot") or args.has("--objtest"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:
@@ -39,24 +41,36 @@ func _ready() -> void:
 	theme = th
 	world = WorldMap.new()
 	add_child(world)
+	# Telefonun kamera deliği / çentiği yazının üstüne gelmesin: güvenli alan payı (en az 18 px).
+	var ins := TouchScroll.safe_insets(get_viewport())
+	var pl := maxf(18.0, ins.x + 10.0)
+	var pr := maxf(18.0, ins.z + 10.0)
+	var pt := maxf(10.0, ins.y + 6.0)
 	logo = Logo.new()
-	logo.position = Vector2(18, 10)
+	logo.position = Vector2(pl, pt)
 	logo.size = Vector2(520, 118)
 	add_child(logo)
 	var hb := HBoxContainer.new()
 	hb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hb.offset_top = 136
-	hb.offset_left = 18
-	hb.offset_right = -18
-	hb.offset_bottom = -14
+	hb.offset_top = 126 + pt
+	hb.offset_left = pl
+	hb.offset_right = -pr
+	hb.offset_bottom = -maxf(14.0, ins.w + 8.0)
 	hb.add_theme_constant_override("separation", 18)
 	add_child(hb)
 	var left := _panel()
 	left.custom_minimum_size = Vector2(400, 0)
 	hb.add_child(left)
+	touch = TouchScroll.new()
+	add_child(touch)
+	# giriş ekranı müziği
+	sfx = Sfx.new()
+	sfx.theme = "menu"
+	add_child(sfx)
 	var sc := ScrollContainer.new()
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left.add_child(sc)
+	touch.watch(sc)
 	list = VBoxContainer.new()
 	list.add_theme_constant_override("separation", 8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -75,11 +89,16 @@ func _ready() -> void:
 	sc2.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb.add_child(sc2)
+	touch.watch(sc2)
 	detail = VBoxContainer.new()
 	detail.add_theme_constant_override("separation", 10)
 	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc2.add_child(detail)
 	_show(Scenarios.chosen if not Scenarios.LIST[Scenarios.chosen].get("locked", false) else 0)
+	if args.has("--menutest"):
+		var mt = load("res://tools/menutest.gd").new()
+		add_child(mt)
+		mt.run.call_deferred(self)
 	for a in args:
 		if a.begins_with("--menushot="):
 			_menushot.call_deferred(a.trim_prefix("--menushot="))
@@ -108,6 +127,7 @@ func _list_btn(text: String, col: Color, cb: Callable) -> Button:
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_color_override("font_color", col)
 	b.pressed.connect(cb)
+	b.pressed.connect(func(): if sfx != null: sfx.play("click"))
 	list.add_child(b)
 	return b
 
@@ -295,8 +315,6 @@ func _goal_detail(scn: Dictionary) -> String:
 	var id: String = Scenarios.GOALS[Scenarios.goal].id
 	if id == "imha":
 		return ""
-	if id == "karargah":
-		return "Haritada ele geçirilecek nokta yok."
 	if id == "tut":
 		return "Kilit nokta: %s." % Scenarios.MAPS[scn.map].points[0][5]
 	var ca: String = Scenarios.COUNTRIES[scn.a].name
@@ -325,7 +343,19 @@ func _settings() -> void:
 		cb.button_pressed = Settings.get_v(k)
 		cb.custom_minimum_size = Vector2(0, 56)
 		cb.focus_mode = Control.FOCUS_NONE
-		cb.toggled.connect(func(on: bool): Settings.set_v(k, on))
+		cb.toggled.connect(func(on: bool):
+			Settings.set_v(k, on)
+			if k == "music" and sfx != null:
+				if on:
+					sfx.queue_free()
+					sfx = Sfx.new()
+					sfx.theme = "menu"
+					add_child(sfx)
+				else:
+					sfx.music.stop()
+			elif k == "notch":
+				# kenar boşluğu hemen uygulansın: ekran yeniden kurulur
+				get_tree().reload_current_scene.call_deferred())
 		detail.add_child(cb)
 	detail = holder
 

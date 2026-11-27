@@ -12,7 +12,7 @@ Bu dokümandaki bütün sayılar başlangıç değeridir; oynanabilir sürümde 
 1. **Parmak hızı değil karar kazandırır.** Tekrarlayan işler (kaynak toplama, yeniden silahlanma, hedef seçme) otomatiktir.
 2. **Görmediğini vuramazsın.** Keşif, oyunun merkezindeki mekaniktir.
 3. **Her birimin net bir karşılığı vardır.** Oyuncu ekrana bakınca neyin neyi yendiğini anlayabilmeli.
-4. **Az birim, anlamlı birim.** Birim sınırı 45. Piyade manga olarak hareket eder.
+4. **Az birim, anlamlı birim.** Birim sınırı 40. Piyade manga olarak hareket eder.
 5. **Harita kontrolü = gelir.** Üste oturan kaybeder.
 
 ## 2. Zafer koşulu

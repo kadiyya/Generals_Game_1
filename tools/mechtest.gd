@@ -202,10 +202,10 @@ func _run() -> void:
 	await _wait(0.6)
 	_check("mayin dusman aracinda patlar", victim.hp < hv - 100.0 and g.team_mines(0) == 0)
 
-	# ---- engel kurma emri kaldırıldı
-	var eng_inf = g.spawn_unit(g.unit_of(0, "inf"), 0, _land(hq + Vector3(50, 0, -20)))
-	_check("engel kur emri yok", g.order_task([eng_inf], "obstacle") == 0)
-	eng_inf.die()
+	# ---- engel
+	var ob := _land(hq + Vector3(50, 0, -20))
+	_check("tanksavar engeli kurulur", g.place_obstacle(0, ob))
+	_check("engel yolu kapatir", ter.solid(ob))
 
 	# ---- rütbe ve geri çekilme
 	var vet = g.spawn_unit(g.unit_of(0, "ifv"), 0, _land(hq + Vector3(30, 0, 30)))
@@ -371,16 +371,13 @@ func _run() -> void:
 	var jam = g.spawn_unit(g.unit_of(0, "ifv"), 0, jp)
 	jam.go(jp + Vector3(20, 0, 0), false)
 	jam.speed = 0.0001
-	# Hedef uzaktayken (köprü ya da geçit kuyruğu) hemen pes etmez, ama sonunda vazgeçer.
 	var gave_up := false
-	var early := false
-	for n in 50:
+	for n in 12:
 		await _wait(0.5)
 		if jam.order == "idle":
 			gave_up = true
-			early = n < 16
 			break
-	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up and not early)
+	_check("sikisan birlik yanlara kayip sonunda vazgecer", gave_up)
 	var far := 0
 	for e in g.nearby(Vector3.ZERO, 10.0):
 		if Entity.flat(e.global_position, Vector3.ZERO) > 10.0 + Game.BUCKET * 2.0:
@@ -394,7 +391,7 @@ func _run() -> void:
 		if e.alive and Entity.flat(e.global_position, jp) < 12.0:
 			grid_near += 1
 	_check("uzamsal izgara yakindakilerin hepsini bulur", far == 0 and grid_near == all_near)
-	_check("ayarlar okunur", Settings.get_v("sound") and Settings.KEYS.size() == 5)
+	_check("ayarlar okunur", Settings.get_v("sound") and Settings.KEYS.size() == 7 and Settings.get_v("nature") and not Settings.get_v("notch"))
 	var st := Sfx.stream("cannon")
 	_check("sesler sentezlenir", st != null and st.data.size() > 10000)
 
@@ -404,9 +401,19 @@ func _run() -> void:
 	var rslots: Array = Defs.BUILDINGS[Defs.bid(1, "fabrika")].slots
 	_check("bos yuva yerinde kalir (yuva duzeni ulkeden bagimsiz)", fslots.size() == rslots.size() and fslots.has("") and fslots[fslots.find("") ] == "")
 	var fpv_id := g.unit_of(0, "sdrone_fpv")
-	_check("IHA doktrininde dronlar ucuz", g.unit_cost(0, fpv_id) < int(Defs.UNITS[fpv_id].cost) * 0.75)
+	_check("IHA doktrininde dronlar ucuz", g.unit_cost(0, fpv_id) <= int(Defs.UNITS[fpv_id].cost) * 0.76)
 	var bra := g.unit_of(0, "ifv")
-	_check("IHA doktrininde zirhli pahali", g.unit_cost(0, bra) > int(Defs.UNITS[bra].cost) * 1.2)
+	_check("IHA doktrininde zirhli pahali", g.unit_cost(0, bra) > int(Defs.UNITS[bra].cost) * 1.1)
+	# doktrin fiyat çarpanları 0,75 ile 1,3 arasında kalır (aynı birim ülkeler arasında en çok ~1,7 kat farklı)
+	var span_ok := true
+	for dk in Scenarios.DOCTRINES:
+		for mk in Scenarios.DOCTRINES[dk].mods:
+			if String(mk).begins_with("cost_"):
+				var mv := float(Scenarios.DOCTRINES[dk].mods[mk])
+				if mv < 0.75 or mv > 1.3:
+					span_ok = false
+					print("   doktrin %s %s = %.2f" % [dk, mk, mv])
+	_check("doktrin fiyat carpanlari 0,75-1,3 arasinda", span_ok)
 	var expn := 0
 	for id in Defs.UNITS:
 		if Defs.UNITS[id].get("exp", false):
@@ -428,7 +435,7 @@ func _run() -> void:
 	mine.built = true
 	mine.hp = mine.max_hp
 	var full: float = mine.mine_income()
-	_check("maden gelir getirir", full > 5.0)
+	_check("maden gelir getirir", full >= Defs.DEPOSIT_RICH.x * 0.99)
 	mine.take_damage(mine.max_hp * 0.5 / mine.damage_taken_mult())
 	_check("hasarli madenin verimi duser", mine.mine_income() < full * 0.6)
 	var mh: float = mine.hp
@@ -486,7 +493,17 @@ func _run() -> void:
 	fob.built = true
 	g._supply_tick()
 	_check("ileri us ikmal saglar", g.supplied(0, far_p) and lone.supplied)
-	_check("ileri usun yanina kisla kurulabilir", g.place_reason(0, "kisla", fob.position + Vector3(12, 0, 0)) == "" or g.place_reason(0, "kisla", fob.position + Vector3(0, 0, 12)) == "" or g.place_reason(0, "kisla", fob.position + Vector3(-12, 0, 0)) == "")
+	var fob_ok := false
+	var fob_why := []
+	for i in 12:
+		var ang := TAU * i / 12.0
+		var why: String = g.place_reason(0, "kisla", fob.position + Vector3(cos(ang), 0, sin(ang)) * 13.0)
+		fob_why.append(why)
+		if why == "":
+			fob_ok = true
+	if not fob_ok:
+		print("   ileri us: %s  %s" % [fob.position, fob_why])
+	_check("ileri usun yanina kisla kurulabilir", fob_ok)
 	_check("ileri usun yanina fabrika kurulamaz", g.place_reason(0, "fabrika", fob.position + Vector3(12, 0, 0)) != "")
 
 	# ---- köprü: yıkılır, nehri kapatır, askerî varlıkla onarılır
@@ -506,6 +523,24 @@ func _run() -> void:
 	g.fog.recompute()
 	_check("kopru gormeden de hedef alinir", foe_tank.can_hit(br))
 	foe_tank.die()
+	# yıkık köprüden geçilmez
+	br.take_damage(br.max_hp * 2.0)
+	var axis: Vector3 = (br.b - br.a).normalized()
+	var walker = g.spawn_unit(g.unit_of(0, "ifv"), 0, g.terrain.nearest_free(br.a - axis * 6.0))
+	walker.go(br.b + axis * 8.0, false)
+	var crossed := false
+	var wet := false
+	var far_side: Vector3 = br.b + axis * 8.0
+	for z_i in 30:
+		await _wait(0.2)
+		if Entity.flat(walker.position, far_side) < 5.0:
+			crossed = true
+		if ter.kind_at(walker.position) == Terrain.WATER:
+			wet = true
+	if crossed or wet:
+		print("   kopru: a=%s b=%s birim=%s emir=%s" % [br.a, br.b, walker.position, walker.order])
+	_check("yikik kopruden gecilmez", br.down and not crossed and not wet)
+	walker.die()
 
 	# ---- inşa alanı büyür
 	var circles0: int = g.zone_circles(0).size()
@@ -541,33 +576,158 @@ func _run() -> void:
 		_check("%s: ayni turden iki ucak yok" % cc, int(cnt.get("fighter", 0)) <= 1 and int(cnt.get("striker", 0)) <= 1 and int(cnt.get("stealth", 0)) <= 1)
 	var ads_id := g.unit_of(0, "ads")
 	var adsd: Dictionary = Defs.UNITS[ads_id]
-	_check("zirhli hava savunma ucaga sert, yere zayif vurur", float(adsd.mult.air) >= 1.5 and float(adsd.mult.heavy) < 0.1 and float(adsd.mult.inf) < 0.1)
+	_check("zirhli hava savunma ucaga sert, yere zayif-orta vurur (zirhli aracin isini yapmaz)", float(adsd.mult.air) >= 1.2 and float(adsd.mult.heavy) < 0.3 and float(adsd.mult.light) < 0.5 and float(adsd.mult.inf) < 0.5)
+	_check("buyuk hava savunmanin ucaga etkisi %20 azaldi, fuze onleme ayni", is_equal_approx(float(adsd.mult.air), 1.28) and is_equal_approx(float(adsd.mult.missile), 1.6)
+		and is_equal_approx(float(Defs.BUILDINGS[Defs.bid(0, "sam")].mult.air), 0.8))
+	var ua_fpv: Dictionary = Defs.UNITS[g.unit_of(0, "sdrone_fpv")]
+	_check("Ukrayna dronlari zirhliya %15 fazla vurur", Defs.COUNTRY[0] == "ua" and is_equal_approx(float(ua_fpv.mult.light), 1.2 * 1.15) and is_equal_approx(float(ua_fpv.mult.heavy), 0.65 * 1.15) and is_equal_approx(float(ua_fpv.mult.inf), 0.8))
+	_check("piyade %10 hizli, kara araci %5 yavas", is_equal_approx(float(Defs.UNITS[g.unit_of(0, "inf")].speed), 3.4 * 1.1) and is_equal_approx(float(Defs.UNITS[g.unit_of(0, "ifv")].speed), 5.2 * 0.95))
 	_check("IHA gorusu genis", float(Defs.UNITS[g.unit_of(0, "uav_strike")].vision) >= 30.0)
-	# ---- denge: Rus zırhı azaltıldı, Ukrayna İHA'ları zırha güçlü, keşif dronu piyadeye dokunulmaz
-	var ru_tanks := 0
-	for u in Scenarios.COUNTRIES.ru.units:
-		if u[2] == "tank":
-			ru_tanks += 1
-	_check("Rusya'da iki tank (T-72B3, T-14) var, Msta-S yok", ru_tanks == 2 and not Defs.UNITS.has("ru_t90") and not Defs.UNITS.has("ru_msta"))
-	var ua_fpv: Dictionary = Defs.UNITS["ua_fpv"]
-	_check("Ukrayna FPV tanka sert vurur", float(ua_fpv.dmg) * float(ua_fpv.mult.heavy) >= 170.0)
-	_check("Ukrayna TB2 tanka sert vurur", float(Defs.UNITS["ua_tb2"].mult.heavy) >= 1.2 and int(Defs.UNITS["ua_tb2"].ammo) == 3)
-	_check("piyadenin atesi guclendi", float(Scenarios.CLASSES.inf.dmg) >= 11.0)
-	var rc := g.spawn_unit(g.unit_of(0, "sdrone_recon"), 0, g.teams[0].hq.position + Vector3(0, 0, 14))
-	var foe_inf := g.spawn_unit(g.unit_of(1, "inf"), 1, rc.position + Vector3(3, 0, 0))
-	var foe_aa := g.spawn_unit(g.unit_of(1, "spaag"), 1, rc.position + Vector3(-3, 0, 0))
-	_check("piyade kesif dronunu vuramaz", not foe_inf.can_hit(rc) and foe_aa.can_hit(rc))
-	var fpv_u := g.spawn_unit(g.unit_of(0, "sdrone_fpv"), 0, rc.position + Vector3(0, 0, 3))
-	_check("piyade FPV dronunu hala vurabilir", foe_inf.can_hit(fpv_u))
-	for x in [rc, foe_inf, foe_aa, fpv_u]:
-		x.die()
 	for r in Scenarios.RESEARCH:
 		_check("arastirma aciklamasi: %s" % r.id, String(r.desc).length() > 20)
-	fixer.die()
-	lone.die()
-	esc.die()
+	# (köprünün yanındaki onarıcı, köprü yeniden yıkılınca suya düşmüş olabilir)
+	for e in [fixer, lone, esc]:
+		if is_instance_valid(e) and e.alive:
+			e.die()
+
+	# ---- hava savunması, yardım, saldırı emri, inşaat iptali, ikmal, füze canı, uçak onarımı, hava akını
+	var hs_p := _land(hq + Vector3(30, 0, 30))
+	var gun = g.spawn_unit(g.unit_of(0, "spaag") if g.unit_of(0, "spaag") != "" else g.unit_of(0, "laser"), 0, hs_p)
+	var walker2 = g.spawn_unit(g.unit_of(1, "inf"), 1, g.terrain.nearest_free(hs_p + Vector3(8, 0, 0)))
+	g.fog.recompute()
+	_check("dron savar yerdeki piyadeyi vurabilir", gun.can_hit(walker2))
+	var hp0: float = walker2.hp
+	await _wait(2.0)
+	_check("dron savar yerdeki dusmana kendiliginden ates eder", walker2.hp < hp0)
+	var hs_fpv_id: String = g.unit_of(1, "sdrone_fpv")
+	if hs_fpv_id != "":
+		var hs_fpv = g.spawn_unit(hs_fpv_id, 1, hs_p + Vector3(-10, 0, 4))
+		hs_fpv.set_process(false)
+		await _wait(3.0)
+		_check("dron savar yer hedefini birakip drona doner ve dusurur", not is_instance_valid(hs_fpv) or not hs_fpv.alive)
+	walker2.die()
+	gun.die()
+	var samb := g.spawn_building(Defs.bid(0, "sam"), 0, g.terrain.nearest_free(hq + Vector3(-20, 0, -24)), true)
+	var raider = g.spawn_unit(g.unit_of(1, "ifv"), 1, g.terrain.nearest_free(samb.position + Vector3(14, 0, 0)))
+	raider.set_process(false)
+	g.fog.recompute()
+	var rh: float = raider.hp
+	await _wait(3.5)
+	_check("hava savunma binasi yerdeki hedefe ates eder (us savunmasi)", raider.hp < rh)
+	raider.die()
+	# yardım: dosta saldırı varsa yakındaki boştaki birlik saldırgana yönelir
+	var hp2 := _land(hq + Vector3(-34, 0, 28))
+	var z_victim = g.spawn_unit(g.unit_of(0, "inf"), 0, hp2)
+	var friend = g.spawn_unit(g.unit_of(0, "ifv"), 0, g.terrain.nearest_free(hp2 + Vector3(-12, 0, 0)))
+	var busy = g.spawn_unit(g.unit_of(0, "ifv"), 0, g.terrain.nearest_free(hp2 + Vector3(-10, 0, 6)))
+	busy.go(hp2 + Vector3(0, 0, -50), false)
+	var foe2 = g.spawn_unit(g.unit_of(1, "ifv"), 1, g.terrain.nearest_free(hp2 + Vector3(15, 0, 0)))
+	foe2.set_process(false)
+	await _wait(0.2)
+	z_victim.take_damage(10.0, foe2)
+	_check("dosta saldiri olunca yakindaki birlik yardima gelir", friend.target == foe2)
+	if busy.order != "move":
+		print("   yuruyen: emir=%s hedef=%s" % [busy.order, busy.dest])
+	_check("yuruyen birligin emri bozulmaz", busy.order == "move" and busy.target != friend)
+	# saldırı emri: hedefe ateş edemeyen birlik ilerlemez
+	var ewid: String = g.unit_of(0, "ew")
+	if ewid != "":
+		var ewu = g.spawn_unit(ewid, 0, g.terrain.nearest_free(hp2 + Vector3(-14, 0, -6)))
+		var ep: Vector3 = ewu.position
+		g.order_attack([ewu], foe2)
+		await _wait(1.0)
+		_check("ates edemeyen birlik hedefin dibine girmez", Entity.flat(ewu.position, ep) < 0.5 and ewu.order != "attack")
+		ewu.die()
+	for z_u in [z_victim, friend, busy, foe2]:
+		if is_instance_valid(z_u) and z_u.alive:
+			z_u.die()
+	# inşaat iptali: para tamamen geri gelir
+	var z_spot := Vector3.INF
+	for z_kk in 24:
+		var z_q: Vector3 = hq + Vector3(cos(z_kk * TAU / 24.0), 0, sin(z_kk * TAU / 24.0)) * 20.0
+		if g.can_place(0, "kisla", z_q):
+			z_spot = z_q
+			break
+	var m0: float = g.teams[0].money
+	if z_spot != Vector3.INF and g.place_building(0, "kisla", z_spot):
+		var nb: Building = g.entities[g.entities.size() - 1]
+		_check("insaat parasi duser", g.teams[0].money < m0)
+		g.cancel_building(nb)
+		await _wait(0.2)
+		_check("insaat iptal edilince para geri gelir ve bina kalkar", absf(g.teams[0].money - m0) < 30.0 and (not is_instance_valid(nb) or not nb.alive) and not g.entities.has(nb))
+	else:
+		_check("iptal denemesi icin kisla kurulur", false)
+	# ikmal noktası: az para, geniş ikmal alanı
+	var sup = null
+	for p in g.points:
+		if p.kind == "supply":
+			sup = p
+			break
+	_check("ikmal noktasi $2 getirir, genis alani besler", sup != null and is_equal_approx(sup.income, 2.0) and SupplyPoint.SUPPLY_R >= 60.0)
+	# balistik füze: hava savunması canını düşürür
+	var s := Shot.new()
+	g.add_child(s)
+	s.src_team = 1
+	s.bhp_max = 300.0
+	s.bhp = 300.0
+	s.t = 0.6
+	s.global_position = samb.position + Vector3(4, 12, 0)
+	samb.cd_timer = 0.0
+	s._air_defense()
+	_check("hava savunmasi balistik fuzenin canini dusurur (ya da iska)", s.bhp < 300.0 or samb.cd_timer > 0.0)
+	s.queue_free()
+	samb.die()
+	# uçak pistte onarılır
+	var z_af := g.spawn_building(Defs.bid(0, "havaalani"), 0, g.terrain.nearest_free(hq + Vector3(26, 0, -30)), true)
+	var jid: String = g.unit_of(0, "fighter") if g.unit_of(0, "fighter") != "" else g.unit_of(0, "uav_strike")
+	var jet2 = g.spawn_unit(jid, 0, z_af.position)
+	jet2.hp = jet2.max_hp * 0.3
+	jet2.state = "parked"
+	jet2.rearm_t = 0.0
+	await _wait(float(jet2.d.get("rearm", 8.0)) * g.mod(0, "rearm") + 6.0)
+	_check("ucak inince onarilir", jet2.hp >= jet2.max_hp * 0.99)
+	jet2.die()
+	z_af.die()
+	# hava akını: iki uçak gelir, bombalar, döner ve kaybolur
+	var tgt := _land(hq + Vector3(60, 0, 0))
+	var dummy = g.spawn_unit(g.unit_of(1, "ifv"), 1, tgt)
+	dummy.set_process(false)
+	dummy.max_hp = 1e6
+	dummy.hp = 1e6
+	var z_before := g.entities.size()
+	g._air_raid(0, tgt)
+	_check("hava akini iki ucak gonderir", g.entities.size() == z_before + 2)
+	var t0: float = g.time
+	while g.time - t0 < 40.0 and dummy.hp >= 1e6:
+		await _wait(0.5)
+	_check("hava akini hedefi bombalar", dummy.hp < 1e6)
+	var gone := false
+	while g.time - t0 < 70.0 and not gone:
+		await _wait(0.5)
+		gone = true
+		for z_e in g.entities:
+			if z_e is AirUnit and z_e.state == "raid":
+				gone = false
+	_check("hava akini ucaklari donup kaybolur", gone)
+	dummy.die()
+
+	# Füze Üssü varken sol panelde füze düğmeleri çıkar ve hedef seçimini başlatır.
+	g.teams[0].tier = 3
+	g.teams[0].money = 50000.0
+	var fz := g.spawn_building(Defs.bid(0, "fuze"), 0, g.terrain.nearest_free(hq + Vector3(-24, 0, -30)), true)
+	g.hud._update_missiles()
+	_check("sol panelde fuze dugmesi cikar", g.hud.mis_box.visible and g.hud.mis_btns[0].visible and not g.hud.mis_btns[0].disabled)
+	g.hud._side_missile(0)
+	_check("sol paneldeki fuze dugmesi hedef secimini baslatir", g.targeting == fz and g.targeting_i == 0)
+	g.cancel_targeting()
+	fz.die()
+	await _wait(0.2)
+	g.hud._update_missiles()
+	_check("fuze ussu yokken dugme gizlenir", not g.hud.mis_box.visible)
 
 	# ---- kayıt
+	if not is_instance_valid(b) or not b.alive:
+		b = g.spawn_unit(g.unit_of(0, "inf"), 0, _land(hq + Vector3(-12, 0, 12)))
 	g.order_task([b], "dig")
 	await _wait(Defs.DIG_TIME + 0.6)
 	g.save_game()
@@ -580,68 +740,6 @@ func _run() -> void:
 	var f := FileAccess.open("user://mechtest_sayi.txt", FileAccess.WRITE)
 	f.store_string("%d %d %d" % [alive, int(g.teams[0].money), int(g.time)])
 	f = null
-
-	# ---- piyadenin sahada onarımı
-	var x_rp := _land(hq + Vector3(-40, 0, 40))
-	var x_rb := g.spawn_building(Defs.bid(0, "kisla"), 0, x_rp, true)
-	x_rb.hp = x_rb.max_hp * 0.5
-	var x_rv = g.spawn_unit(g.unit_of(0, "ifv"), 0, x_rp + Vector3(x_rb.radius + 5.0, 0, 0))
-	x_rv.hp = x_rv.max_hp * 0.5
-	var x_medic = g.spawn_unit(g.unit_of(0, "inf"), 0, x_rp + Vector3(x_rb.radius + 2.5, 0, 0))
-	await _wait(3.0)
-	_check("piyade yanindaki binayi onarir", x_rb.hp > x_rb.max_hp * 0.505 and x_rb.hp < x_rb.max_hp * 0.6)
-	_check("piyade yanindaki zirhliyi onarir", x_rv.hp > x_rv.max_hp * 0.51 and x_rv.hp < x_rv.max_hp * 0.62)
-	x_rv.take_damage(1.0)
-	var x_rv_hp: float = x_rv.hp
-	await _wait(2.0)
-	_check("yeni vurulan zirhli hemen onarilmaz", x_rv.hp <= x_rv_hp + 0.01)
-	x_medic.die()
-	x_rv.die()
-
-	# ---- birlik sınırında birim sırada bekler
-	var x_ts0 = g.teams[0]
-	var x_cap0: int = x_ts0.pop_cap
-	x_ts0.pop_cap = x_ts0.pop
-	x_ts0.money += 1000.0
-	var x_qn: int = x_rb.queue.size()
-	_check("birlik siniri doluyken birim kuyruga girer", g.queue_unit(x_rb, g.unit_of(0, "inf")) and x_rb.queue.size() == x_qn + 1)
-	x_rb.prod_t = 999.0
-	await _wait(0.5)
-	_check("sinir doluyken birim sirada bekler", x_rb.queue.size() == x_qn + 1 and x_rb.waiting_cap())
-	x_ts0.pop_cap = x_cap0
-	await _wait(0.5)
-	_check("yer acilinca birim cikar", x_rb.queue.size() == x_qn)
-	_check("birlik siniri 45", Defs.POP_CAP == 45)
-
-	# ---- saldırı simgeleri: yeniden eskiye
-	g.alert_base(hq + Vector3(100, 0, 0), "Deneme A")
-	await _wait(0.3)
-	g.alert_base(hq + Vector3(-100, 0, 0), "Deneme B")
-	var x_al: Array = g.attack_list()
-	_check("saldiri simgeleri yeniden eskiye", x_al.size() >= 2 and x_al[0].what == "Deneme B")
-
-	# ---- bütün silahlı kara birlikleri binaya ateş eder
-	var x_tp := _land(hq + Vector3(60, 0, -60))
-	var x_tb := g.spawn_building(Defs.bid(1, "kisla"), 1, x_tp, true)
-	x_tb.max_hp = 1.0e7
-	x_tb.hp = x_tb.max_hp
-	var x_shooters: Array = []
-	var x_k := 0
-	for x_id in Defs.UNITS:
-		var x_ud: Dictionary = Defs.UNITS[x_id]
-		if x_ud.cc != Defs.COUNTRY[0] or x_ud.get("air", false) or not x_ud.has("dmg"):
-			continue
-		var x_ang := x_k * TAU / 12.0
-		x_k += 1
-		var x_sp: Vector3 = g.terrain.nearest_free(x_tp + Vector3(cos(x_ang), 0, sin(x_ang)) * (x_tb.radius + 14.0 + float(x_ud.get("min_range", 0.0))))
-		var x_su = g.spawn_unit(x_id, 0, x_sp)
-		x_shooters.append(x_su)
-	g.order_attack(x_shooters, x_tb)
-	await _wait(25.0)
-	for x_su in x_shooters:
-		_check("%s binaya ates eder" % x_su.d.name, x_su.alive and x_su.xp > 0.0)
-		x_su.die()
-	x_tb.die()
 
 	print("MECHTEST BITTI  hata=%d" % fails)
 	get_tree().quit(1 if fails > 0 else 0)

@@ -5,6 +5,7 @@ extends Node3D
 ## Nehirler ve yollar çizgidir; yolun nehri kestiği yerde kendiliğinden köprü oluşur (köprüler yıkılabilir).
 ## Kasabalar evler ve terk edilmiş binalarla, tarlalar ağaç hatlarıyla (rüzgâr kıranlar) kendiliğinden doldurulur.
 ## Kara birimleri AStarGrid2D ile yol bulur; yol ucuz, orman pahalıdır, bu yüzden ordular yolları izler.
+## Görüntü bir yükseklik alanıdır (tepe, dağ, su yatağı); bitki örtüsü rüzgârda salınır (ayrıntı aşağıda, görünüm bölümünde).
 ## Taktik etkiler: tepe görüş, menzil ve hasar verir; orman ve ağaç hattı gizler ve görüşü keser; yol hızlandırır.
 
 const CELL := 2.0
@@ -19,6 +20,8 @@ const ROAD := 7
 const BRIDGE := 8
 const HILL_H := 2.0
 const DECK_H := 0.72     # köprü tabliyesinin üstü: araçlar köprünün üstünden geçer
+const WATER_Y := -0.28    # su yüzeyi
+const MARGIN_STEPS := [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0, 28.0, 32.0, 36.0, 40.0]   # harita dışı ızgara adımları
 const PASSABLE := [LAND, HILL, FOREST, ROAD, TREES, BRIDGE]
 const KIND_COLORS := {
 	1: Color(0.42, 0.39, 0.35), 2: Color(0.14, 0.3, 0.45), 3: Color(0.16, 0.3, 0.13), 4: Color(0.44, 0.41, 0.38),
@@ -32,8 +35,20 @@ var bld := PackedByteArray()     # hücreyi kaplayan bina sayısı (görüş hat
 var astar := AStarGrid2D.new()
 var bridge_data: Array = []      # {a, b, w, cells}
 var house_data: Array = []       # [x, z, tür]
-var ground_tex: ImageTexture
-var ground_img: Image
+var ground_img: Image             # küçük harita ve önizleme için hücre renkleri
+# görsel yükseklik alanı: köşe başına (vw x vh), hücre adımıyla
+var vw := 0
+var vh := 0
+var hgt := PackedFloat32Array()
+var f_water := PackedFloat32Array()
+var fog_mats: Array = []         # savaş sisinde kararan bitki malzemeleri (Fog dokusunu verir)
+var _cover := {}                 # hücre -> [[MultiMesh, sıra, Transform3D], ...]; bina kurulunca gizlenir
+var _nature := true
+var _far := FastNoiseLite.new()
+var _pmat: ShaderMaterial = null
+var _smats := {}
+var _cube := BoxMesh.new()
+var ver := 0                     # geçilebilirlik değişince artar (köprü yıkıldı/onarıldı): birlikler yolu yeniden hesaplar
 var deck := {}                   # köprü tabliyesinin altındaki hücreler (kıyıdaki uçlar dahil)
 
 
@@ -72,10 +87,6 @@ func _ready() -> void:
 				if Bridge.seg_dist(c3, a3, b3) <= br.w * 0.5:
 					deck[y * gw + x] = true
 	ground_img = make_image(Defs.MAP, gd)
-	# Zemin için üç kat büyütülüp yumuşatılır: kıyılar ve orman kenarları basamaklı görünmez.
-	var big := ground_img.duplicate()
-	big.resize(gw * 3, gh * 3, Image.INTERPOLATE_CUBIC)
-	ground_tex = ImageTexture.create_from_image(big)
 	_visuals()
 
 
@@ -314,7 +325,7 @@ static func _roads(g: Dictionary, m: Dictionary) -> void:
 				elif (not wet or t + 0.5 > l) and run_start >= 0.0:
 					var ba := a + dir * maxf(0.0, run_start - 2.5)
 					var bb := a + dir * minf(l, t + 2.5)
-					var br := {a = ba, b = bb, w = float(r.w) + 4.0, cells = []}   # yoldan geniş: iki araç yan yana geçer
+					var br := {a = ba, b = bb, w = float(r.w) + 2.0, cells = []}
 					_mark_bridge(g, br)
 					if not br.cells.is_empty():
 						g.bridges.append(br)
@@ -399,13 +410,6 @@ func solid(p: Vector3) -> bool:
 	return astar.is_point_solid(cell(p))
 
 
-## Köprünün tabliyesinde mi (kıyıdaki uçlar dahil).
-func on_bridge(p: Vector3) -> bool:
-	var c := cell(p)
-	var idx := c.y * gw + c.x
-	return kind[idx] == BRIDGE or deck.has(idx)
-
-
 ## Bina kurulabilir mi: yalnızca düz kara ve yol.
 func is_land(p: Vector3) -> bool:
 	var k := kind_at(p)
@@ -417,14 +421,24 @@ func kind_at(p: Vector3) -> int:
 	return kind[c.y * gw + c.x]
 
 
+## Kara biriminin basacağı yükseklik: köprüde tabliye, tepede arazinin kendisi, başka yerde düz zemin.
 func height(p: Vector3) -> float:
 	var c := cell(p)
 	var k := kind[c.y * gw + c.x]
-	if k == HILL:
-		return HILL_H
 	if k == BRIDGE or (k != WATER and deck.has(c.y * gw + c.x)):
 		return DECK_H
-	return 0.0
+	return maxf(0.0, ground_y(p.x, p.z))
+
+
+## Görsel arazi yüksekliği (su yatağında eksi). Harita dışında kenar değeri.
+func ground_y(x: float, z: float) -> float:
+	var fx := clampf((x + Defs.MAP_W * 0.5) / CELL, 0.0, vw - 1.001)
+	var fz := clampf((z + Defs.MAP_H * 0.5) / CELL, 0.0, vh - 1.001)
+	var i := int(fx)
+	var j := int(fz)
+	var tx := fx - i
+	var k := j * vw + i
+	return lerpf(lerpf(hgt[k], hgt[k + 1], tx), lerpf(hgt[k + vw], hgt[k + vw + 1], tx), fz - j)
 
 
 ## Kara birimi hız çarpanı: yol hızlandırır, orman ve ağaç hattı araçları çok, piyadeyi az yavaşlatır, tepe yokuştur.
@@ -449,8 +463,7 @@ func cover_at(p: Vector3) -> bool:
 
 ## Doğrudan atış için görüş hattı. Dağ her zaman keser; ağaç hattı, yıkıntı, binalar ve derin orman
 ## (üç hücreden fazlası) yalnızca tepede olmayan atıcı için keser. Atıcının ve hedefin hemen yanı sayılmaz.
-## skip_b: hedefin çevresinde sayılmayan yarıçap (bina hedefinde binanın kendi hücreleri görüşü kesmez).
-func los_clear(a: Vector3, b: Vector3, skip_b := 3.0) -> bool:
+func los_clear(a: Vector3, b: Vector3) -> bool:
 	var dist := Vector2(a.x - b.x, a.z - b.z).length()
 	if dist < 4.0:
 		return true
@@ -459,7 +472,7 @@ func los_clear(a: Vector3, b: Vector3, skip_b := 3.0) -> bool:
 	var woods := 0
 	for i in range(1, n):
 		var p := a.lerp(b, float(i) / n)
-		if Vector2(p.x - a.x, p.z - a.z).length() < 2.4 or Vector2(p.x - b.x, p.z - b.z).length() < skip_b:
+		if Vector2(p.x - a.x, p.z - a.z).length() < 2.4 or Vector2(p.x - b.x, p.z - b.z).length() < 3.0:
 			continue
 		var c := cell(p)
 		var idx := c.y * gw + c.x
@@ -538,10 +551,15 @@ func block_circle(p: Vector3, r: float, v: bool) -> void:
 			if Vector2(center(q).x - p.x, center(q).z - p.z).length() <= r:
 				bld[idx] = clampi(bld[idx] + (1 if v else -1), 0, 255)
 				astar.set_point_solid(q, bld[idx] > 0)
+				# binanın altındaki ot ve çalı gizlenir
+				if _cover.has(idx):
+					for cv in _cover[idx]:
+						cv[0].set_instance_transform(cv[1], cv[2] if bld[idx] == 0 else Transform3D(Basis.from_scale(Vector3.ZERO), cv[2].origin))
 
 
 ## Köprü yıkılınca hücreleri suya döner (geçilmez); onarılınca yeniden açılır.
 func set_bridge(cells: Array, up: bool) -> void:
+	ver += 1
 	for c in cells:
 		var idx: int = c.y * gw + c.x
 		kind[idx] = BRIDGE if up else WATER
@@ -551,56 +569,194 @@ func set_bridge(cells: Array, up: bool) -> void:
 
 
 # ---------------------------------------------------------------- görünüm
+# Hücre ızgarasından bir yükseklik alanı üretilir (yuvarlak tepeler, sırtlı dağlar, kumsallı su yatağı) ve parça parça
+# tek arazi olarak çizilir; renk tarla dokusu ile maske dokusundan shader'da karışır. Ağaç, çalı, ot ve kaya
+# parça başına MultiMesh ile serpilir ve rüzgârda salınır. Oynanış ızgarası (kind) bundan etkilenmez.
 
-const GROUND_SHADER := """
-shader_type spatial;
-uniform sampler2D kinds : source_color, filter_linear, repeat_disable;
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
-uniform bool use_detail = true;
-varying vec3 wp;
-void vertex() {
-	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
-	vec4 k = texture(kinds, UV);
-	float d = use_detail ? texture(detail, wp.xz / 7.0).r : 0.85;
-	float d2 = use_detail ? texture(detail, wp.xz / 37.0).r : 0.85;
-	vec3 c = k.rgb * (0.8 + 0.28 * d) * (0.92 + 0.14 * d2);
-	// su maskesi beş örnekle yumuşatılır: kıyılar hücre basamağı yerine yuvarlak görünür
-	vec2 px = 2.2 / vec2(textureSize(kinds, 0));
-	float wa = k.a * 0.2 + 0.2 * (texture(kinds, UV + vec2(px.x, px.y)).a + texture(kinds, UV + vec2(-px.x, px.y)).a
-		+ texture(kinds, UV + vec2(px.x, -px.y)).a + texture(kinds, UV + vec2(-px.x, -px.y)).a);
-	k.a = wa;
-	float w = smoothstep(0.4, 0.6, wa);
-	float r1 = use_detail ? texture(detail, wp.xz / 16.0 + vec2(TIME * 0.012, TIME * 0.007)).r : 0.8;
-	float r2 = use_detail ? texture(detail, wp.xz / 23.0 - vec2(TIME * 0.009, TIME * 0.011)).r : 0.8;
-	vec3 wc = vec3(0.1, 0.25, 0.38) * (0.8 + 0.35 * r1 * r2);
-	float bank = w * (1.0 - smoothstep(0.7, 1.0, k.a));
-	ALBEDO = mix(c, wc, w) * (1.0 - bank * 0.35);
-	ROUGHNESS = mix(0.95, 0.12, w);
-	SPECULAR = mix(0.25, 0.7, w);
-}
-"""
+## Her hücrenin, işaretli (mask = 1) en yakın hücreye hücre cinsinden uzaklığı (iki geçişli yaklaşık ölçüm).
+func _dist_to(mask: PackedByteArray) -> PackedFloat32Array:
+	var d := PackedFloat32Array()
+	d.resize(gw * gh)
+	for i in gw * gh:
+		d[i] = 0.0 if mask[i] == 1 else 999.0
+	for y in gh:
+		var row := y * gw
+		for x in gw:
+			var k := row + x
+			var v := d[k]
+			if v == 0.0:
+				continue
+			if x > 0:
+				v = minf(v, d[k - 1] + 1.0)
+			if y > 0:
+				v = minf(v, d[k - gw] + 1.0)
+				if x > 0:
+					v = minf(v, d[k - gw - 1] + 1.414)
+				if x < gw - 1:
+					v = minf(v, d[k - gw + 1] + 1.414)
+			d[k] = v
+	for y in range(gh - 1, -1, -1):
+		var row := y * gw
+		for x in range(gw - 1, -1, -1):
+			var k := row + x
+			var v := d[k]
+			if v == 0.0:
+				continue
+			if x < gw - 1:
+				v = minf(v, d[k + 1] + 1.0)
+			if y < gh - 1:
+				v = minf(v, d[k + gw] + 1.0)
+				if x < gw - 1:
+					v = minf(v, d[k + gw + 1] + 1.414)
+				if x > 0:
+					v = minf(v, d[k + gw - 1] + 1.414)
+			d[k] = v
+	return d
+
+
+## k türündeki hücrelerin içeri doğru derinliği (hücre): tür dışındaki en yakın hücreye uzaklık.
+func _depth(kinds: Array) -> PackedFloat32Array:
+	var mask := PackedByteArray()
+	mask.resize(gw * gh)
+	for i in gw * gh:
+		mask[i] = 0 if kind[i] in kinds else 1
+	return _dist_to(mask)
 
 
 func _visuals() -> void:
 	var m: Dictionary = Defs.MAP
 	var ground: Color = m.ground
-	var sh := Shader.new()
-	sh.code = GROUND_SHADER
-	var mat := ShaderMaterial.new()
-	mat.shader = sh
-	mat.set_shader_parameter("kinds", ground_tex)
-	mat.set_shader_parameter("detail", Tex.texture("ground"))
-	mat.set_shader_parameter("use_detail", Settings.get_v("textures"))
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(Defs.MAP_W, Defs.MAP_H)
-	var plane := MeshInstance3D.new()
-	plane.mesh = pm
-	plane.material_override = mat
-	plane.position.y = 0.0
-	add_child(plane)
-	# yollar: keskin kenarlı şeritler (zemin resminin üstünde)
+	_nature = Settings.get_v("nature")
+	var hw := Defs.MAP_W * 0.5
+	var hh := Defs.MAP_H * 0.5
+	var n := FastNoiseLite.new()
+	n.seed = 23
+	n.frequency = 0.11
+	n.fractal_octaves = 2
+	var ridge := FastNoiseLite.new()
+	ridge.seed = 41
+	ridge.frequency = 0.05
+	ridge.fractal_octaves = 3
+	_far.seed = 9
+	_far.frequency = 0.008
+	_far.fractal_octaves = 3
+	# Hücre başına alanlar: tepe, dağ ve su derinliği; kıyıya uzaklık. Köprünün altı da sudur.
+	var d_hill := _depth([HILL])
+	var d_rock := _depth([MOUNTAIN])
+	var d_water := _depth([WATER, BRIDGE])
+	var wmask := PackedByteArray()
+	wmask.resize(gw * gh)
+	for i in gw * gh:
+		wmask[i] = 1 if kind[i] == WATER or kind[i] == BRIDGE else 0
+	var d_shore := _dist_to(wmask)
+	var ch := PackedFloat32Array()      # hücre yüksekliği
+	ch.resize(gw * gh)
+	f_water.resize(gw * gh)
+	var mask := PackedByteArray()
+	mask.resize(gw * gh * 4)
+	var field := PackedByteArray()
+	field.resize(gw * gh * 3)
+	var fields: Array = m.get("fields", [ground, m.patch, ground.darkened(0.08)])
+	var sp: float = m.get("windbreaks", {}).get("sp", 70.0)
+	for y in gh:
+		for x in gw:
+			var k := y * gw + x
+			var wx := (x + 0.5) * CELL - hw
+			var wz := (y + 0.5) * CELL - hh
+			var wob := n.get_noise_2d(wx, wz)
+			var hill := smoothstep(0.0, 3.5, d_hill[k] + wob * 0.6) if d_hill[k] > 0.0 else 0.0
+			var rock := smoothstep(0.0, 3.2, d_rock[k] + wob * 0.5) if d_rock[k] > 0.0 else 0.0
+			var w := smoothstep(0.0, 1.7, d_water[k]) if d_water[k] > 0.0 else 0.0
+			var rg := 1.0 - absf(ridge.get_noise_2d(wx, wz))
+			var h := hill * (HILL_H * 1.3 + 0.5 * wob) + rock * (2.2 + 9.0 * rg * rg * rg + 1.2 * wob)
+			ch[k] = lerpf(h, -1.5, w)
+			f_water[k] = w
+			var kd := kind[k]
+			var sand := smoothstep(2.4, 0.7, d_shore[k] + wob * 0.8) * (1.0 - rock)
+			mask[k * 4] = 255 if kd == ROAD else 0
+			mask[k * 4 + 1] = 255 if kd == FOREST or kd == TREES else 0
+			mask[k * 4 + 2] = int(sand * 255.0)
+			mask[k * 4 + 3] = int(rock * 255.0)
+			# tarla parselleri (zemin resmindekiyle aynı düzen)
+			var pi := int(floor(wx / sp) * 7 + floor(wz / (sp * 0.6)) * 13)
+			var fc: Color = fields[absi(pi) % fields.size()].lerp(ground, 0.5)
+			field[k * 3] = int(clampf(fc.r, 0, 1) * 255)
+			field[k * 3 + 1] = int(clampf(fc.g, 0, 1) * 255)
+			field[k * 3 + 2] = int(clampf(fc.b, 0, 1) * 255)
+	var mask_tex := ImageTexture.create_from_image(Image.create_from_data(gw, gh, false, Image.FORMAT_RGBA8, mask))
+	var field_tex := ImageTexture.create_from_image(Image.create_from_data(gw, gh, false, Image.FORMAT_RGB8, field))
+	# Köşe yükseklikleri: komşu dört hücrenin ortalaması (yumuşak yamaç).
+	vw = gw + 1
+	vh = gh + 1
+	hgt.resize(vw * vh)
+	for y in vh:
+		var y0 := maxi(y - 1, 0)
+		var y1 := mini(y, gh - 1)
+		for x in vw:
+			var x0 := maxi(x - 1, 0)
+			var x1 := mini(x, gw - 1)
+			hgt[y * vw + x] = (ch[y0 * gw + x0] + ch[y0 * gw + x1] + ch[y1 * gw + x0] + ch[y1 * gw + x1]) * 0.25
+
+	# Arazi ağı: harita içinde hücre adımı, dışında giderek seyrelen adımlar. Dışarıda uzak tepeler yükselir.
+	var xs := _axis(hw, vw)
+	var zs := _axis(hh, vh)
+	var nx := xs.size()
+	var nz := zs.size()
+	var mg := MARGIN_STEPS.size()
+	var ys := PackedFloat32Array()
+	ys.resize(nx * nz)
+	for j in nz:
+		var fj := clampi(j - mg, 0, vh - 1)
+		for i in nx:
+			var fi := clampi(i - mg, 0, vw - 1)
+			var h := hgt[fj * vw + fi]
+			var od := maxf(absf(xs[i]) - hw, absf(zs[j]) - hh)
+			if od > 0.0 and h > WATER_Y:
+				var fh := 2.0 + 9.0 * (_far.get_noise_2d(xs[i], zs[j]) * 0.5 + 0.5)
+				if h > 3.0:
+					# kenara dayanan dağ dışarıda sıradağ olarak sürer (kenar değeri uzayıp çizgi yapmasın)
+					h = lerpf(h, fh + 7.0, smoothstep(0.0, 30.0, od))
+				else:
+					h += smoothstep(4.0, 110.0, od) * fh
+				h += smoothstep(0.0, 12.0, od) * 0.35 * n.get_noise_2d(xs[i] * 0.4, zs[j] * 0.4)
+			ys[j * nx + i] = h
+	var tm := Scenery.shader_mat(Scenery.TERRAIN_SHADER)
+	var arid: bool = ground.r > ground.g + 0.04
+	tm.set_shader_parameter("mask_tex", mask_tex)
+	tm.set_shader_parameter("field_tex", field_tex)
+	tm.set_shader_parameter("noise_tex", Tex.texture("noise"))
+	tm.set_shader_parameter("rock_tex", Tex.texture("rock"))
+	tm.set_shader_parameter("bump_tex", Tex.texture("bump"))
+	tm.set_shader_parameter("lush_mul", Vector3(0.72, 0.9, 0.7))
+	tm.set_shader_parameter("lush_k", 0.3 if arid else 0.8)
+	tm.set_shader_parameter("dry", m.patch)
+	tm.set_shader_parameter("dirt", ground.lerp(Color(0.5, 0.43, 0.33), 0.75))
+	tm.set_shader_parameter("floor_col", ground.lerp(Color(0.15, 0.22, 0.1), 0.6))
+	tm.set_shader_parameter("sand", ground.lerp(Color(0.7, 0.63, 0.46), 0.6))
+	tm.set_shader_parameter("earth", ground.lerp(Color(0.42, 0.34, 0.24), 0.65))
+	tm.set_shader_parameter("rock", Color(0.47, 0.44, 0.4).lerp(ground, 0.2))
+	tm.set_shader_parameter("map_size", Vector2(Defs.MAP_W, Defs.MAP_H))
+	tm.set_shader_parameter("water_y", WATER_Y)
+	var wm := Scenery.shader_mat(Scenery.WATER_SHADER)
+	wm.set_shader_parameter("noise_tex", Tex.texture("noise"))
+	wm.set_shader_parameter("bump_tex", Tex.texture("bump"))
+	wm.set_shader_parameter("deep", Color(0.07, 0.2, 0.3))
+	wm.set_shader_parameter("shallow", Color(0.17, 0.4, 0.46))
+	wm.set_shader_parameter("bank", ground.lerp(Color(0.5, 0.5, 0.36), 0.6).darkened(0.25))
+	wm.set_shader_parameter("map_size", Vector2(Defs.MAP_W, Defs.MAP_H))
+	# Parçalara bölünür: kameranın dışında kalan parçalar hiç çizilmez.
+	const PIECE := 40
+	var j0 := 0
+	while j0 < nz - 1:
+		var j1 := mini(j0 + PIECE, nz - 1)
+		var i0 := 0
+		while i0 < nx - 1:
+			var i1 := mini(i0 + PIECE, nx - 1)
+			_piece(xs, zs, ys, nx, nz, i0, j0, i1, j1, tm, wm)
+			i0 = i1
+		j0 = j1
+
+	# yollar: keskin kenarlı şeritler (zeminin üstünde)
 	var road_mat := Tex.mat("ground", ground.lerp(Color(0.4, 0.36, 0.3), 0.72), 0.15, true)
 	var asphalt := Tex.mat("ground", Color(0.27, 0.27, 0.27), 0.15, true)
 	for r in m.get("roads", []):
@@ -621,65 +777,323 @@ func _visuals() -> void:
 			var j := Models.cyl(self, w * 0.5, w * 0.5, 0.04, b, Color.WHITE, Vector3.ZERO, 10)
 			j.material_override = mt
 			j.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# tepeler: yumuşak yamaçlı höyükler
-	var hill_mat := Tex.mat("ground", ground.lightened(0.04), 0.07, true)
-	for s in m.get("hills", []):
-		var bb := _bbox(s)
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.82
-		cyl.bottom_radius = 1.12
-		cyl.height = HILL_H
-		cyl.radial_segments = 28
-		cyl.rings = 1
-		var mi := MeshInstance3D.new()
-		mi.mesh = cyl
-		mi.material_override = hill_mat
-		mi.position = Vector3((bb[0] + bb[2]) * 0.5, HILL_H * 0.5, (bb[1] + bb[3]) * 0.5)
-		mi.scale = Vector3((bb[2] - bb[0]) * 0.5, 1.0, (bb[3] - bb[1]) * 0.5)
-		add_child(mi)
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 1.0
-	cone.height = 1.0
-	cone.radial_segments = 6
-	cone.rings = 1
-	var cube := BoxMesh.new()
-	_scatter(MOUNTAIN, cone, Tex.mat("rock", ground.lerp(Color(0.5, 0.46, 0.41), 0.75), 0.18, true), Vector2(2.6, 4.2), Vector2(6.0, 15.0), 2)
-	_scatter(TREES, cone, Tex.mat("rock", m.get("tree_col", Color(0.2, 0.38, 0.18)), 0.5, true), Vector2(1.1, 1.6), Vector2(3.5, 5.5), 1)
-	_scatter(FOREST, cone, Tex.mat("rock", m.get("tree_col", Color(0.2, 0.38, 0.18)).darkened(0.15), 0.5, true), Vector2(1.2, 1.9), Vector2(4.0, 7.5), 2)
-	_scatter(RUINS, cube, Tex.mat("panel", Color(0.55, 0.52, 0.48), 0.25, true), Vector2(1.3, 1.9), Vector2(1.0, 3.2), 1)
-	# harita sınırının dışı
-	var outer := Models.box(self, Vector3(Defs.MAP_W + 200, 0.2, Defs.MAP_H + 200), Vector3(0, -1.2, 0), ground)
-	outer.material_override = Tex.mat("ground", ground.darkened(0.45), 0.05, true)
+	_flora(m, ground, arid)
 
 
-## Hücrelere ağaç / kaya / moloz dağıtır. Harita 64 birimlik parçalara bölünür: her parça ayrı bir MultiMesh'tir,
-## böylece kameranın ve gölgenin dışında kalan parçalar hiç çizilmez.
-func _scatter(k: int, mesh: Mesh, material: Material, size: Vector2, hgt: Vector2, every := 1) -> void:
-	const CHUNK := 32   # hücre (64 birim)
-	var groups := {}
+## Bir eksenin köşe konumları: harita içinde hücre adımı, dışında MARGIN_STEPS.
+func _axis(half: float, count: int) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var edge := 0.0
+	for s in MARGIN_STEPS:
+		edge += s
+	var p := -half - edge
+	for i in range(MARGIN_STEPS.size() - 1, -1, -1):
+		out.append(p)
+		p += MARGIN_STEPS[i]
+	for i in count:
+		out.append(minf(-half + i * CELL, half))
+	p = half
+	for s in MARGIN_STEPS:
+		p += s
+		out.append(p)
+	return out
+
+
+## Arazi ağının bir parçası (ve varsa o parçadaki su yüzeyi). Yüksek kesim içeren parçalar gölge düşürür.
+func _piece(xs: PackedFloat32Array, zs: PackedFloat32Array, ys: PackedFloat32Array, nx: int, nz: int,
+		i0: int, j0: int, i1: int, j1: int, tm: Material, wm: Material) -> void:
+	var w := i1 - i0 + 1
+	var h := j1 - j0 + 1
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	verts.resize(w * h)
+	norms.resize(w * h)
+	var top := -10.0
+	var low := 10.0
+	for j in h:
+		var gj := j0 + j
+		var ja := maxi(gj - 1, 0)
+		var jb := mini(gj + 1, nz - 1)
+		for i in w:
+			var gi := i0 + i
+			var ia := maxi(gi - 1, 0)
+			var ib := mini(gi + 1, nx - 1)
+			var y := ys[gj * nx + gi]
+			top = maxf(top, y)
+			low = minf(low, y)
+			verts[j * w + i] = Vector3(xs[gi], y, zs[gj])
+			norms[j * w + i] = Vector3(
+				-(ys[gj * nx + ib] - ys[gj * nx + ia]) / maxf(0.01, xs[ib] - xs[ia]), 1.0,
+				-(ys[jb * nx + gi] - ys[ja * nx + gi]) / maxf(0.01, zs[jb] - zs[ja])).normalized()
+	var idx := PackedInt32Array()
+	idx.resize((w - 1) * (h - 1) * 6)
+	var wmap := PackedInt32Array()
+	var wv := PackedVector3Array()
+	var wc := PackedColorArray()
+	var wn := PackedVector3Array()
+	var widx := PackedInt32Array()
+	if low < WATER_Y:
+		wmap.resize(w * h)
+		wmap.fill(-1)
+	var q := 0
+	for j in h - 1:
+		for i in w - 1:
+			var a := j * w + i
+			var b := a + 1
+			var c := a + w
+			var d := c + 1
+			idx[q] = a
+			idx[q + 1] = b
+			idx[q + 2] = c
+			idx[q + 3] = b
+			idx[q + 4] = d
+			idx[q + 5] = c
+			q += 6
+			if low < WATER_Y and minf(minf(verts[a].y, verts[b].y), minf(verts[c].y, verts[d].y)) < WATER_Y:
+				for k in [a, b, c, b, d, c]:
+					if wmap[k] < 0:
+						wmap[k] = wv.size()
+						wv.append(Vector3(verts[k].x, WATER_Y, verts[k].z))
+						wn.append(Vector3.UP)
+						wc.append(Color(clampf((WATER_Y - verts[k].y) / 1.1, 0.0, 1.0), 0, 0))
+					widx.append(wmap[k])
+	var land := MeshInstance3D.new()
+	land.mesh = _mesh(verts, norms, idx)
+	land.material_override = tm
+	var inside: bool = absf(xs[i0]) < Defs.MAP_W * 0.5 + 30.0 and absf(zs[j0]) < Defs.MAP_H * 0.5 + 30.0
+	if top < 0.6 or not inside:
+		land.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(land)
+	if not widx.is_empty():
+		var water := MeshInstance3D.new()
+		water.mesh = _mesh(wv, wn, widx, wc)
+		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		water.material_override = wm
+		add_child(water)
+
+
+func _mesh(v: PackedVector3Array, nr: PackedVector3Array, idx: PackedInt32Array, col := PackedColorArray()) -> ArrayMesh:
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	arr[Mesh.ARRAY_NORMAL] = nr
+	arr[Mesh.ARRAY_INDEX] = idx
+	if not col.is_empty():
+		arr[Mesh.ARRAY_COLOR] = col
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return am
+
+
+## Savaş sisi için araziye oturan seyrek ağ (4 m). UV harita koordinatıdır.
+func drape_mesh(lift: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cw := int(ceil(gw / 2.0))
+	var chh := int(ceil(gh / 2.0))
+	for y in chh + 1:
+		for x in cw + 1:
+			var wx := minf(x * CELL * 2.0, Defs.MAP_W) - Defs.MAP_W * 0.5
+			var wz := minf(y * CELL * 2.0, Defs.MAP_H) - Defs.MAP_H * 0.5
+			st.set_uv(Vector2((wx + Defs.MAP_W * 0.5) / Defs.MAP_W, (wz + Defs.MAP_H * 0.5) / Defs.MAP_H))
+			st.add_vertex(Vector3(wx, maxf(ground_y(wx, wz), WATER_Y) + lift, wz))
+	for y in chh:
+		for x in cw:
+			var a := y * (cw + 1) + x
+			var b := a + cw + 1
+			st.add_index(a)
+			st.add_index(a + 1)
+			st.add_index(b)
+			st.add_index(a + 1)
+			st.add_index(b + 1)
+			st.add_index(b)
+	return st.commit()
+
+
+func _plant_mat() -> ShaderMaterial:
+	if _pmat == null:
+		_pmat = Scenery.shader_mat(Scenery.PLANT_SHADER)
+		_pmat.set_shader_parameter("map_size", Vector2(Defs.MAP_W, Defs.MAP_H))
+		_pmat.set_shader_parameter("wind", 1.0 if _nature else 0.0)
+		fog_mats.append(_pmat)
+	return _pmat
+
+
+## Bitki örtüsü, kaya ve yıkıntı. İklim haritadan seçilir: kurak (hurma), dağlık (çam) ya da ılıman (kavak ve karışık).
+## Harita 64 birimlik parçalara bölünür; her parça ve tür ayrı bir MultiMesh'tir, kamera dışındakiler çizilmez.
+func _flora(m: Dictionary, ground: Color, arid: bool) -> void:
+	const CHUNK := 32
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 17
+	var alpine: bool = not arid and m.get("style", "") in ["pk", "in"]
+	var line_trees: Array = ["palm"] if arid else (["conifer", "conifer", "leafy"] if alpine else ["poplar", "poplar", "leafy"])
+	var wood_trees: Array = ["palm"] if arid else (["conifer"] if alpine else ["leafy", "conifer", "leafy"])
+	var tint := Color(1.0, 0.95, 0.8) if arid else Color.WHITE
+	var groups := {}     # "tür|parça" -> [[Transform3D, Color, hücre], ...]
+	var keep_out: Array = []     # üs, ikmal noktası ve evlerin çevresi temiz kalır
+	for p in m.points:
+		keep_out.append(Vector3(p[0], 4.5, p[1]))
+	for hs in house_data:
+		keep_out.append(Vector3(hs[0], 4.0, hs[1]))
+	for bp in m.bases_a + m.bases_b:
+		keep_out.append(Vector3(bp.x, 9.0, bp.z))
+	var ko := {}     # hücre -> yasak
+	for k3 in keep_out:
+		var c0 := cell(Vector3(k3.x, 0, k3.z))
+		var rr := int(ceil(k3.y / CELL))
+		for dy in range(-rr, rr + 1):
+			for dx in range(-rr, rr + 1):
+				ko[(c0.y + dy) * gw + c0.x + dx] = true
+	var cover_n := FastNoiseLite.new()
+	cover_n.seed = 77
+	cover_n.frequency = 0.035
 	for y in gh:
 		for x in gw:
-			if kind[y * gw + x] == k and (every == 1 or (x + y) % every == 0):
-				var key := Vector2i(x / CHUNK, y / CHUNK)
-				if not groups.has(key):
-					groups[key] = []
-				groups[key].append(Vector2i(x, y))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 11 + k
-	for key in groups:
-		var cells: Array = groups[key]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = mesh
-		mm.instance_count = cells.size()
-		for i in cells.size():
-			var w := center(cells[i]) + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
-			var s := rng.randf_range(size.x, size.y)
-			var h := rng.randf_range(hgt.x, hgt.y)
-			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, h, s))
-			mm.set_instance_transform(i, Transform3D(b, Vector3(w.x, h * 0.5, w.z)))
-		var mi := MultiMeshInstance3D.new()
-		mi.multimesh = mm
-		mi.material_override = material
-		add_child(mi)
+			var ci := y * gw + x
+			var k := kind[ci]
+			if k == WATER or k == BRIDGE or k == ROAD:
+				continue
+			var cc := center(Vector2i(x, y))
+			var key := "|%d" % ((y / CHUNK) * 1000 + x / CHUNK)
+			match k:
+				TREES:
+					# gerçek boyda ağaçlar (askerin 6-9 katı); taç büyüdüğü için hücre başına seyrek
+					if rng.randf() < 0.55:
+						_plant(groups, line_trees[rng.randi() % line_trees.size()] + key, cc, rng, 1.7, 2.5, tint, -1, 0.55)
+					if rng.randf() < 0.3:
+						_plant(groups, "bush" + key, cc, rng, 0.8, 1.3, tint, -1)
+				FOREST:
+					if (x + y) % 2 == 0 and rng.randf() < 0.55:
+						_plant(groups, wood_trees[rng.randi() % wood_trees.size()] + key, cc, rng, 1.6, 2.7, tint, -1, 0.9)
+					elif rng.randf() < 0.35:
+						_plant(groups, "bush" + key, cc, rng, 0.6, 1.1, tint, ci)
+				MOUNTAIN:
+					if rng.randf() < 0.05:
+						_plant(groups, "rock" + key, cc, rng, 0.9, 2.4, Color.WHITE, -1)
+				RUINS:
+					_ruin(groups, "ruin" + key, cc, rng)
+				LAND, HILL:
+					if ko.has(ci):
+						continue
+					var near := _near(x, y)
+					var dens := cover_n.get_noise_2d(cc.x, cc.z) * 0.5 + 0.5
+					# su kıyısında saz, ağaç dibinde çalı, dağ eteğinde kaya, çayırda ot öbekleri
+					if near.has(WATER) and dens > 0.38:
+						for i in rng.randi_range(0, 2):
+							_plant(groups, "tuft" + key, cc, rng, 0.9, 1.7, Color(0.95, 0.9, 0.6), ci)
+					if (near.has(TREES) or near.has(FOREST)) and rng.randf() < 0.3:
+						_plant(groups, "bush" + key, cc, rng, 0.6, 1.2, tint, ci)
+					if (near.has(MOUNTAIN) or near.has(RUINS)) and rng.randf() < 0.22:
+						_plant(groups, "rock" + key, cc, rng, 0.5, 1.5, Color.WHITE, ci)
+					if k == HILL and rng.randf() < 0.05:
+						_plant(groups, "rock" + key, cc, rng, 0.5, 1.1, Color.WHITE, ci)
+					var chance := (0.07 if arid else 0.26) * smoothstep(0.3, 0.7, dens) + (0.015 if arid else 0.03)
+					if rng.randf() < chance:
+						var tc := Color(1.5, 1.3, 0.75) if arid else Color(1, 1, 1).lerp(Color(1.1, 1.0, 0.7), rng.randf())
+						if not arid and rng.randf() < 0.07:
+							tc = [Color(1.6, 1.5, 0.5), Color(1.6, 1.6, 1.5), Color(1.5, 0.6, 0.5)][rng.randi() % 3]
+						_plant(groups, "tuft" + key, cc, rng, 0.45, 0.85, tc, ci)
+					if not arid and rng.randf() < 0.004 * (1.0 + dens * 2.0):
+						_plant(groups, "bush" + key, cc, rng, 0.7, 1.2, tint, ci)
+					elif arid and rng.randf() < 0.01:
+						_plant(groups, "bush" + key, cc, rng, 0.4, 0.8, Color(1.3, 1.2, 0.7), ci)
+	# harita dışı: seyrek ağaçlar ufku doldurur
+	var hw := Defs.MAP_W * 0.5
+	var hh := Defs.MAP_H * 0.5
+	for i in (350 if arid else 1500):
+		var p := Vector3(rng.randf_range(-hw - 110.0, hw + 110.0), 0, rng.randf_range(-hh - 100.0, hh + 100.0))
+		if absf(p.x) < hw + 2.0 and absf(p.z) < hh + 2.0:
+			continue
+		var e := Vector3(clampf(p.x, -hw, hw), 0, clampf(p.z, -hh, hh))
+		var ec := cell(e)
+		if f_water[ec.y * gw + ec.x] > 0.02 or kind_at(e) == MOUNTAIN:
+			continue
+		if cover_n.get_noise_2d(p.x * 1.6, p.z * 1.6) < -0.08:
+			continue
+		var od := maxf(absf(p.x) - hw, absf(p.z) - hh)
+		var oy := maxf(0.0, ground_y(p.x, p.z)) + smoothstep(4.0, 110.0, od) * (2.0 + 9.0 * (_far.get_noise_2d(p.x, p.z) * 0.5 + 0.5)) - 0.3
+		var side := "|out%d" % (int(p.x > 0.0) + 2 * int(p.z > 0.0))
+		_plant(groups, wood_trees[rng.randi() % wood_trees.size()] + side, p, rng, 1.6, 2.6, tint, -1, 0.0, oy)
+	for gk in groups:
+		var nm: String = gk.split("|")[0]
+		if nm in ["tuft", "bush"] and not _nature:
+			continue
+		_emit(nm, groups[gk])
+
+
+## Komşu hücrelerdeki arazi türleri.
+func _near(x: int, y: int) -> Array:
+	var out: Array = []
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var q := Vector2i(x + d.x, y + d.y)
+		if q.x >= 0 and q.y >= 0 and q.x < gw and q.y < gh:
+			out.append(kind[q.y * gw + q.x])
+	return out
+
+
+func _plant(groups: Dictionary, key: String, at: Vector3, rng: RandomNumberGenerator, s0: float, s1: float, tint: Color,
+		cell_idx: int, jit := 0.95, y := INF) -> void:
+	var p := at + Vector3(rng.randf_range(-jit, jit), 0, rng.randf_range(-jit, jit))
+	p.y = (ground_y(p.x, p.z) if y == INF else y) - 0.05
+	if p.y < WATER_Y - 0.1:
+		return
+	var s := rng.randf_range(s0, s1)
+	var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, s * rng.randf_range(0.85, 1.25), s))
+	var v := rng.randf_range(0.78, 1.12)
+	if not groups.has(key):
+		groups[key] = []
+	groups[key].append([Transform3D(b, p), Color(tint.r * v * rng.randf_range(0.92, 1.08), tint.g * v, tint.b * v * rng.randf_range(0.85, 1.0)), cell_idx])
+
+
+## Yıkıntı hücresi: ayakta kalmış duvar parçası, yanında alçak kalıntı ve moloz.
+func _ruin(groups: Dictionary, key: String, cc: Vector3, rng: RandomNumberGenerator) -> void:
+	if not groups.has(key):
+		groups[key] = []
+	var list: Array = groups[key]
+	var wh := rng.randf_range(1.4, 3.2)
+	var rot := (rng.randi() % 2) * PI * 0.5 + rng.randf_range(-0.08, 0.08)
+	var tone := rng.randf_range(0.75, 1.05)
+	var wcol := Color(0.62, 0.58, 0.53) * tone if rng.randf() < 0.7 else Color(0.6, 0.42, 0.34) * tone
+	list.append([Transform3D(Basis(Vector3.UP, rot) * Basis.from_scale(Vector3(rng.randf_range(1.3, 2.0), wh, 0.38)),
+		cc + Vector3(rng.randf_range(-0.4, 0.4), wh * 0.5, rng.randf_range(-0.4, 0.4))), wcol, -1])
+	if rng.randf() < 0.6:
+		var h2 := wh * rng.randf_range(0.35, 0.7)
+		list.append([Transform3D(Basis(Vector3.UP, rot + PI * 0.5) * Basis.from_scale(Vector3(rng.randf_range(0.9, 1.6), h2, 0.38)),
+			cc + Vector3(rng.randf_range(-0.6, 0.6), h2 * 0.5, rng.randf_range(-0.6, 0.6))), wcol, -1])
+	for i in 3:
+		var s := rng.randf_range(0.25, 0.7)
+		var bb := Basis.from_euler(Vector3(rng.randf_range(-0.5, 0.5), rng.randf() * TAU, rng.randf_range(-0.5, 0.5))) * Basis.from_scale(Vector3(s * 1.4, s * 0.7, s))
+		list.append([Transform3D(bb, cc + Vector3(rng.randf_range(-0.9, 0.9), s * 0.2, rng.randf_range(-0.9, 0.9))),
+			Color(0.5, 0.48, 0.45) * rng.randf_range(0.7, 1.1), -1])
+
+
+func _emit(k: String, list: Array) -> void:
+	if list.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = _cube if k == "ruin" else Scenery.mesh(k)
+	mm.instance_count = list.size()
+	for i in list.size():
+		mm.set_instance_transform(i, list[i][0])
+		mm.set_instance_color(i, Color(list[i][1].r, list[i][1].g, list[i][1].b))
+		if list[i][2] >= 0:
+			if not _cover.has(list[i][2]):
+				_cover[list[i][2]] = []
+			_cover[list[i][2]].append([mm, i, list[i][0]])
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	if k == "rock" or k == "ruin":
+		var mk := "rock" if k == "rock" else "concrete"
+		if not _smats.has(mk):
+			var rm: StandardMaterial3D = Tex.mat(mk, Color(0.56, 0.52, 0.47).lerp(Defs.MAP.ground, 0.15) if k == "rock" else Color.WHITE, 0.3, true).duplicate()
+			rm.vertex_color_use_as_albedo = true
+			rm.vertex_color_is_srgb = true
+			_smats[mk] = rm
+		mi.material_override = _smats[mk]
+	else:
+		mi.material_override = _plant_mat()
+	if k == "tuft":
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)

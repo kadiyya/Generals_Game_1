@@ -20,7 +20,7 @@ const FAST := ["ifv", "tank"]
 const MIX := {
 	"iha": {inf = 4, at = 2, sdrone_fpv = 6, sdrone_bomb = 3, loiter = 4, ifv = 2, tank = 0, arty = 1, mlrs = 1, spaag = 2,
 		uav_strike = 3, uav_heavy = 1, uav_kami = 3, fighter = 1, striker = 0, stealth = 0},
-	"zirh": {inf = 6, at = 3, sdrone_fpv = 1, sdrone_bomb = 0, loiter = 1, ifv = 2, tank = 5, arty = 1, mlrs = 1, spaag = 2,
+	"zirh": {inf = 5, at = 2, sdrone_fpv = 1, sdrone_bomb = 0, loiter = 1, ifv = 3, tank = 8, arty = 3, mlrs = 2, spaag = 2,
 		uav_strike = 1, uav_heavy = 0, uav_kami = 0, fighter = 2, striker = 1, stealth = 1},
 	"hava": {inf = 3, at = 2, sdrone_fpv = 0, sdrone_bomb = 0, loiter = 2, ifv = 2, tank = 3, arty = 1, mlrs = 0, spaag = 2,
 		uav_strike = 2, uav_heavy = 1, uav_kami = 2, fighter = 4, striker = 3, stealth = 2},
@@ -46,6 +46,8 @@ var regroup_t := 0.0
 var attacking := false
 var goal := Vector3.INF
 var stage := Vector3.ZERO
+const MISSILE_GAP := [200.0, 140.0, 100.0]
+var missile_next := 240.0
 var roles := {}         # birim -> "guard" / "raid" / "escort"
 var guard_at := {}      # birim -> korunan yer
 var expand_dep = null   # maden kurulacak yatak
@@ -598,6 +600,10 @@ func _goal(g: Game) -> Vector3:
 		var tg = _obj_target(g, o)
 		if tg != null:
 			return tg.position
+	if o.get("type", "") == "zones":
+		var zg := _zone_goal(g)
+		if zg != Vector3.INF:
+			return zg
 	if o.get("type", "") == "hold":
 		var op = g.points[o.point]
 		if not Defs.ally(T, op.owner_team):
@@ -609,6 +615,27 @@ func _goal(g: Game) -> Vector3:
 	if P.smart:
 		return _weak_spot(g, fh.position)
 	return fh.position
+
+
+## Bölge görevi: elimizdeki bölgeye düşman yaklaşıyorsa orayı savun; değilse elimizde olmayan en yakın bölgeye
+## (bağımsız savunucusu az olanı yeğleyerek) saldır.
+func _zone_goal(g: Game) -> Vector3:
+	var me: int = Defs.SIDE[T]
+	for rg in g.regions:
+		if rg.owner_side == me:
+			for e in g.nearby(rg.position, Region.RADIUS + 30.0):
+				if e.alive and Defs.foe(T, e.team) and e.team != Defs.IND and not e.is_air and not e.is_building:
+					return rg.position
+	var best = null
+	var bd := 1e9
+	for rg in g.regions:
+		if rg.owner_side == me:
+			continue
+		var dd: float = Entity.flat(rg.position, home) + rg.ind_n * 25.0 + (40.0 if rg.owner_side >= 0 else 0.0)
+		if dd < bd:
+			bd = dd
+			best = rg
+	return best.position if best != null else Vector3.INF
 
 
 ## Yok etme görevinin en yakın hedefi (stratejik tesisler baştan, diğerleri 2. dakikadan sonra bilinir).
@@ -864,6 +891,9 @@ func _retreat(g: Game) -> void:
 # ---------------------------------------------------------------- füze, saha işleri, yetenek
 
 func _missiles(g: Game, ts) -> void:
+	# Füze sıklığı: iki atış arasında en az MISSILE_GAP[zorluk] saniye (füze doktrini çok sık atmasın).
+	if g.time < missile_next:
+		return
 	for b in _blds(g, "fuze"):
 		for i in b.missile_ready.size():
 			var m := g.missile_info(T, i)
@@ -888,7 +918,8 @@ func _missiles(g: Game, ts) -> void:
 					bs = s
 					best = e
 			if best != null:
-				g.launch_missile(b, i, best.position)
+				if g.launch_missile(b, i, best.position):
+					missile_next = g.time + MISSILE_GAP[clampi(Scenarios.difficulty, 0, 2)] * randf_range(0.85, 1.25)
 				return
 
 
@@ -924,8 +955,6 @@ func _ability(g: Game, ts) -> void:
 		return
 	var a := g.ability(T)
 	if not a.target:
-		if a.id == "ikmal" and _units(g, "fighter").size() + _units(g, "striker").size() + _units(g, "stealth").size() == 0:
-			return
 		g.use_ability(T, Vector3.INF)
 		return
 	# Hedef: görülen düşman birliklerinin en kalabalık olduğu yer, yoksa görülen bir bina.

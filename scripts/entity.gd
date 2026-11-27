@@ -6,8 +6,6 @@ var team := 0
 var def_id := ""
 var d: Dictionary = {}
 var cls := ""
-var last_dmg := -100.0      # son hasar aldığı an (sahada onarım bekler)
-var repair_until := -100.0  # bu ana kadar piyade onarıyor (can çubuğunun yanında yeşil artı)
 var hp := 1.0
 var max_hp := 1.0
 var alive := true
@@ -25,6 +23,7 @@ var xp := 0.0            # verdiği hasar; rütbe buna göre artar
 var rank := 0
 var jammed_t := 0.0      # elektronik harp: kilitlenemez
 var reveal_t := 0.0      # ateş edince kısa süre gizlenemez
+var help_t := 0.0        # yardım çağrısı en çok saniyede bir
 var neutral_target := false   # tarafsız ama vurulabilir (köprü)
 var guard := false            # stratejik hedefin bağımsız savunucusu: yerinden ayrılmaz, yapay zekâ kullanmaz
 var strategic := false        # senaryonun stratejik hedefi (bina): haritada hep işaretli
@@ -122,9 +121,6 @@ func can_hit(e) -> bool:
 	if float(d.mult.get(e.armor, 0.0)) <= 0.0:
 		return false
 	if e.is_air:
-		# Küçük keşif dronu piyadenin tüfek menzilinin üstünde uçar: piyade ve tanksavar timi vuramaz.
-		if armor == "inf" and e.cls == "sdrone_recon":
-			return false
 		# Hava hedefleri radarla görülür. Görünmez uçak ancak yakından tespit edilir.
 		if e.d.get("stealth", false) and flat(global_position, e.global_position) > maxf(8.0, wrange() * 0.45):
 			return false
@@ -135,9 +131,31 @@ func can_hit(e) -> bool:
 	return true
 
 
-## Görüş hattında hedefin çevresinde sayılmayan yarıçap: binanın kendi gövdesi kendini gizlemez.
-static func los_skip(e) -> float:
-	return maxf(3.0, float(e.radius) + 2.0) if e.is_building else 3.0
+## Hava savunması: yerdeki hedefle uğraşırken menzile hava hedefi (uçak, İHA, dron) girerse ona geçer.
+## Böylece yer hedefi de vurabilen dron savarlar küçük dronları kaçırmaz.
+var _air_t := 0.0
+
+
+func air_first(dt: float, max_d: float) -> void:
+	if float(d.get("mult", {}).get("drone", 0.0)) < 0.25 and float(d.get("mult", {}).get("air", 0.0)) < 0.5:
+		return
+	if target != null and is_instance_valid(target) and target.is_air:
+		return
+	_air_t -= dt
+	if _air_t > 0.0:
+		return
+	_air_t = 0.2
+	var best = null
+	var bd := 1e9
+	for e in Game.I.nearby(global_position, max_d + 7.0):
+		if not is_instance_valid(e) or not e.is_air or not can_hit(e) or float(d.mult.get(e.armor, 0.0)) < 0.25:
+			continue
+		var dist: float = flat(global_position, e.global_position) - e.radius
+		if dist <= max_d and dist < bd:
+			bd = dist
+			best = e
+	if best != null:
+		target = best
 
 
 func find_target(max_d: float, min_d := 0.0):
@@ -149,7 +167,7 @@ func find_target(max_d: float, min_d := 0.0):
 		var dist: float = flat(global_position, e.global_position) - e.radius
 		if dist > max_d or dist < min_d:
 			continue
-		if not e.is_air and needs_los() and not Game.I.terrain.los_clear(global_position, e.global_position, Entity.los_skip(e)):
+		if not e.is_air and needs_los() and not Game.I.terrain.los_clear(global_position, e.global_position):
 			continue
 		var s: float = dist / (0.3 + float(d.mult.get(e.armor, 0.0)))
 		# Ateş edebilen hedefler, silahsız binalardan önce gelir.
@@ -218,7 +236,10 @@ func fire(e) -> void:
 			g.fx_shot(self, e, base, 45.0, 0.0, false)
 	if seen:
 		g.fx_muzzle(muzzle_pos(), d.get("proj", "tracer"))
-		g.sfx.play({"shell": "cannon", "arc": "arty", "missile": "missile", "beam": "beam"}.get(d.get("proj", "tracer"), "rifle"), global_position)
+		var snd: String = {"shell": "cannon", "arc": "arty", "missile": "missile", "beam": "beam"}.get(d.get("proj", "tracer"), "rifle")
+		if snd == "rifle" and armor != "inf":
+			snd = "autocannon"
+		g.sfx.play(snd, global_position)
 	reveal_t = 3.0
 	_on_fired()
 
@@ -233,25 +254,27 @@ func take_damage(amount: float, attacker = null, tag := "") -> void:
 	if tag == "drone" and (armor == "heavy" or armor == "light"):
 		amount *= Game.I.mod(team, "drone_resist")
 	amount *= damage_taken_mult()
-	if amount > 0.0:
-		last_dmg = Game.I.time
 	if attacker != null and is_instance_valid(attacker) and attacker.alive and Defs.foe(attacker.team, team):
 		attacker.gain_xp(minf(amount, maxf(hp, 0.0)) + (float(d.get("cost", 0)) * 0.3 if amount >= hp else 0.0))
 	hp -= amount
 	_on_damaged(attacker)
+	if attacker != null and is_instance_valid(attacker) and attacker.alive and Defs.foe(attacker.team, team) and Game.I.time >= help_t:
+		help_t = Game.I.time + 1.0
+		Game.I.call_help(self, attacker)
 	if hp <= 0.0:
 		die()
 
 
-func _on_damaged(attacker) -> void:
-	if team == Defs.PLAYER and attacker != null and is_instance_valid(attacker) and Defs.foe(attacker.team, team):
-		Game.I.log_attack(global_position, d.get("name", ""))
+func _on_damaged(_attacker) -> void:
+	pass
 
 
 func die() -> void:
 	alive = false
 	if is_air and float(d.get("alt", 9.0)) > 5.0:
 		Game.I.fx_crash(global_position, radius)
+	elif armor == "inf":
+		Game.I.fx_puff(global_position + Vector3(0, 0.4, 0), Game.I.dust_color, 1.2, 0.9, 0.4)
 	else:
 		Game.I.fx_explosion(aim_pos(), radius * 1.6)
 		if not is_air:

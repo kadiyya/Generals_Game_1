@@ -18,8 +18,8 @@ static var load_data := {}  # boş değilse kayıtlı oyun yüklenir
 const CLASSES := {
 	"inf": {
 		cat = "kara", from = "kisla", cost = 150, time = 10.0, tier = 1,
-		hp = 260, speed = 3.4, vision = 14.0, radius = 1.0, armor = "inf",
-		range = 8.0, dmg = 11.5, cd = 0.5, proj = "tracer",
+		hp = 300, speed = 3.4, vision = 14.0, radius = 1.0, armor = "inf",
+		range = 8.0, dmg = 12.0, cd = 0.5, proj = "tracer",
 		mult = {inf = 1.0, light = 0.6, heavy = 0.15, bld = 0.3, drone = 0.25},
 		capture = true,
 	},
@@ -33,13 +33,13 @@ const CLASSES := {
 		cat = "kara", from = "fabrika", cost = 380, time = 14.0, tier = 1,
 		hp = 620, speed = 5.2, vision = 15.0, radius = 1.4, armor = "light",
 		range = 9.0, dmg = 16.0, cd = 0.4, proj = "tracer",
-		mult = {inf = 1.2, light = 0.8, heavy = 0.35, bld = 0.4, drone = 0.3},
+		mult = {inf = 1.2, light = 0.8, heavy = 0.6, bld = 0.4, drone = 0.3},   # heavy: top + tanksavar füzesi (TOW, Konkurs)
 	},
 	"tank": {
-		cat = "kara", from = "fabrika", cost = 700, time = 22.0, tier = 1,
+		cat = "kara", from = "fabrika", cost = 800, time = 22.0, tier = 1,
 		hp = 1100, speed = 4.2, vision = 14.0, radius = 1.5, armor = "heavy",
 		range = 10.5, dmg = 75.0, cd = 2.2, proj = "shell",
-		mult = {inf = 0.8, light = 1.2, heavy = 1.0, bld = 1.0},
+		mult = {inf = 0.8, light = 1.0, heavy = 1.0, bld = 1.0},
 	},
 	"arty": {
 		cat = "kara", from = "fabrika", cost = 900, time = 28.0, tier = 2,
@@ -48,30 +48,30 @@ const CLASSES := {
 		mult = {inf = 0.8, light = 0.7, heavy = 0.6, bld = 1.6},
 	},
 	"mlrs": {
-		cat = "kara", from = "fabrika", cost = 1100, time = 30.0, tier = 2,
+		cat = "kara", from = "fabrika", cost = 950, time = 30.0, tier = 2,
 		hp = 420, speed = 3.6, vision = 12.0, radius = 1.6, armor = "light",
-		range = 42.0, min_range = 12.0, dmg = 95.0, cd = 8.0, proj = "arc", splash = 7.5, no_chase = true,
+		range = 42.0, min_range = 12.0, dmg = 95.0, cd = 5.5, proj = "arc", splash = 7.5, no_chase = true,
 		mult = {inf = 1.2, light = 1.0, heavy = 0.4, bld = 1.2},
 	},
 	"spaag": {
 		cat = "hs", from = "fabrika", cost = 550, time = 18.0, tier = 1,
 		hp = 560, speed = 4.2, vision = 14.0, radius = 1.5, armor = "light",
 		range = 14.0, dmg = 22.0, cd = 0.35, proj = "tracer",
-		mult = {air = 0.6, drone = 1.0, bld = 0.3},
+		mult = {air = 0.6, drone = 1.0, inf = 1.1, light = 0.75, heavy = 0.15, bld = 0.25},
 	},
 	"laser": {
 		cat = "hs", from = "fabrika", cost = 1400, time = 35.0, tier = 3,
 		hp = 500, speed = 3.6, vision = 16.0, radius = 1.5, armor = "light",
 		range = 18.0, dmg = 60.0, cd = 0.6, proj = "beam",
-		mult = {air = 0.5, drone = 3.0, bld = 0.15},
+		mult = {air = 0.5, drone = 3.0, inf = 0.9, light = 0.65, heavy = 0.15, bld = 0.2},
 	},
-	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları çok sert vurur,
-	# küçük dronlara ve yerdeki hedeflere neredeyse etkisizdir.
+	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları sert vurur (missile: balistik füze
+	# önleme çarpanı); yerdeki hafif hedeflere ve piyadeye orta, tanka zayıf etkilidir; küçük dronlara neredeyse etkisizdir.
 	"ads": {
 		cat = "hs", from = "fabrika", cost = 950, time = 24.0, tier = 2,
 		hp = 950, speed = 3.9, vision = 20.0, radius = 1.7, armor = "heavy",
 		range = 25.0, dmg = 150.0, cd = 2.6, proj = "missile",
-		mult = {air = 1.6, drone = 0.15, inf = 0.06, light = 0.08, heavy = 0.04, bld = 0.15},
+		mult = {air = 1.28, missile = 1.6, drone = 0.15, inf = 0.3, light = 0.35, heavy = 0.25, bld = 0.3},
 	},
 	"ew": {
 		cat = "hs", from = "fabrika", cost = 650, time = 20.0, tier = 1,
@@ -83,10 +83,10 @@ const CLASSES := {
 		hp = 40, speed = 6.0, vision = 30.0, radius = 0.6, armor = "drone", icon_r = 1.1,
 	},
 	"sdrone_fpv": {
-		cat = "hava", from = "kisla", cost = 200, time = 10.0, tier = 1, air = true, small = true, alt = 3.5,
+		cat = "hava", from = "kisla", cost = 280, time = 10.0, tier = 1, air = true, small = true, alt = 3.5,
 		count = 3, pop = 0, life = 70.0, kamikaze = true, tag = "drone",
 		hp = 25, speed = 7.5, vision = 11.0, radius = 0.5, armor = "drone", icon_r = 1.0,
-		dmg = 130.0, mult = {inf = 0.8, light = 1.2, heavy = 0.8, bld = 0.3},
+		dmg = 130.0, mult = {inf = 0.8, light = 1.2, heavy = 0.65, bld = 0.3},
 	},
 	"sdrone_bomb": {
 		cat = "hava", from = "kisla", cost = 320, time = 14.0, tier = 1, air = true, small = true, alt = 4.5,
@@ -119,7 +119,7 @@ const CLASSES := {
 		mult = {inf = 0.6, light = 1.2, heavy = 1.1, bld = 1.0},
 	},
 	"uav_kami": {
-		cat = "hava", from = "havaalani", cost = 320, time = 12.0, tier = 2, air = true, alt = 7.0,
+		cat = "hava", from = "havaalani", cost = 450, time = 12.0, tier = 2, air = true, alt = 7.0,
 		pop = 0, kamikaze = true, tag = "drone", leash = 30.0,
 		hp = 90, speed = 6.5, vision = 14.0, radius = 1.0, armor = "air", icon_r = 2.0,
 		dmg = 380.0, splash = 3.0, mult = {inf = 0.6, light = 1.0, heavy = 0.6, bld = 1.5},
@@ -157,7 +157,7 @@ const BUILDING_KINDS := {
 	"havaalani": {name = "Hava Alanı", cost = 900, time = 30.0, tier = 2, hp = 1600, vision = 14.0, radius = 6.0, power = -2},
 	"sam": {
 		name = "Hava Savunma", cost = 700, time = 20.0, tier = 2, hp = 800, vision = 14.0, radius = 2.2, power = -1,
-		cls = "sam", range = 26.0, dmg = 140.0, cd = 3.0, proj = "missile", mult = {air = 1.0},
+		cls = "sam", range = 26.0, dmg = 140.0, cd = 3.0, proj = "missile", mult = {air = 0.8, missile = 1.0, drone = 0.3, inf = 0.55, light = 0.7, heavy = 0.32, bld = 0.3},
 	},
 	"teknoloji": {name = "Teknoloji Merkezi", cost = 800, time = 30.0, tier = 2, hp = 1000, vision = 12.0, radius = 3.4, power = -1},
 	"engel": {name = "Tanksavar Engeli", cost = 150, time = 6.0, tier = 1, hp = 1400, vision = 4.0, radius = 2.0, field = true},
@@ -169,40 +169,40 @@ const BUILDING_KINDS := {
 # Doktrin, ülkenin savaş tarzını fiyatla dayatır: doktrine uyan birimler çok ucuz, uymayanlar cezalı pahalıdır.
 const DOCTRINES := {
 	"hava": {
-		name = "Hava Üstünlüğü", desc = "Uçaklar %30 ucuz ve hızlı silahlanır, İHA'lar ucuz. Tank ve topçu %35-40 pahalı.",
-		mods = {cost_fighter = 0.7, cost_striker = 0.7, cost_stealth = 0.75, cost_uav_recon = 0.85, cost_uav_strike = 0.85,
-			cost_uav_heavy = 0.85, rearm = 0.7, cost_tank = 1.35, cost_arty = 1.4, cost_mlrs = 1.4, cost_ifv = 1.2,
+		name = "Hava Üstünlüğü", desc = "Uçaklar ve İHA'lar %15 ucuz, uçaklar hızlı silahlanır. Tank ve topçu %30, zırhlı ve dronlar %20-30 pahalı.",
+		mods = {cost_fighter = 0.85, cost_striker = 0.85, cost_stealth = 0.85, cost_uav_recon = 0.85, cost_uav_strike = 0.85,
+			cost_uav_heavy = 0.85, rearm = 0.7, cost_tank = 1.3, cost_arty = 1.3, cost_mlrs = 1.3, cost_ifv = 1.2,
 			cost_sdrone_fpv = 1.3, cost_sdrone_bomb = 1.3},
-		ability = {id = "ikmal", name = "Havada Yakıt İkmali", cost = 800, cd = 150.0, tier = 2, target = false,
-			desc = "60 saniye boyunca uçakların mühimmatı havada yenilenir ve %20 hızlı uçarlar: üsse dönmeden uzun devriye."},
+		ability = {id = "akin", name = "Hava Akını", cost = 900, cd = 150.0, tier = 2, target = true,
+			desc = "İki bombardıman uçağı üssünden kalkar, görülen hedefe alçaktan girip 12 bomba bırakır ve geri döner. Hava alanı gerekmez. Hava savunması uçakları düşürebilir: düşen uçağın bombaları düşmez."},
 	},
 	"iha": {
-		name = "İHA Doktrini", desc = "Küçük dronlar %40, büyük İHA'lar %30 ucuz. Tank yok; zırhlı, topçu ve uçaklar %30-60 pahalı.",
-		mods = {cost_sdrone_recon = 0.6, cost_sdrone_fpv = 0.6, cost_sdrone_bomb = 0.6, cost_loiter = 0.6,
-			cost_uav_recon = 0.7, cost_uav_strike = 0.7, cost_uav_kami = 0.7, cost_uav_heavy = 0.7,
-			cost_ifv = 1.3, cost_arty = 1.3, cost_mlrs = 1.3, cost_spaag = 1.2, cost_tank = 1.6,
-			cost_fighter = 1.5, cost_striker = 1.6, cost_stealth = 1.6},
+		name = "İHA Doktrini", desc = "Küçük dronlar ve İHA'lar %25 ucuz. Tank yok; zırhlı %15, dron savar %20, topçu ve uçaklar %30 pahalı.",
+		mods = {cost_sdrone_recon = 0.75, cost_sdrone_fpv = 0.75, cost_sdrone_bomb = 0.75, cost_loiter = 0.75,
+			cost_uav_recon = 0.75, cost_uav_strike = 0.75, cost_uav_kami = 0.75, cost_uav_heavy = 0.75,
+			cost_ifv = 1.15, cost_arty = 1.3, cost_mlrs = 1.3, cost_spaag = 1.2, cost_tank = 1.3,
+			cost_fighter = 1.3, cost_striker = 1.3, cost_stealth = 1.3},
 		ability = {id = "suru", name = "Sürü Saldırısı", cost = 600, cd = 120.0, tier = 1, target = true,
 			desc = "Görülen bir noktaya, en yakın birliğinden 8 FPV dronu birden fırlatır. Hava savunmasını doyurur."},
 	},
 	"zirh": {
-		name = "Zırhlı / Topçu", desc = "Tank ve topçu %20-25 ucuz ve daha dayanıklı. Dronlar ve İHA'lar %40 pahalı.",
-		mods = {hp_tank = 1.2, hp_arty = 1.2, hp_mlrs = 1.2, cost_tank = 0.75, cost_arty = 0.8, cost_mlrs = 0.8, cost_ifv = 0.85,
-			cost_sdrone_recon = 1.3, cost_sdrone_fpv = 1.4, cost_loiter = 1.4, cost_uav_strike = 1.4, cost_uav_kami = 1.4,
-			cost_uav_heavy = 1.4, cost_fighter = 1.15, cost_striker = 1.1},
+		name = "Zırhlı / Topçu", desc = "Tank %15, topçu %20 ucuz ve daha dayanıklı. Dronlar ve İHA'lar %30 pahalı.",
+		mods = {hp_tank = 1.2, hp_arty = 1.2, hp_mlrs = 1.2, cost_tank = 0.85, cost_arty = 0.8, cost_mlrs = 0.8, cost_ifv = 0.85,
+			cost_sdrone_recon = 1.3, cost_sdrone_fpv = 1.3, cost_loiter = 1.3, cost_uav_strike = 1.3, cost_uav_kami = 1.3,
+			cost_uav_heavy = 1.3, cost_fighter = 1.15, cost_striker = 1.1},
 		ability = {id = "baraj", name = "Topçu Barajı", cost = 700, cd = 120.0, tier = 1, target = true,
 			desc = "Görülen bir alana 7 saniye boyunca 14 ağır top mermisi yağdırır. Siperleri ve toplu piyadeyi dağıtır."},
 	},
 	"fuze": {
-		name = "Balistik Füze", desc = "Füzeler %40 ucuz, çabuk hazır; Füze Üssü Kademe 2'de açılır. Kamikaze İHA'lar ucuz. Zırhlı ve uçaklar %35-40 pahalı.",
-		mods = {missile_cost = 0.6, missile_cd = 0.6, cost_uav_kami = 0.7, cost_sdrone_fpv = 0.8, cost_loiter = 0.85,
-			hp_tank = 0.9, hp_ifv = 0.9, cost_tank = 1.35, cost_ifv = 1.2, cost_fighter = 1.4, cost_striker = 1.4, cost_stealth = 1.4},
+		name = "Balistik Füze", desc = "Füzeler %40 ucuz, çabuk hazır; Füze Üssü Kademe 2'de açılır. Kamikaze İHA'lar ucuz. Zırhlı %20, tank ve uçaklar %30 pahalı.",
+		mods = {missile_cost = 0.6, missile_cd = 0.6, cost_uav_kami = 0.75, cost_sdrone_fpv = 0.8, cost_loiter = 0.85,
+			hp_tank = 0.9, hp_ifv = 0.9, cost_tank = 1.3, cost_ifv = 1.2, cost_fighter = 1.3, cost_striker = 1.3, cost_stealth = 1.3},
 		ability = {id = "salvo", name = "Doyurma Salvosu", cost = 1600, cd = 180.0, tier = 2, target = true,
-			desc = "Görülen bir noktaya aynı anda 4 balistik füze atar. Her hava savunma bataryası en çok birini önleyebilir."},
+			desc = "Görülen bir noktaya aynı anda 4 balistik füze atar. Hava savunması her atışta yalnızca bir füzeye yetişir: doyurur."},
 	},
 	"denge": {
-		name = "Dengeli / İnsan Gücü", desc = "Piyade %35, tanksavar %25 ucuz, birlik sınırı yüksek. Pahalı doktrin cezası yok.",
-		mods = {cost_inf = 0.65, cost_at = 0.75, cost_ifv = 0.9, pop_cap = 12.0},
+		name = "Dengeli / İnsan Gücü", desc = "Piyade %20, tanksavar %25 ucuz, birlik sınırı yüksek. Pahalı doktrin cezası yok.",
+		mods = {cost_inf = 0.8, cost_at = 0.75, cost_ifv = 0.9, pop_cap = 12.0},
 		ability = {id = "seferberlik", name = "Seferberlik", cost = 400, cd = 150.0, tier = 1, target = false,
 			desc = "Karargâhın yanında anında 4 piyade mangası toplar (birlik sınırı izin verdiği kadar)."},
 	},
@@ -224,27 +224,26 @@ const RESEARCH := [
 const COUNTRIES := {
 	"ua": {
 		name = "Ukrayna", doctrine = "iha", body = Color(0.33, 0.4, 0.25), air = Color(0.55, 0.6, 0.66),
+		drone_armor = 1.15,   # dronlar (FPV, dolanan mühimmat, İHA'lar) zırhlılara %15 fazla vurur
 		sam = ["Patriot", "sam_box"],
 		missiles = [{name = "Hrim-2", cost = 1300, cd = 70.0, dmg = 900.0, splash = 7.0, tier = 3}],
 		units = [
 			["inf", "Piyade Mangası", "inf", "inf", {}],
 			["at", "Javelin Timi", "at", "at", {}],
 			["ew", "Bukovel-AD", "ew", "ew_truck", {}],
-			# Ukrayna'nın İHA'ları savaşta olgunlaşmıştır: zırha karşı daha ölümcül, daha dayanıklı.
-			["mavic", "DJI Mavic 3", "sdrone_recon", "quad", {hp = 55, vision = 34.0}],
-			["fpv", "FPV Kamikaze", "sdrone_fpv", "quad", {dmg = 150.0, mult = {inf = 0.8, light = 1.5, heavy = 1.2, bld = 0.3}}],
-			["baba", "Baba Yaga", "sdrone_bomb", "hexa", {hp = 85, dmg = 110.0, ammo = 3, mult = {inf = 1.3, light = 1.2, heavy = 0.9, bld = 0.6}}],
-			["sb600", "Switchblade 600", "loiter", "xwing", {dmg = 320.0, mult = {inf = 0.4, light = 1.5, heavy = 1.35, bld = 0.4}}],
+			["mavic", "DJI Mavic 3", "sdrone_recon", "quad", {}],
+			["fpv", "FPV Kamikaze", "sdrone_fpv", "quad", {}],
+			["baba", "Baba Yaga", "sdrone_bomb", "hexa", {}],
+			["sb600", "Switchblade 600", "loiter", "xwing", {}],
 			["bradley", "M2 Bradley", "ifv", "ifv_tall", {}],
 			["gepard", "Gepard", "spaag", "gepard", {}],
 			["buk", "Buk-M1", "ads", "buk", {}],
 			["himars", "M142 HIMARS", "mlrs", "himars", {}],
-			["tb2", "Bayraktar TB2", "uav_strike", "tb2", {hp = 270, dmg = 185.0, ammo = 3, rearm = 9.0, mult = {inf = 0.7, light = 1.35, heavy = 1.25, bld = 0.9}}],
-			["liutyi", "AN-196 Liutyi", "uav_kami", "liutyi", {mult = {inf = 0.6, light = 1.2, heavy = 1.0, bld = 1.6}}],
+			["tb2", "Bayraktar TB2", "uav_strike", "tb2", {}],
+			["liutyi", "AN-196 Liutyi", "uav_kami", "liutyi", {}],
 			["f16", "F-16", "fighter", "f16", {}],
 			["su24", "Su-24M (Storm Shadow)", "striker", "su34", {}],
-			["peklo", "Peklo Füze-Drone", "uav_kami", "liutyi", {tier = 3, dmg = 420.0, speed = 10.0, hp = 110, cost = 700,
-				mult = {inf = 0.6, light = 1.3, heavy = 1.1, bld = 1.6}}],
+			["peklo", "Peklo Füze-Drone", "uav_kami", "liutyi", {tier = 3, dmg = 420.0, speed = 10.0, hp = 110, cost = 700}],
 		],
 	},
 	"ru": {
@@ -260,8 +259,10 @@ const COUNTRIES := {
 			["lancet", "Lancet-3", "loiter", "xwing", {}],
 			["bmp3", "BMP-3", "ifv", "ifv_low", {}],
 			["t72", "T-72B3", "tank", "tank_ru", {}],
+			["t90", "T-90M", "tank", "tank_ru2", {cost = 850, hp = 1300, tier = 2}],
 			["pantsir", "Pantsir-S1", "spaag", "pantsir", {}],
 			["buk", "Buk-M3", "ads", "buk", {}],
+			["msta", "2S19 Msta-S", "arty", "sph", {}],
 			["tornado", "Tornado-S", "mlrs", "mlrs_truck", {}],
 			["orion", "Orion", "uav_strike", "vtail", {}],
 			["geran", "Geran-2", "uav_kami", "shahed", {}],
@@ -467,8 +468,9 @@ const MAPS := {
 			{e = [90, 140, 30, 14]}, {e = [-100, 150, 25, 15]},
 		],
 		trees = [], ruins = [],
-		# İsrail'in hedefi olan dört stratejik tesis: İran tarafında hazır kurulu, çevrelerinde bağımsız savunma birlikleri.
-		strategic = [[185, -75, "fuze"], [205, 80, "sam"], [150, -12, "santral"], [275, 15, "teknoloji"]],
+		# Dört bölge: bağımsız kuvvetlerin elinde; iki taraf da dördünü birden ele geçirmeye çalışır.
+		zones = [[70, -40, "Kerhe Tepesi"], [-60, 40, "Karun Sırtı"], [-50, -75, "Şuş Sanayi Bölgesi"], [100, 100, "Mahşehr Depoları"]],
+		ind_cc = "ir",
 		roads = [
 			{p = [[-360, 100], [-250, 125], [-150, 120], [-60, 135], [60, 125], [200, 120], [360, 100]], w = 6.0, asphalt = true},
 			{p = [[-360, -20], [-250, -15], [-150, 10], [-60, 20], [40, 30], [120, 10], [180, 60], [270, 70], [360, 60]], w = 5.0, asphalt = true},
@@ -486,9 +488,10 @@ const MAPS := {
 			[15, 40, 6.0, 25.0, "oil", "Ahvaz petrol terminali"],
 			[-230, -120, 2.0, 12.0, "supply", ""], [-260, 40, 2.0, 12.0, "supply", ""], [-150, 55, 2.0, 12.0, "supply", ""],
 			[-90, -140, 2.0, 12.0, "supply", ""], [-85, 160, 5.0, 18.0, "oil", "Abadan rafinerisi"],
-			[80, -75, 2.0, 12.0, "supply", ""], [-75, -35, 2.0, 12.0, "supply", ""], [60, 90, 2.0, 12.0, "supply", ""],
-			[150, 25, 3.0, 15.0, "town", "Mescid-i Süleyman"], [150, 140, 3.0, 15.0, "town", "Bender Mahşehr"],
-			[40, -90, 3.0, 15.0, "town", "Dezful"], [235, -65, 2.0, 12.0, "supply", ""], [230, 110, 2.0, 12.0, "supply", ""],
+			# bölgelere (zones) yakın kaynaklar, bağımsız kuvvetlerin ve bölgedeki birliklerin menzili dışına alındı
+			[91, -112, 2.0, 12.0, "supply", ""], [-123, -59, 2.0, 12.0, "supply", ""], [27, 82, 2.0, 12.0, "supply", ""],
+			[150, 25, 3.0, 15.0, "town", "Mescid-i Süleyman"], [159, 147, 3.0, 15.0, "town", "Bender Mahşehr"],
+			[31, -104, 3.0, 15.0, "town", "Dezful"], [235, -65, 2.0, 12.0, "supply", ""], [230, 110, 2.0, 12.0, "supply", ""],
 			[255, 10, 2.0, 12.0, "supply", ""], [-220, -180, 2.0, 12.0, "supply", ""], [20, -200, 4.0, 18.0, "oil", "Mescid-i Süleyman petrol sahası"],
 		],
 	},
@@ -521,6 +524,9 @@ const MAPS := {
 			{e = [-120, 60, 28, 18]}, {e = [90, 100, 30, 18]}, {e = [-60, 140, 25, 15]}, {e = [210, 60, 22, 18]},
 		],
 		trees = [], ruins = [],
+		# Pakistan'ın hedefi olan üç askerî üretim tesisi: Hindistan tarafında, üssün dibinde değil cephenin yakınında
+		# hazır kurulu; haritada işaretli, çevrelerinde bağımsız savunucular.
+		strategic = [[65, -55, "kisla"], [95, 60, "fabrika"], [100, -5, "havaalani"]],
 		roads = [
 			{p = [[-360, 40], [-220, 60], [-170, 90], [-60, 100], [40, 110], [130, 105], [200, 110], [300, 90], [360, 80]], w = 6.0, asphalt = true},
 			{p = [[-360, -70], [-250, -60], [-150, -60], [-60, -20], [30, -10], [110, -10], [200, -30], [300, -60], [360, -60]], w = 4.0},
@@ -547,7 +553,7 @@ const MAPS := {
 }
 
 # Haritalar yukarıdaki ölçülerle yazılır, oyunda MAP_SCALE ile küçültülür (yolların genişliği aynı kalır; dağlar ve nehirler orantılı incelir).
-const MAP_SCALE := 0.85
+const MAP_SCALE := 0.72
 static var _scaled := {}
 
 
@@ -571,7 +577,7 @@ static func map_def(key: String) -> Dictionary:
 				ns.w = float(ns.w) * k   # dağlar ve nehirler orantılı incelir; geçitler kapanmaz
 			out.append(ns)
 		m[layer] = out
-	for list in ["towns", "big", "points", "strategic"]:
+	for list in ["towns", "big", "points", "strategic", "zones"]:
 		for row in m.get(list, []):
 			row[0] = float(row[0]) * k
 			row[1] = float(row[1]) * k
@@ -633,9 +639,8 @@ const TIPS := {
 # ---------------------------------------------------------------- görev seçimi (menüden)
 const GOALS := [
 	{id = "senaryo", name = "Senaryo Görevi", desc = "Her ülkenin senaryoya özel görevi (bölge tutma ya da hedef yok etme). Karargâhı yıkılan kaybeder."},
-	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı toplam 10 dakika elinde tutmaya çalışır. Karargâhı yıkılan kaybeder."},
+	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı kesintisiz 10 dakika elinde tutmaya çalışır; nokta elden çıkarsa sayaç baştan başlar. Karargâhı yıkılan kaybeder."},
 	{id = "imha", name = "Tam İmha", desc = "Düşmanın bütün binalarını ve birliklerini yok et. Karargâh yıkılsa da savaş sürer."},
-	{id = "karargah", name = "Karargâhı Yık", desc = "Tek hedef düşmanın karargâhı. Haritada ele geçirilecek nokta ya da tutulacak bölge yoktur; gelir karargâhtan (iki kat) ve kaynak yataklarına kurulan madenlerden gelir."},
 ]
 
 
@@ -646,17 +651,17 @@ const LIST := [
 		geo = {c = Vector2(36.5, 49.8), zoom = 9.0, a = Vector2(34.6, 49.8), b = Vector2(38.6, 50.4), col = Color(1.0, 0.72, 0.25), label = "Harkiv – Severski Donets"},
 		desc = "Harkiv'in doğusu: Severski Donets ve Oskil nehirleri, köprüler, Peçenihi barajı, geniş ormanlar ve ağaç hatlarıyla bölünmüş tarlalar. Ukrayna'nın tankı yok; drone'larla Rus zırhını avlar. Rusya ağır zırh ve topçuya güvenir.",
 		obj = {
-			a = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
-			b = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını toplam 10 dakika elinde tut"},
+			a = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını kesintisiz 10 dakika elinde tut"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Çuhuiv köprübaşını kesintisiz 10 dakika elinde tut"},
 		},
 	},
 	{
 		name = "İran – İsrail", map = "korfez", a = "il", b = "ir",
 		geo = {c = Vector2(42.0, 31.8), zoom = 6.0, a = Vector2(35.0, 31.6), b = Vector2(49.5, 31.5), col = Color(0.3, 0.85, 0.75), label = "Huzistan – Zagros"},
-		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. İsrail görünmez uçaklarla stratejik hedefleri vurur, İran balistik füzelerle karşılık verir.",
+		desc = "Huzistan ovası ve Zagros sıradağları: Karun ve Kerhe nehirleri, petrol sahaları, hurma bahçeleri ve dar dağ geçitleri. Dört kilit bölgeyi iki orduya da saldıran bağımsız kuvvetler tutuyor. İsrail görünmez uçaklarla, İran balistik füzelerle bölgeleri almaya çalışır.",
 		obj = {
-			a = {type = "destroy", kinds = ["fuze", "sam", "santral", "teknoloji"], count = 4, strategic = true, text = "Haritada işaretli 4 stratejik tesisi yok et (füze üssü, hava savunma, santral, teknoloji merkezi)"},
-			b = {type = "hold", point = 0, secs = 600.0, text = "Ahvaz petrol terminalini toplam 10 dakika elinde tut"},
+			a = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü kesintisiz 1,5 dk tut"},
+			b = {type = "zones", count = 4, secs = 90.0, text = "4 bölgeyi al, dördünü kesintisiz 1,5 dk tut"},
 		},
 	},
 	{
@@ -664,8 +669,8 @@ const LIST := [
 		geo = {c = Vector2(74.5, 33.0), zoom = 10.0, a = Vector2(72.8, 33.4), b = Vector2(76.3, 32.6), col = Color(0.55, 0.9, 0.4), label = "Keşmir – Kontrol Hattı"},
 		desc = "Kontrol Hattı: kuzeyde Himalaya eteklerinin çam ormanları ve hâkim tepeler, güneyde kanallarla bölünmüş Pencap ovası; Chenab, Jhelum ve Tawi nehirleri. Pakistan balistik füzelere, Hindistan insan gücüne güvenir.",
 		obj = {
-			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla", "fuze"], count = 3, text = "3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla, füze üssü)"},
-			b = {type = "hold", point = 0, secs = 600.0, text = "Akhnur köprübaşını toplam 10 dakika elinde tut"},
+			a = {type = "destroy", kinds = ["havaalani", "fabrika", "kisla"], count = 3, strategic = true, text = "Haritada işaretli 3 askerî üretim tesisini yok et (hava alanı, fabrika, kışla)"},
+			b = {type = "hold", point = 0, secs = 600.0, text = "Akhnur köprübaşını kesintisiz 10 dakika elinde tut"},
 		},
 	},
 	{name = "Çin – ABD: Tayvan Çıkarması", locked = true, geo = {c = Vector2(120.5, 24.0), zoom = 6.0, col = Color(0.9, 0.35, 0.3)}, desc = "Çin Tayvan'a çıkmak ister, ABD denizde geçişi durdurmaya çalışır. Deniz moduyla açılacak."},
@@ -691,6 +696,7 @@ static func setup() -> void:
 	Defs.MAP_H = map.size.y
 	Defs.SIDE = md.sides.duplicate()
 	Defs.N = Defs.SIDE.size()
+	Defs.IND = -1
 	Defs.COUNTRY = []
 	Defs.TEAM_COLORS = []
 	Defs.TEAM_NAMES = []
@@ -713,6 +719,14 @@ static func setup() -> void:
 				nm += [" (1. ordu)", " (2. ordu)"][used[1] % 2]
 		Defs.TEAM_NAMES.append(nm)
 		used[s] += 1
+	# Bölgeli harita: bağımsız kuvvetler ayrı bir takım ve üçüncü taraftır (ordulardan sonra).
+	if not map.get("zones", []).is_empty() and not tutorial:
+		Defs.IND = Defs.N
+		Defs.SIDE.append(2)
+		Defs.COUNTRY.append(map.get("ind_cc", codes[1]))
+		Defs.TEAM_COLORS.append(Color(0.92, 0.8, 0.3))
+		Defs.TEAM_NAMES.append("Bağımsız kuvvetler")
+		map.team_bases.append(Vector3.ZERO)
 	Defs.SCN = scn
 	Defs.MAP = map
 	Defs.UNITS = {}
@@ -729,6 +743,13 @@ static func setup() -> void:
 			d.cc = cc
 			if not d.get("air", false) and d.armor != "inf":
 				d.radius = float(d.radius) * 1.15   # araç modelleri büyütüldü
+			# Hız dengesi: piyade %10 hızlı, kara araçları %5 yavaş (zırhlı piyadeden kolayca kaçmasın).
+			if not d.get("air", false):
+				d.speed = float(d.speed) * (1.1 if d.armor == "inf" else 0.95)
+			if d.get("tag", "") == "drone" and c.has("drone_armor") and d.has("mult"):
+				for ak in ["light", "heavy"]:
+					if d.mult.has(ak):
+						d.mult[ak] = float(d.mult[ak]) * float(c.drone_armor)
 			if int(d.get("tier", 1)) >= 3:
 				# Deneysel silah: pahalı ama çok etkili.
 				d.exp = true
@@ -809,17 +830,10 @@ static func objective(team: int) -> Dictionary:
 	match GOALS[clampi(goal, 0, GOALS.size() - 1)].id:
 		"tut":
 			var pt: Array = MAPS[scn.map].points[0]
-			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını toplam 10 dakika elinde tut" % pt[5]}
+			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını kesintisiz 10 dakika elinde tut" % pt[5]}
 		"imha":
 			return {type = "annihilate", text = "Düşmanı tamamen yok et: bütün binalarını ve birliklerini"}
-		"karargah":
-			return {}
 	return scn.obj.a if Defs.COUNTRY[team] == scn.a else scn.obj.b
-
-
-## Görev "Karargâhı Yık" mı: haritada ele geçirilecek nokta yok, karargâh geliri iki kat.
-static func hq_only() -> bool:
-	return not tutorial and GOALS[clampi(goal, 0, GOALS.size() - 1)].id == "karargah"
 
 
 ## Görev tam imha mı (karargâh kaybı savaşı bitirmez).

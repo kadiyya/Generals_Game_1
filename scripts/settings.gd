@@ -10,6 +10,8 @@ const KEYS := {
 	shadows = ["Gölgeler", true],
 	effects = ["Duman ve toz efektleri", true],
 	textures = ["Texture'lar", true],
+	nature = ["Doğa ayrıntıları (ot, çalı, kuş, rüzgâr)", true],
+	notch = ["Ekran kenarında ek boşluk (kamera deliği yazıyı kapatıyorsa)", false],
 }
 
 static var values := {}
