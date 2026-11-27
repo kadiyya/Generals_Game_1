@@ -140,8 +140,6 @@ func _act() -> void:
 		used["dig"] = g.order_task([inf[0]], "dig")
 	if g.time > 60.0 and not used.has("mine") and inf.size() >= 2:
 		used["mine"] = g.order_task([inf[1]], "mine")
-	if g.time > 80.0 and not used.has("engel") and inf.size() >= 2:
-		used["engel"] = g.order_task([inf[1]], "obstacle")
 	if g.time > 100.0 and not used.has("ev") and inf.size() >= 1:
 		var best = null
 		for h in g.houses:

@@ -202,10 +202,10 @@ func _run() -> void:
 	await _wait(0.6)
 	_check("mayin dusman aracinda patlar", victim.hp < hv - 100.0 and g.team_mines(0) == 0)
 
-	# ---- engel
-	var ob := _land(hq + Vector3(50, 0, -20))
-	_check("tanksavar engeli kurulur", g.place_obstacle(0, ob))
-	_check("engel yolu kapatir", ter.solid(ob))
+	# ---- engel kurma emri kaldırıldı
+	var eng_inf = g.spawn_unit(g.unit_of(0, "inf"), 0, _land(hq + Vector3(50, 0, -20)))
+	_check("engel kur emri yok", g.order_task([eng_inf], "obstacle") == 0)
+	eng_inf.die()
 
 	# ---- rütbe ve geri çekilme
 	var vet = g.spawn_unit(g.unit_of(0, "ifv"), 0, _land(hq + Vector3(30, 0, 30)))
@@ -580,7 +580,23 @@ func _run() -> void:
 	_check("buyuk hava savunmanin ucaga etkisi %20 azaldi, fuze onleme ayni", is_equal_approx(float(adsd.mult.air), 1.28) and is_equal_approx(float(adsd.mult.missile), 1.6)
 		and is_equal_approx(float(Defs.BUILDINGS[Defs.bid(0, "sam")].mult.air), 0.8))
 	var ua_fpv: Dictionary = Defs.UNITS[g.unit_of(0, "sdrone_fpv")]
-	_check("Ukrayna dronlari zirhliya %15 fazla vurur", Defs.COUNTRY[0] == "ua" and is_equal_approx(float(ua_fpv.mult.light), 1.2 * 1.15) and is_equal_approx(float(ua_fpv.mult.heavy), 0.65 * 1.15) and is_equal_approx(float(ua_fpv.mult.inf), 0.8))
+	_check("Ukrayna kamikaze dronlari zirhliya %70 fazla vurur", Defs.COUNTRY[0] == "ua" and is_equal_approx(float(ua_fpv.mult.light), 1.2 * 1.7) and is_equal_approx(float(ua_fpv.mult.heavy), 0.65 * 1.7) and is_equal_approx(float(ua_fpv.mult.inf), 0.8))
+	var ua_tb2: Dictionary = Defs.UNITS[g.unit_of(0, "uav_strike")]
+	_check("Ukrayna silahli IHA'lari zirhliya %35 fazla vurur, TB2 3 fuzeli", is_equal_approx(float(ua_tb2.mult.heavy), 1.0 * 1.35) and int(ua_tb2.ammo) == 3)
+	var ru_tanks := 0
+	for u in Scenarios.COUNTRIES.ru.units:
+		if u[2] == "tank":
+			ru_tanks += 1
+	_check("Rusya'da iki tank (T-72B3, T-14), T-90M ve Msta-S yok", ru_tanks == 2 and not Defs.UNITS.has("ru_t90") and not Defs.UNITS.has("ru_msta"))
+	_check("piyadenin atesi %15 guclendi", is_equal_approx(float(Scenarios.CLASSES.inf.dmg), 13.8))
+	var x_rc = g.spawn_unit(g.unit_of(0, "sdrone_recon"), 0, hq + Vector3(0, 0, 14))
+	var x_fi = g.spawn_unit(g.unit_of(1, "inf"), 1, x_rc.position + Vector3(3, 0, 0))
+	var x_aa = g.spawn_unit(g.unit_of(1, "spaag"), 1, x_rc.position + Vector3(-3, 0, 0))
+	var x_fp = g.spawn_unit(g.unit_of(0, "sdrone_fpv"), 0, x_rc.position + Vector3(0, 0, 3))
+	_check("piyade kesif dronunu vuramaz, dron savar vurur", not x_fi.can_hit(x_rc) and x_aa.can_hit(x_rc))
+	_check("piyade FPV dronunu hala vurabilir", x_fi.can_hit(x_fp))
+	for x in [x_rc, x_fi, x_aa, x_fp]:
+		x.die()
 	_check("piyade %10 hizli, kara araci %5 yavas", is_equal_approx(float(Defs.UNITS[g.unit_of(0, "inf")].speed), 3.4 * 1.1) and is_equal_approx(float(Defs.UNITS[g.unit_of(0, "ifv")].speed), 5.2 * 0.95))
 	_check("IHA gorusu genis", float(Defs.UNITS[g.unit_of(0, "uav_strike")].vision) >= 30.0)
 	for r in Scenarios.RESEARCH:
@@ -740,6 +756,68 @@ func _run() -> void:
 	var f := FileAccess.open("user://mechtest_sayi.txt", FileAccess.WRITE)
 	f.store_string("%d %d %d" % [alive, int(g.teams[0].money), int(g.time)])
 	f = null
+
+	# ---- piyadenin sahada onarımı
+	var x_rp := _land(hq + Vector3(-40, 0, 40))
+	var x_rb := g.spawn_building(Defs.bid(0, "kisla"), 0, x_rp, true)
+	x_rb.hp = x_rb.max_hp * 0.5
+	var x_rv = g.spawn_unit(g.unit_of(0, "ifv"), 0, x_rp + Vector3(x_rb.radius + 5.0, 0, 0))
+	x_rv.hp = x_rv.max_hp * 0.5
+	var x_medic = g.spawn_unit(g.unit_of(0, "inf"), 0, x_rp + Vector3(x_rb.radius + 2.5, 0, 0))
+	await _wait(3.0)
+	_check("piyade yanindaki binayi onarir", x_rb.hp > x_rb.max_hp * 0.505 and x_rb.hp < x_rb.max_hp * 0.6)
+	_check("piyade yanindaki zirhliyi onarir", x_rv.hp > x_rv.max_hp * 0.51 and x_rv.hp < x_rv.max_hp * 0.62)
+	x_rv.take_damage(1.0)
+	var x_rv_hp: float = x_rv.hp
+	await _wait(2.0)
+	_check("yeni vurulan zirhli hemen onarilmaz", x_rv.hp <= x_rv_hp + 0.01)
+	x_medic.die()
+	x_rv.die()
+
+	# ---- birlik sınırında birim sırada bekler
+	var x_ts0 = g.teams[0]
+	var x_cap0: int = x_ts0.pop_cap
+	x_ts0.pop_cap = x_ts0.pop
+	x_ts0.money += 1000.0
+	var x_qn: int = x_rb.queue.size()
+	_check("birlik siniri doluyken birim kuyruga girer", g.queue_unit(x_rb, g.unit_of(0, "inf")) and x_rb.queue.size() == x_qn + 1)
+	x_rb.prod_t = 999.0
+	await _wait(0.5)
+	_check("sinir doluyken birim sirada bekler", x_rb.queue.size() == x_qn + 1 and x_rb.waiting_cap())
+	x_ts0.pop_cap = x_cap0
+	await _wait(0.5)
+	_check("yer acilinca birim cikar", x_rb.queue.size() == x_qn)
+	_check("birlik siniri 45", Defs.POP_CAP == 45)
+
+	# ---- saldırı simgeleri: yeniden eskiye
+	g.alert_base(hq + Vector3(100, 0, 0), "Deneme A")
+	await _wait(0.3)
+	g.alert_base(hq + Vector3(-100, 0, 0), "Deneme B")
+	var x_al: Array = g.attack_list()
+	_check("saldiri simgeleri yeniden eskiye", x_al.size() >= 2 and x_al[0].what == "Deneme B")
+
+	# ---- bütün silahlı kara birlikleri binaya ateş eder
+	var x_tp := _land(hq + Vector3(60, 0, -60))
+	var x_tb := g.spawn_building(Defs.bid(1, "kisla"), 1, x_tp, true)
+	x_tb.max_hp = 1.0e7
+	x_tb.hp = x_tb.max_hp
+	var x_shooters: Array = []
+	var x_k := 0
+	for x_id in Defs.UNITS:
+		var x_ud: Dictionary = Defs.UNITS[x_id]
+		if x_ud.cc != Defs.COUNTRY[0] or x_ud.get("air", false) or not x_ud.has("dmg"):
+			continue
+		var x_ang := x_k * TAU / 12.0
+		x_k += 1
+		var x_sp: Vector3 = g.terrain.nearest_free(x_tp + Vector3(cos(x_ang), 0, sin(x_ang)) * (x_tb.radius + 14.0 + float(x_ud.get("min_range", 0.0))))
+		var x_su = g.spawn_unit(x_id, 0, x_sp)
+		x_shooters.append(x_su)
+	g.order_attack(x_shooters, x_tb)
+	await _wait(25.0)
+	for x_su in x_shooters:
+		_check("%s binaya ates eder" % x_su.d.name, x_su.alive and x_su.xp > 0.0)
+		x_su.die()
+	x_tb.die()
 
 	print("MECHTEST BITTI  hata=%d" % fails)
 	get_tree().quit(1 if fails > 0 else 0)

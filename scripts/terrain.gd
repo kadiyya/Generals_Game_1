@@ -325,7 +325,7 @@ static func _roads(g: Dictionary, m: Dictionary) -> void:
 				elif (not wet or t + 0.5 > l) and run_start >= 0.0:
 					var ba := a + dir * maxf(0.0, run_start - 2.5)
 					var bb := a + dir * minf(l, t + 2.5)
-					var br := {a = ba, b = bb, w = float(r.w) + 2.0, cells = []}
+					var br := {a = ba, b = bb, w = float(r.w) + 4.0, cells = []}   # yoldan geniş: iki araç yan yana geçer
 					_mark_bridge(g, br)
 					if not br.cells.is_empty():
 						g.bridges.append(br)
@@ -410,6 +410,13 @@ func solid(p: Vector3) -> bool:
 	return astar.is_point_solid(cell(p))
 
 
+## Köprünün tabliyesinde mi (kıyıdaki uçlar dahil).
+func on_bridge(p: Vector3) -> bool:
+	var c := cell(p)
+	var idx := c.y * gw + c.x
+	return kind[idx] == BRIDGE or deck.has(idx)
+
+
 ## Bina kurulabilir mi: yalnızca düz kara ve yol.
 func is_land(p: Vector3) -> bool:
 	var k := kind_at(p)
@@ -463,7 +470,8 @@ func cover_at(p: Vector3) -> bool:
 
 ## Doğrudan atış için görüş hattı. Dağ her zaman keser; ağaç hattı, yıkıntı, binalar ve derin orman
 ## (üç hücreden fazlası) yalnızca tepede olmayan atıcı için keser. Atıcının ve hedefin hemen yanı sayılmaz.
-func los_clear(a: Vector3, b: Vector3) -> bool:
+## skip_b: hedefin çevresinde sayılmayan yarıçap (bina hedefinde binanın kendi hücreleri görüşü kesmez).
+func los_clear(a: Vector3, b: Vector3, skip_b := 3.0) -> bool:
 	var dist := Vector2(a.x - b.x, a.z - b.z).length()
 	if dist < 4.0:
 		return true
@@ -472,7 +480,7 @@ func los_clear(a: Vector3, b: Vector3) -> bool:
 	var woods := 0
 	for i in range(1, n):
 		var p := a.lerp(b, float(i) / n)
-		if Vector2(p.x - a.x, p.z - a.z).length() < 2.4 or Vector2(p.x - b.x, p.z - b.z).length() < 3.0:
+		if Vector2(p.x - a.x, p.z - a.z).length() < 2.4 or Vector2(p.x - b.x, p.z - b.z).length() < skip_b:
 			continue
 		var c := cell(p)
 		var idx := c.y * gw + c.x
@@ -519,7 +527,7 @@ func nearest_free(p: Vector3) -> Vector3:
 
 func line_clear(a: Vector3, b: Vector3) -> bool:
 	var d := Vector2(a.x - b.x, a.z - b.z).length()
-	var n := int(d / (CELL * 0.5)) + 1
+	var n := int(d / (CELL * 0.25)) + 1   # sık örnekleme: hücre köşesini kesen düz çizgi geçilebilir sayılmasın
 	for i in range(1, n + 1):
 		if astar.is_point_solid(cell(a.lerp(b, float(i) / n))):
 			return false

@@ -76,6 +76,8 @@ var _supply_src: Array = [[], []]   # [taraf] -> [[konum, yarıçap], ...]
 var _oos_note := -100.0
 var pings: Array = []               # küçük haritada yanıp sönen yerler: [konum, bitiş zamanı]
 var attack_pings: Array = []        # saldırı altındaki kendi yerlerin: [konum, bitiş zamanı]
+var attack_log: Array = []          # sağdaki saldırı simgeleri: {pos, what, first, last} (yakın saldırılar birleşir)
+const ATTACK_KEEP := 25.0           # son vuruştan sonra simgenin kalma süresi (sn)
 var _reveal_note := false
 var _left_t := 0.0
 var foe_left := [0, 0]              # tam imha: [taraf] -> kalan bina + birlik
@@ -191,6 +193,8 @@ func _ready() -> void:
 		add_child(load("res://tools/viewtest.gd").new())
 	elif args.has("--mapshot"):
 		add_child(load("res://tools/mapshot.gd").new())
+	elif args.has("--bridgetest"):
+		add_child(load("res://tools/bridgetest.gd").new())
 	elif args.has("--objtest"):
 		add_child(load("res://tools/objtest.gd").new())
 	elif args.has("--duel"):
@@ -416,6 +420,39 @@ func _heal(dt: float) -> void:
 				if e is Unit:
 					e.update_figures()
 				break
+	_field_repair(dt)
+
+
+## Sahada onarım: kendi piyadesi (piyade ya da tanksavar timi) yanındaki binayı ve zırhlı aracı onarır.
+## Son vuruştan sonra REPAIR_PAUSE saniye beklenir; ikmal hattı dışında onarım yarı hızdadır.
+## Maden Ocağı kendi kuralıyla onarılır, inşaatı süren bina onarılmaz.
+func _field_repair(dt: float) -> void:
+	for e in entities:
+		if not e.alive or e.is_air or e.hp >= e.max_hp or time - e.last_dmg < Defs.REPAIR_PAUSE or e.team < 0:
+			continue
+		var rate := 0.0
+		var reach := Defs.REPAIR_R
+		if e.is_building:
+			if not e.built or e.kind == "maden" or e.strategic:
+				continue
+			rate = Defs.REPAIR_BLD
+			reach += e.radius
+		elif e.armor == "light" or e.armor == "heavy":
+			rate = Defs.REPAIR_VEH
+			reach += e.radius
+		else:
+			continue
+		var fixer = null
+		for f in nearby(e.global_position, reach + 2.0):
+			if f.alive and f is Unit and f.armor == "inf" and f.team == e.team and f.garrison == null and Entity.flat(f.global_position, e.global_position) <= reach:
+				fixer = f
+				break
+		if fixer == null:
+			continue
+		if not fixer.supplied:
+			rate *= 0.5
+		e.hp = minf(e.max_hp, e.hp + e.max_hp * rate * dt)
+		e.repair_until = time + 0.6
 
 
 # ---------------------------------------------------------------- lojistik ve kaynak yatakları
@@ -483,6 +520,9 @@ func spawn_deposit(announce: bool) -> Deposit:
 		for dp in deposits:
 			if Entity.flat(p, dp.position) < 55.0:
 				ok = false
+		for br in bridges:
+			if br.dist_to(p) < 14.0:
+				ok = false
 		if _near_zone(p):
 			ok = false
 		for e in entities:
@@ -545,8 +585,13 @@ func _separate() -> void:
 			ground.append(e)
 	var n := ground.size()
 	var prev: Array = []
+	# Köprü tabliyesindeki birlikler birbirini yalnızca hafifçe iter: dar köprüde karşılıklı gelen kollar
+	# itişip kilitlenmeden yan yana sıyrılıp geçer.
+	var on_deck := {}
 	for u in ground:
 		prev.append(u.position)
+		if terrain.on_bridge(u.position):
+			on_deck[u] = true
 	for i in n:
 		var a: Entity = ground[i]
 		for bn in nearby(a.position, 8.0):
@@ -555,7 +600,7 @@ func _separate() -> void:
 				continue
 			var dx := a.position.x - b.position.x
 			var dz := a.position.z - b.position.z
-			var min_d := (a.radius + b.radius) * 0.85
+			var min_d := (a.radius + b.radius) * (0.4 if on_deck.has(a) or on_deck.has(b) else 0.85)
 			var d2 := dx * dx + dz * dz
 			if d2 < min_d * min_d:
 				var dd := sqrt(d2)
@@ -578,9 +623,18 @@ func _separate() -> void:
 				var dd := sqrt(d2)
 				var over_d := min_d - dd
 				a.position += Vector3(dx, 0, dz) / dd * over_d + Vector3(-dz, 0, dx) / dd * over_d * 0.5
+	# Suya ya da engele itilen birlik geri alınır; ama itişin engele paralel kısmı korunur (kıyıda ve
+	# köprüde kayarak ilerler, yerinde çakılıp kalmaz).
 	for i in n:
-		if terrain.solid(ground[i].position) and not terrain.solid(prev[i]):
-			ground[i].position = prev[i]
+		var u: Entity = ground[i]
+		if terrain.solid(u.position) and not terrain.solid(prev[i]):
+			var p: Vector3 = prev[i]
+			if not terrain.solid(Vector3(u.position.x, p.y, p.z)):
+				u.position = Vector3(u.position.x, u.position.y, p.z)
+			elif not terrain.solid(Vector3(p.x, p.y, u.position.z)):
+				u.position = Vector3(p.x, u.position.y, u.position.z)
+			else:
+				u.position = p
 
 
 # ---------------------------------------------------------------- olaylar
@@ -630,9 +684,29 @@ func on_missile_intercepted(src_team: int) -> void:
 	hud.toast("Füzen hava savunma tarafından önlendi." if src_team == Defs.PLAYER else "Düşman füzesi önlendi!")
 
 
+## Saldırı kaydı: sağ kenardaki simge listesine ekler ya da yakındaki kaydı tazeler.
+func log_attack(pos: Vector3, what: String) -> void:
+	for a in attack_log:
+		if Entity.flat(a.pos, pos) < 24.0:
+			a.last = time
+			a.pos = pos
+			if what != "" and a.what == "":
+				a.what = what
+			return
+	attack_log.append({pos = pos, what = what, first = time, last = time})
+
+
+## Saldırı simgeleri: yeniden eskiye (son vuruşa göre).
+func attack_list() -> Array:
+	var out := attack_log.filter(func(a): return time - a.last < ATTACK_KEEP)
+	out.sort_custom(func(x, y): return x.last > y.last)
+	return out
+
+
 ## Kendi binan ya da kaynağın vuruldu: küçük haritada kırmızı yanıp söner, binanın üstünde uyarı çıkar.
 func alert_base(pos := Vector3.INF, what := "") -> void:
 	if pos != Vector3.INF:
+		log_attack(pos, what)
 		var merged := false
 		for a in attack_pings:
 			if Entity.flat(a[0], pos) < 24.0:
@@ -734,14 +808,18 @@ func queue_unit(b: Building, id: String) -> bool:
 	if ud.cls in Defs.PLANE_CLASSES and plane_count(b.team) >= Defs.PLANES_PER_AIRFIELD * count_kind(b.team, "havaalani"):
 		_msg(b.team, "Pistler dolu: uçak için yeni bir Hava Alanı kur.")
 		return false
-	if ts.pop + queued_pop(b.team) + int(ud.get("pop", 1)) > ts.pop_cap:
-		_msg(b.team, "Birlik sınırı doldu.")
+	# Birlik sınırı doluysa oyuncunun birimi yine kuyruğa girer, yer açılınca çıkar (sırada bekler).
+	# Yapay zekâ parasını boşa bağlamasın diye sınırda üretim emri vermez.
+	var full := ts.pop + queued_pop(b.team) + int(ud.get("pop", 1)) > ts.pop_cap
+	if full and b.team != Defs.PLAYER:
 		return false
 	if ts.money < cost:
 		_msg(b.team, "Yetersiz para.")
 		return false
 	ts.money -= cost
 	b.queue.append(id)
+	if full:
+		_msg(b.team, "Birlik sınırı dolu (%d): birim sırada bekleyecek, yer açılınca çıkar." % ts.pop_cap)
 	return true
 
 
@@ -1200,8 +1278,9 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	if not b.powered():
 		_msg(b.team, "Enerji yetersiz.")
 		return false
-	if not fog.sees(b.team, pos) and not known_spot(b.team, pos):
-		_msg(b.team, "Hedef görülmüyor. Önce keşif yap (kaynaklar ve stratejik hedefler görmeden de vurulabilir).")
+	# Füze yalnızca o an görülen bir yere atılır (keşif dronu, İHA ya da birlik gözü gerekir).
+	if not fog.sees(b.team, pos):
+		_msg(b.team, "Hedef görülmüyor. Füze yalnızca görebildiğin bir yere atılır: önce keşif yap.")
 		return false
 	if ts.money < float(m.cost):
 		_msg(b.team, "Yetersiz para.")
@@ -1435,6 +1514,8 @@ func order_task(units: Array, kind: String) -> int:
 	var n := 0
 	for u in units:
 		if u is Unit and u.armor == "inf" and u.alive:
+			if kind == "obstacle":
+				continue   # tanksavar engeli oyundan kaldırıldı
 			if kind == "dig" and (u.entrenched or u.garrison != null):
 				continue
 			u.do_task(kind)
@@ -1603,6 +1684,7 @@ func _count_left() -> void:
 			continue
 		foe_left[Defs.SIDE[e.team]] += 1
 	attack_pings = attack_pings.filter(func(a): return time < a[1])
+	attack_log = attack_log.filter(func(a): return time - a.last < ATTACK_KEEP)
 
 
 ## Yok etme görevinde hedefler: 2. dakikadan sonra düşmanın hedef binaları haritada açılır ve işaretlenir.

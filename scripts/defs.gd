@@ -17,7 +17,7 @@ const MODES := [
 	{id = "2v2", name = "Takım (2'ye 2)", desc = "Yanında müttefik bir yapay zekâ ordusu; karşında iki düşman üssü.", sides = [0, 1, 0, 1]},
 ]
 
-const POP_CAP := 40
+const POP_CAP := 45
 const START_MONEY := 1500.0
 const HQ_INCOME := 8.0
 # Yapay zekâ zorluğu. income: gelir çarpanı (1.0 = oyuncuyla eşit), first: ilk saldırı (sn),
@@ -40,6 +40,11 @@ const MAX_MINES := 4
 const PLANES_PER_AIRFIELD := 4
 const HEAL_RADIUS := 16.0         # karargâhın yanındaki birimler onarılır
 const HEAL_RATE := 0.015          # saniyede azami canın oranı
+# Piyadenin sahada onarımı: yanındaki (yarıçap + birimin kendi büyüklüğü) binayı ve zırhlıyı onarır.
+const REPAIR_R := 7.0
+const REPAIR_BLD := 0.007         # bina: saniyede azami canın oranı (boştan doluya ~2,5 dk)
+const REPAIR_VEH := 0.01          # zırhlı araç: (~1,5 dk)
+const REPAIR_PAUSE := 8.0         # son vuruştan sonra onarıma başlamadan beklenen süre
 
 const BUILD_KINDS: Array[String] = ["santral", "kisla", "fabrika", "maden", "ileri", "havaalani", "sam", "teknoloji", "fuze"]
 # Lojistik: ikmal kaynaklarının yarıçapı. İkmal hattı dışındaki kara birliği %30 az hasar verir, %10 yavaş gider
@@ -52,9 +57,9 @@ const FOB_ZONE := 26.0                                   # ileri üssün çevres
 const FOB_KINDS: Array[String] = ["kisla", "santral", "sam"]
 const PRESENCE_R := 28.0                                 # maden / ileri üs için yakında gereken birlik
 # Kaynak yatakları: başta kaç tane, en çok kaç tane, kaç saniyede bir yenisi belirir, verim ve rezerv aralığı.
-const DEPOSIT_FIRST := 3
-const DEPOSIT_MAX := 6
-const DEPOSIT_EVERY := Vector2(120.0, 200.0)
+const DEPOSIT_FIRST := 2
+const DEPOSIT_MAX := 4
+const DEPOSIT_EVERY := Vector2(200.0, 320.0)
 const DEPOSIT_RICH := Vector2(4.0, 6.5)
 const DEPOSIT_RESERVE := Vector2(9000.0, 15000.0)
 const RUIN_TIME := 90.0          # sıfıra inen kaynak bu kadar saniye tahrip kalır: gelir yok, ele geçirilemez, onarılmaz

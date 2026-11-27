@@ -29,7 +29,7 @@ func _ready() -> void:
 	if args.has("--load"):
 		_continue.call_deferred()
 		return
-	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--viewtest") or args.has("--maptest") or args.has("--uishot") or args.has("--objtest"):
+	if args.has("--autotest") or args.has("--inputtest") or args.has("--gallery") or args.has("--animtest") or args.has("--mechtest") or args.has("--tuttest") or args.has("--duel") or args.has("--mapshot") or args.has("--viewtest") or args.has("--maptest") or args.has("--uishot") or args.has("--objtest") or args.has("--bridgetest"):
 		_start.call_deferred()
 		return
 	if Scenarios.tutorial:
@@ -315,6 +315,8 @@ func _goal_detail(scn: Dictionary) -> String:
 	var id: String = Scenarios.GOALS[Scenarios.goal].id
 	if id == "imha":
 		return ""
+	if id == "karargah":
+		return "Ele geçirilecek bölge ya da tutulacak nokta yok."
 	if id == "tut":
 		return "Kilit nokta: %s." % Scenarios.MAPS[scn.map].points[0][5]
 	var ca: String = Scenarios.COUNTRIES[scn.a].name

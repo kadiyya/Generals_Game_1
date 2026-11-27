@@ -19,7 +19,7 @@ const CLASSES := {
 	"inf": {
 		cat = "kara", from = "kisla", cost = 150, time = 10.0, tier = 1,
 		hp = 300, speed = 3.4, vision = 14.0, radius = 1.0, armor = "inf",
-		range = 8.0, dmg = 12.0, cd = 0.5, proj = "tracer",
+		range = 8.0, dmg = 13.8, cd = 0.5, proj = "tracer",
 		mult = {inf = 1.0, light = 0.6, heavy = 0.15, bld = 0.3, drone = 0.25},
 		capture = true,
 	},
@@ -224,22 +224,23 @@ const RESEARCH := [
 const COUNTRIES := {
 	"ua": {
 		name = "Ukrayna", doctrine = "iha", body = Color(0.33, 0.4, 0.25), air = Color(0.55, 0.6, 0.66),
-		drone_armor = 1.15,   # dronlar (FPV, dolanan mühimmat, İHA'lar) zırhlılara %15 fazla vurur
+		drone_armor = 1.35,   # silahlı İHA'lar ve bombardıman dronları zırhlılara %35 fazla vurur
+		kami_armor = 1.7,     # kamikaze dronlar (FPV, Switchblade, Liutyi, Peklo) zırhlılara %70 fazla vurur
 		sam = ["Patriot", "sam_box"],
 		missiles = [{name = "Hrim-2", cost = 1300, cd = 70.0, dmg = 900.0, splash = 7.0, tier = 3}],
 		units = [
 			["inf", "Piyade Mangası", "inf", "inf", {}],
 			["at", "Javelin Timi", "at", "at", {}],
 			["ew", "Bukovel-AD", "ew", "ew_truck", {}],
-			["mavic", "DJI Mavic 3", "sdrone_recon", "quad", {}],
+			["mavic", "DJI Mavic 3", "sdrone_recon", "quad", {hp = 55, vision = 34.0}],
 			["fpv", "FPV Kamikaze", "sdrone_fpv", "quad", {}],
-			["baba", "Baba Yaga", "sdrone_bomb", "hexa", {}],
+			["baba", "Baba Yaga", "sdrone_bomb", "hexa", {hp = 85, ammo = 3}],
 			["sb600", "Switchblade 600", "loiter", "xwing", {}],
 			["bradley", "M2 Bradley", "ifv", "ifv_tall", {}],
 			["gepard", "Gepard", "spaag", "gepard", {}],
 			["buk", "Buk-M1", "ads", "buk", {}],
 			["himars", "M142 HIMARS", "mlrs", "himars", {}],
-			["tb2", "Bayraktar TB2", "uav_strike", "tb2", {}],
+			["tb2", "Bayraktar TB2", "uav_strike", "tb2", {hp = 270, ammo = 3, rearm = 9.0}],
 			["liutyi", "AN-196 Liutyi", "uav_kami", "liutyi", {}],
 			["f16", "F-16", "fighter", "f16", {}],
 			["su24", "Su-24M (Storm Shadow)", "striker", "su34", {}],
@@ -259,10 +260,8 @@ const COUNTRIES := {
 			["lancet", "Lancet-3", "loiter", "xwing", {}],
 			["bmp3", "BMP-3", "ifv", "ifv_low", {}],
 			["t72", "T-72B3", "tank", "tank_ru", {}],
-			["t90", "T-90M", "tank", "tank_ru2", {cost = 850, hp = 1300, tier = 2}],
 			["pantsir", "Pantsir-S1", "spaag", "pantsir", {}],
 			["buk", "Buk-M3", "ads", "buk", {}],
-			["msta", "2S19 Msta-S", "arty", "sph", {}],
 			["tornado", "Tornado-S", "mlrs", "mlrs_truck", {}],
 			["orion", "Orion", "uav_strike", "vtail", {}],
 			["geran", "Geran-2", "uav_kami", "shahed", {}],
@@ -641,6 +640,7 @@ const GOALS := [
 	{id = "senaryo", name = "Senaryo Görevi", desc = "Her ülkenin senaryoya özel görevi (bölge tutma ya da hedef yok etme). Karargâhı yıkılan kaybeder."},
 	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı kesintisiz 10 dakika elinde tutmaya çalışır; nokta elden çıkarsa sayaç baştan başlar. Karargâhı yıkılan kaybeder."},
 	{id = "imha", name = "Tam İmha", desc = "Düşmanın bütün binalarını ve birliklerini yok et. Karargâh yıkılsa da savaş sürer."},
+	{id = "karargah", name = "Karargâhı Yık", desc = "Tek hedef düşmanın karargâhı. Ele geçirilecek bölge, tutulacak nokta ya da stratejik hedef yoktur; ikmal noktaları ve madenler yine gelir getirir."},
 ]
 
 
@@ -720,7 +720,7 @@ static func setup() -> void:
 		Defs.TEAM_NAMES.append(nm)
 		used[s] += 1
 	# Bölgeli harita: bağımsız kuvvetler ayrı bir takım ve üçüncü taraftır (ordulardan sonra).
-	if not map.get("zones", []).is_empty() and not tutorial:
+	if zones_on(map):
 		Defs.IND = Defs.N
 		Defs.SIDE.append(2)
 		Defs.COUNTRY.append(map.get("ind_cc", codes[1]))
@@ -747,9 +747,10 @@ static func setup() -> void:
 			if not d.get("air", false):
 				d.speed = float(d.speed) * (1.1 if d.armor == "inf" else 0.95)
 			if d.get("tag", "") == "drone" and c.has("drone_armor") and d.has("mult"):
+				var boost := float(c.get("kami_armor", c.drone_armor)) if d.get("kamikaze", false) else float(c.drone_armor)
 				for ak in ["light", "heavy"]:
 					if d.mult.has(ak):
-						d.mult[ak] = float(d.mult[ak]) * float(c.drone_armor)
+						d.mult[ak] = float(d.mult[ak]) * boost
 			if int(d.get("tier", 1)) >= 3:
 				# Deneysel silah: pahalı ama çok etkili.
 				d.exp = true
@@ -833,7 +834,24 @@ static func objective(team: int) -> Dictionary:
 			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını kesintisiz 10 dakika elinde tut" % pt[5]}
 		"imha":
 			return {type = "annihilate", text = "Düşmanı tamamen yok et: bütün binalarını ve birliklerini"}
+		"karargah":
+			return {}
 	return scn.obj.a if Defs.COUNTRY[team] == scn.a else scn.obj.b
+
+
+## Görev "Karargâhı Yık" mı: tek hedef düşman karargâhı; bölge, tutma ya da stratejik hedef yok.
+static func hq_only() -> bool:
+	return not tutorial and GOALS[clampi(goal, 0, GOALS.size() - 1)].id == "karargah"
+
+
+## Ele geçirilecek bölgeler (bağımsız kuvvetlerle) yalnızca bölge görevi olan Senaryo Görevi'nde kurulur.
+static func zones_on(map: Dictionary) -> bool:
+	if tutorial or map.get("zones", []).is_empty() or GOALS[clampi(goal, 0, GOALS.size() - 1)].id != "senaryo":
+		return false
+	for o in LIST[chosen].get("obj", {}).values():
+		if o.get("type", "") == "zones":
+			return true
+	return false
 
 
 ## Görev tam imha mı (karargâh kaybı savaşı bitirmez).

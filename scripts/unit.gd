@@ -254,7 +254,10 @@ func _fire_on_move(dt: float) -> void:
 	los_t -= dt
 	if los_t <= 0.0:
 		los_t = 0.5
-		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position)
+		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position, Entity.los_skip(target))
+		# Binanın dibine gelmiş birlik görüş hattı aramadan ateş eder (binanın etrafında dönüp durmasın).
+		if not los_ok and target.is_building and flat(position, target.position) - target.radius < 4.0:
+			los_ok = true
 	if not los_ok:
 		target = null
 		return
@@ -294,7 +297,10 @@ func _engage(dt: float, chase: bool) -> void:
 	los_t -= dt
 	if los_t <= 0.0:
 		los_t = 0.5
-		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position)
+		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position, Entity.los_skip(target))
+		# Binanın dibine gelmiş birlik görüş hattı aramadan ateş eder (binanın etrafında dönüp durmasın).
+		if not los_ok and target.is_building and flat(position, target.position) - target.radius < 4.0:
+			los_ok = true
 	if turret != null and target != null:
 		# Kule hedefi hep izler: yaklaşırken de namlu hedefe döner.
 		_aim_turret(target.position, dt)
@@ -382,8 +388,9 @@ func _step(p: Vector3, dt: float) -> bool:
 			return true
 	else:
 		near_t = 0.0
-	# Sıkışma: 1,5 saniyede neredeyse hiç ilerlemediyse yolu yeniden hesapla ve yana kay;
-	# üst üste üç kez sıkışırsa vardığını kabul et (kalabalık geçitte sonsuza dek itişmesin).
+	# Sıkışma: 1,5 saniyede neredeyse hiç ilerlemediyse yolu yeniden hesapla ve yana kay.
+	# Hedefin yakınındaki kalabalıkta üst üste üç kez sıkışırsa vardığını kabul et (sonsuza dek itişmesin);
+	# hedef uzaktaysa (köprü ya da geçit kuyruğu) hemen pes etmez, sırası gelince geçer. Köprüde hiç durmaz.
 	stuck_t += dt
 	if stuck_t >= 1.5:
 		stuck_t = 0.0
@@ -391,10 +398,11 @@ func _step(p: Vector3, dt: float) -> bool:
 			stuck_n += 1
 			nav_goal = Vector3.INF
 			nav_t = 0.0
+			var ter0 := Game.I.terrain
 			var side := Vector3(-(p.z - position.z), 0, p.x - position.x).normalized() * (1.0 if stuck_n % 2 == 0 else -1.0)
-			if not Game.I.terrain.solid(position + side * 1.2):
+			if not ter0.solid(position + side * 1.2):
 				position += side * 0.9
-			if stuck_n >= 3:
+			if stuck_n >= (3 if dist < 14.0 else 12) and not ter0.on_bridge(position):
 				stuck_n = 0
 				stuck_pos = Vector3.INF
 				return true
@@ -412,13 +420,27 @@ func _step(p: Vector3, dt: float) -> bool:
 	var dir := to / l
 	var ter := Game.I.terrain
 	var sp := speed * ter.speed_mult(position, armor) * (1.25 if retreating else 1.0) * (1.0 if supplied else Defs.OOS_SPEED)
-	var nxt := position + dir * minf(sp * dt, l)
+	var mv := dir * minf(sp * dt, l)
+	var nxt := position + mv
 	if ter.solid(nxt) and not ter.solid(position) and ter.bld[ter.cell(nxt).y * ter.gw + ter.cell(nxt).x] == 0:
-		# önü su ya da yıkık köprü: geçemez, yolu yeniden hesapla
-		nav_goal = Vector3.INF
-		nav_t = 0.0
-		nav = PackedVector3Array()
-		return false
+		# Önü su ya da yıkık köprü: suya girmez. Önce engelin kenarı boyunca kayar (köprü kenarında ya da kıyıda
+		# bir hücre köşesine takılıp kalmasın); iki yön de kapalıysa bulunduğu hücrenin ortasına çekilir ve yolu
+		# yeniden hesaplar.
+		var ax := position + Vector3(mv.x, 0, 0)
+		var az := position + Vector3(0, 0, mv.z)
+		if absf(mv.x) >= absf(mv.z) and not ter.solid(ax):
+			nxt = ax
+		elif not ter.solid(az):
+			nxt = az
+		elif not ter.solid(ax):
+			nxt = ax
+		else:
+			var cc := ter.center(ter.cell(position))
+			var back := Vector3(cc.x - position.x, 0, cc.z - position.z)
+			nxt = position + (back.normalized() * minf(sp * dt, back.length()) if back.length() > 0.05 else Vector3.ZERO)
+			nav_goal = Vector3.INF
+			nav_t = 0.0
+			nav = PackedVector3Array()
 	position = nxt
 	position.y = lerpf(position.y, ter.height(position), minf(1.0, dt * 6.0))
 	position.x = clampf(position.x, -Defs.MAP_W * 0.5 + 1.0, Defs.MAP_W * 0.5 - 1.0)
@@ -520,6 +542,8 @@ func _animate_figures(dt: float, v: float) -> void:
 
 func _on_damaged(attacker) -> void:
 	update_figures()
+	if team == Defs.PLAYER and attacker != null and is_instance_valid(attacker) and Defs.foe(attacker.team, team):
+		Game.I.log_attack(global_position, d.name)
 	if order == "idle" and target == null and attacker != null and is_instance_valid(attacker) and attacker.alive and can_hit(attacker):
 		target = attacker
 
