@@ -47,11 +47,13 @@ func _draw() -> void:
 	draw_texture_rect(tex, Rect2(Vector2.ZERO, size), false)
 	for br in grid.bridges:
 		draw_line(_p(br.a.x, br.a.y), _p(br.b.x, br.b.y), Color(0.9, 0.86, 0.72), 3.0)
-	for p in map.points:
+	var gid: String = Scenarios.GOALS[Scenarios.goal].id
+	for p in ([] if gid == "karargah" else map.points):
 		var c := _p(p[0], p[1])
 		draw_rect(Rect2(c - Vector2(3, 3), Vector2(6, 6)), Color(1, 1, 1, 0.85), false, 1.5)
 	# görev noktası: tutma görevlerinde yanıp sönen altın halka
-	for o in scn.get("obj", {}).values():
+	var holds: Array = scn.get("obj", {}).values() if gid == "senaryo" else ([{type = "hold", point = 0}] if gid == "tut" else [])
+	for o in holds:
 		if o.get("type", "") == "hold":
 			var pt: Array = map.points[o.point]
 			var c := _p(pt[0], pt[1])

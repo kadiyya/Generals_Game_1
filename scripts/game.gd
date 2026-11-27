@@ -74,6 +74,8 @@ var _supply_src: Array = [[], []]   # [taraf] -> [[konum, yarıçap], ...]
 var _oos_note := -100.0
 var pings: Array = []               # küçük haritada yanıp sönen yerler: [konum, bitiş zamanı]
 var attack_pings: Array = []        # saldırı altındaki kendi yerlerin: [konum, bitiş zamanı]
+var attack_log: Array = []          # sağdaki saldırı simgeleri: {pos, what, first, last} (yakın saldırılar birleşir)
+const ATTACK_KEEP := 25.0           # son vuruştan sonra simgenin kalma süresi (sn)
 var _reveal_note := false
 var _left_t := 0.0
 var foe_left := [0, 0]              # tam imha: [taraf] -> kalan bina + birlik
@@ -99,7 +101,7 @@ func _ready() -> void:
 	add_child(sfx)
 	cam = CameraRig.new()
 	add_child(cam)
-	for p in Defs.MAP.points:
+	for p in ([] if Scenarios.hq_only() else Defs.MAP.points):
 		var sp := SupplyPoint.new()
 		add_child(sp)
 		sp.setup_point(Vector3(p[0], 0, p[1]), p[2], p[3], p[4], p[5])
@@ -286,7 +288,7 @@ func _process(dt: float) -> void:
 		var ts: TeamState = teams[t]
 		var inc := 0.0
 		if ts.hq != null and is_instance_valid(ts.hq) and ts.hq.alive:
-			inc += Defs.HQ_INCOME
+			inc += Defs.HQ_INCOME * (2.0 if Scenarios.hq_only() else 1.0)
 		for p in points:
 			if p.owner_team == t:
 				inc += p.current_income()
@@ -391,6 +393,39 @@ func _heal(dt: float) -> void:
 				if e is Unit:
 					e.update_figures()
 				break
+	_field_repair(dt)
+
+
+## Sahada onarım: kendi piyadesi (piyade ya da tanksavar timi) yanındaki binayı ve zırhlı aracı onarır.
+## Son vuruştan sonra REPAIR_PAUSE saniye beklenir; ikmal hattı dışında onarım yarı hızdadır.
+## Maden Ocağı kendi kuralıyla onarılır, inşaatı süren bina onarılmaz.
+func _field_repair(dt: float) -> void:
+	for e in entities:
+		if not e.alive or e.is_air or e.hp >= e.max_hp or time - e.last_dmg < Defs.REPAIR_PAUSE:
+			continue
+		var rate := 0.0
+		var reach := Defs.REPAIR_R
+		if e.is_building:
+			if not e.built or e.kind == "maden":
+				continue
+			rate = Defs.REPAIR_BLD
+			reach += e.radius
+		elif e.armor == "light" or e.armor == "heavy":
+			rate = Defs.REPAIR_VEH
+			reach += e.radius
+		else:
+			continue
+		var fixer = null
+		for f in nearby(e.global_position, reach + 2.0):
+			if f.alive and f is Unit and f.armor == "inf" and f.team == e.team and f.garrison == null and Entity.flat(f.global_position, e.global_position) <= reach:
+				fixer = f
+				break
+		if fixer == null:
+			continue
+		if not fixer.supplied:
+			rate *= 0.5
+		e.hp = minf(e.max_hp, e.hp + e.max_hp * rate * dt)
+		e.repair_until = time + 0.6
 
 
 # ---------------------------------------------------------------- lojistik ve kaynak yatakları
@@ -614,9 +649,29 @@ func on_missile_intercepted(src_team: int) -> void:
 	hud.toast("Füzen hava savunma tarafından önlendi." if src_team == Defs.PLAYER else "Düşman füzesi önlendi!")
 
 
+## Saldırı kaydı: sağ kenardaki simge listesine ekler ya da yakındaki kaydı tazeler.
+func log_attack(pos: Vector3, what: String) -> void:
+	for a in attack_log:
+		if Entity.flat(a.pos, pos) < 24.0:
+			a.last = time
+			a.pos = pos
+			if what != "" and a.what == "":
+				a.what = what
+			return
+	attack_log.append({pos = pos, what = what, first = time, last = time})
+
+
+## Saldırı simgeleri: yeniden eskiye (son vuruşa göre).
+func attack_list() -> Array:
+	var out := attack_log.filter(func(a): return time - a.last < ATTACK_KEEP)
+	out.sort_custom(func(x, y): return x.last > y.last)
+	return out
+
+
 ## Kendi binan ya da kaynağın vuruldu: küçük haritada kırmızı yanıp söner, binanın üstünde uyarı çıkar.
 func alert_base(pos := Vector3.INF, what := "") -> void:
 	if pos != Vector3.INF:
+		log_attack(pos, what)
 		var merged := false
 		for a in attack_pings:
 			if Entity.flat(a[0], pos) < 24.0:
@@ -718,14 +773,18 @@ func queue_unit(b: Building, id: String) -> bool:
 	if ud.cls in Defs.PLANE_CLASSES and plane_count(b.team) >= Defs.PLANES_PER_AIRFIELD * count_kind(b.team, "havaalani"):
 		_msg(b.team, "Pistler dolu: uçak için yeni bir Hava Alanı kur.")
 		return false
-	if ts.pop + queued_pop(b.team) + int(ud.get("pop", 1)) > ts.pop_cap:
-		_msg(b.team, "Birlik sınırı doldu.")
+	# Birlik sınırı doluysa oyuncunun birimi yine kuyruğa girer, yer açılınca çıkar (sırada bekler).
+	# Yapay zekâ paranı boşa bağlamasın diye sınırda üretim emri vermez.
+	var full := ts.pop + queued_pop(b.team) + int(ud.get("pop", 1)) > ts.pop_cap
+	if full and b.team != Defs.PLAYER:
 		return false
 	if ts.money < cost:
 		_msg(b.team, "Yetersiz para.")
 		return false
 	ts.money -= cost
 	b.queue.append(id)
+	if full:
+		_msg(b.team, "Birlik sınırı dolu (%d): birim sırada bekleyecek, yer açılınca çıkar." % ts.pop_cap)
 	return true
 
 
@@ -1115,8 +1174,9 @@ func launch_missile(b: Building, i: int, pos: Vector3) -> bool:
 	if not b.powered():
 		_msg(b.team, "Enerji yetersiz.")
 		return false
-	if not fog.sees(b.team, pos) and not known_spot(b.team, pos):
-		_msg(b.team, "Hedef görülmüyor. Önce keşif yap (kaynaklar ve stratejik hedefler görmeden de vurulabilir).")
+	# Füze yalnızca o an görülen bir yere atılır (keşif dronu, İHA ya da birlik gözü gerekir).
+	if not fog.sees(b.team, pos):
+		_msg(b.team, "Hedef görülmüyor. Füze yalnızca görebildiğin bir yere atılır: önce keşif yap.")
 		return false
 	if ts.money < float(m.cost):
 		_msg(b.team, "Yetersiz para.")
@@ -1300,7 +1360,12 @@ func order_attack(units: Array, e: Entity) -> void:
 			if u.has_weapon() and u.can_hit(e):
 				u.attack(e)
 			else:
-				u.go(e.global_position, true)
+				# Bu hedefe ateş edemeyen birlik (silahsız keşif, EH...) hedefin içine girmeye çalışmaz:
+				# kenarının yakınına kadar gider, orada bekler.
+				var away: Vector3 = u.global_position - e.global_position
+				away.y = 0.0
+				var stand: Vector3 = e.global_position + (away.normalized() if away.length() > 0.1 else Vector3.RIGHT) * (float(e.radius) + float(u.radius) + 4.0)
+				u.go(stand, true)
 	if not units.is_empty() and units[0].team == Defs.PLAYER:
 		fx_marker(e.global_position, Color(1.0, 0.3, 0.2))
 
@@ -1327,11 +1392,13 @@ func order_retreat(units: Array) -> void:
 			u.retreating = true
 
 
-## Piyade görevleri: siper kaz, mayın döşe, engel kur. Yalnızca piyade ve tanksavar timi yapabilir.
+## Piyade görevleri: siper kaz, mayın döşe. Yalnızca piyade ve tanksavar timi yapabilir.
 func order_task(units: Array, kind: String) -> int:
 	var n := 0
 	for u in units:
 		if u is Unit and u.armor == "inf" and u.alive:
+			if kind == "obstacle":
+				continue   # tanksavar engeli oyundan kaldırıldı
 			if kind == "dig" and (u.entrenched or u.garrison != null):
 				continue
 			u.do_task(kind)
@@ -1486,6 +1553,7 @@ func _count_left() -> void:
 			continue
 		foe_left[Defs.SIDE[e.team]] += 1
 	attack_pings = attack_pings.filter(func(a): return time < a[1])
+	attack_log = attack_log.filter(func(a): return time - a.last < ATTACK_KEEP)
 
 
 ## Yok etme görevinde hedefler: 2. dakikadan sonra düşmanın hedef binaları haritada açılır ve işaretlenir.

@@ -19,6 +19,11 @@ var toast_lbl: Label
 var end_panel: ColorRect
 var obj_lbl: Label
 var ab_btn: Button
+var fuze_btn: Button          # Füze Üssü kurulunca açılır: binayı seçer
+var _fuze_i := 0
+var alert_box: VBoxContainer  # sağ kenar: saldırı simgeleri (yeniden eskiye)
+var alert_btns: Array = []
+const ALERT_MAX := 5
 var tip_panel: PanelContainer
 var tip_lbl: Label
 var flipped := {}      # birim kimliği -> kart arkaya dönük mü
@@ -117,6 +122,45 @@ func _ready() -> void:
 	ab_btn.pressed.connect(func(): Game.I.begin_ability())
 	ab_btn.tooltip_text = Game.I.ability(Defs.PLAYER).get("desc", "")
 	side.add_child(ab_btn)
+	fuze_btn = Button.new()
+	fuze_btn.custom_minimum_size = Vector2(260, 52)
+	fuze_btn.focus_mode = Control.FOCUS_NONE
+	fuze_btn.add_theme_font_size_override("font_size", 16)
+	fuze_btn.visible = false
+	fuze_btn.tooltip_text = "Füze Üssünü seçer (birden çok varsa sırayla)."
+	fuze_btn.pressed.connect(_select_fuze)
+	side.add_child(fuze_btn)
+
+	alert_box = VBoxContainer.new()
+	alert_box.anchor_left = 1.0
+	alert_box.anchor_right = 1.0
+	alert_box.offset_left = -208.0
+	alert_box.offset_right = -8.0
+	alert_box.offset_top = 108.0
+	alert_box.add_theme_constant_override("separation", 4)
+	root.add_child(alert_box)
+	var red := StyleBoxFlat.new()
+	red.bg_color = Color(0.55, 0.08, 0.06, 0.88)
+	red.border_color = Color(1.0, 0.45, 0.3)
+	red.set_border_width_all(2)
+	red.set_corner_radius_all(6)
+	var red_hi := red.duplicate()
+	red_hi.bg_color = Color(0.75, 0.15, 0.1, 0.95)
+	for i in ALERT_MAX:
+		var ab := Button.new()
+		ab.custom_minimum_size = Vector2(200, 50)
+		ab.focus_mode = Control.FOCUS_NONE
+		ab.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ab.clip_text = true
+		ab.add_theme_font_size_override("font_size", 14)
+		ab.add_theme_stylebox_override("normal", red)
+		ab.add_theme_stylebox_override("hover", red_hi)
+		ab.add_theme_stylebox_override("pressed", red_hi)
+		ab.visible = false
+		ab.pressed.connect(_goto_alert.bind(i))
+		alert_box.add_child(ab)
+		alert_btns.append(ab)
+		blockers.append(ab)
 
 	obj_lbl = Label.new()
 	obj_lbl.anchor_left = 0.5
@@ -248,7 +292,65 @@ func _process(_dt: float) -> void:
 	minimap.queue_redraw()
 	_update_objective()
 	_update_ability()
+	_update_fuze_btn()
+	_update_alerts()
 	_run_refreshers()
+
+
+func _player_fuze() -> Array:
+	var out: Array = []
+	for e in Game.I.entities:
+		if e.is_building and e.alive and e.team == Defs.PLAYER and e.kind == "fuze" and e.built:
+			out.append(e)
+	return out
+
+
+func _update_fuze_btn() -> void:
+	var fz := _player_fuze()
+	fuze_btn.visible = not fz.is_empty()
+	if fz.is_empty():
+		return
+	var ready := 0
+	for b in fz:
+		for t in b.missile_ready:
+			if float(t) <= 0.0:
+				ready += 1
+	fuze_btn.text = "Füze Üssü" + (" (%d)" % fz.size() if fz.size() > 1 else "") + ("  —  %d füze hazır" % ready if ready > 0 else "  —  hazırlanıyor")
+
+
+func _select_fuze() -> void:
+	var fz := _player_fuze()
+	if fz.is_empty():
+		return
+	_fuze_i = (_fuze_i + 1) % fz.size()
+	var b = fz[_fuze_i]
+	Game.I.select([b])
+	Game.I.cam.focus = b.global_position
+
+
+var _alert_pos: Array = []
+
+
+func _update_alerts() -> void:
+	var g := Game.I
+	var list: Array = g.attack_list()
+	_alert_pos.clear()
+	for i in ALERT_MAX:
+		var ab: Button = alert_btns[i]
+		if i >= list.size():
+			ab.visible = false
+			continue
+		var a: Dictionary = list[i]
+		var ago := int(g.time - float(a.last))
+		ab.visible = true
+		ab.text = "(!) %s\n%s" % [a.what if a.what != "" else "Saldırı", "şimdi" if ago < 3 else "%d sn önce" % ago]
+		ab.modulate.a = 1.0 if ago < 3 or fmod(g.time, 1.0) > 0.25 else 0.75
+		_alert_pos.append(a.pos)
+
+
+func _goto_alert(i: int) -> void:
+	if i < _alert_pos.size():
+		Game.I.cam.focus = _alert_pos[i]
 
 
 # ---------------------------------------------------------------- simgeler
@@ -376,7 +478,6 @@ func _rebuild_now() -> void:
 		if foot > 0:
 			_btn("Siper Kaz\n%d sn" % int(Defs.DIG_TIME), _task.bind("dig"))
 			_btn("Mayın Döşe\n$%d" % Defs.MINE_COST, _task.bind("mine"))
-			_btn("Engel Kur\n$%d" % int(Defs.BUILDINGS[Defs.bid(0, "engel")].cost), _task.bind("obstacle"))
 			title.text += "   (eve girmek için bir eve dokun)"
 		_btn("Seçimi Bırak", g.clear_selection)
 		return
@@ -557,7 +658,7 @@ func _update_objective() -> void:
 	var g := Game.I
 	var o := Scenarios.objective(Defs.PLAYER)
 	if o.is_empty():
-		obj_lbl.text = ""
+		obj_lbl.text = "Görev: düşmanın karargâhını yık" if Scenarios.hq_only() else ""
 		return
 	var ts = g.teams[Defs.PLAYER]
 	var prog := ""
@@ -744,6 +845,8 @@ func _refresh_building_title(b: Building) -> void:
 	elif not b.queue.is_empty():
 		s += "  |  Üretim: %s %%%d  |  Kuyruk: %d" % [
 			Defs.UNITS[b.queue[0]].name, int(b.prod_fraction() * 100.0), b.queue.size()]
+		if b.waiting_cap():
+			s += "  |  Birlik sınırı dolu: sırada bekliyor"
 	elif b.research_id != "":
 		s += "  |  Araştırma: %s" % b.research_def().name
 	elif b.kind == "teknoloji":
@@ -882,6 +985,19 @@ func _draw_overlay() -> void:
 		overlay.draw_arc(pt3 + Vector2(0, -6), 9.0, 0.0, TAU, 16, tc, 2.0)
 		overlay.draw_string_outline(font, pt3 + Vector2(14, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0, 0.85))
 		overlay.draw_string(font, pt3 + Vector2(14, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, tc)
+	# piyadenin onardığı dost bina ve zırhlılar: yeşil artı
+	for e in g.entities:
+		if not e.alive or e.repair_until < g.time or not Defs.friendly(e.team):
+			continue
+		var wr: Vector3 = e.global_position + Vector3(0, (5.0 if e.is_building else 3.2), 0)
+		if cam.is_position_behind(wr):
+			continue
+		var pr := cam.unproject_position(wr)
+		if not view.has_point(pr):
+			continue
+		var gc := Color(0.45, 1.0, 0.5, 0.6 + 0.4 * absf(sin(g.time * 4.0)))
+		overlay.draw_rect(Rect2(pr.x - 7, pr.y - 2, 14, 4), gc)
+		overlay.draw_rect(Rect2(pr.x - 2, pr.y - 7, 4, 14), gc)
 	# köprülerin canı: hasarlıysa ya da köprü yıkma seçiliyken her zaman
 	for br in g.bridges:
 		if br.hp >= br.max_hp and not g.bridge_pick and not br.down:

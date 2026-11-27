@@ -17,7 +17,7 @@ const MODES := [
 	{id = "2v2", name = "Takım (2'ye 2)", desc = "Yanında müttefik bir yapay zekâ ordusu; karşında iki düşman üssü.", sides = [0, 1, 0, 1]},
 ]
 
-const POP_CAP := 40
+const POP_CAP := 45
 const START_MONEY := 1500.0
 const HQ_INCOME := 8.0
 # Yapay zekâ zorluğu. income: gelir çarpanı (1.0 = oyuncuyla eşit), first: ilk saldırı (sn),
@@ -40,6 +40,11 @@ const MAX_MINES := 4
 const PLANES_PER_AIRFIELD := 4
 const HEAL_RADIUS := 16.0         # karargâhın yanındaki birimler onarılır
 const HEAL_RATE := 0.015          # saniyede azami canın oranı
+# Piyadenin sahada onarımı: yanındaki (yarıçap + birimin kendi büyüklüğü) binayı ve zırhlıyı onarır.
+const REPAIR_R := 7.0
+const REPAIR_BLD := 0.007         # bina: saniyede azami canın oranı (boştan doluya ~2,5 dk)
+const REPAIR_VEH := 0.01          # zırhlı araç: (~1,5 dk)
+const REPAIR_PAUSE := 8.0         # son vuruştan sonra onarıma başlamadan beklenen süre
 const INTERCEPT_CHANCE := 0.4     # menzildeki her hava savunmanın füzeyi önleme olasılığı
 
 const BUILD_KINDS: Array[String] = ["santral", "kisla", "fabrika", "maden", "ileri", "havaalani", "sam", "teknoloji", "fuze"]

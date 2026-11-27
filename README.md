@@ -52,7 +52,9 @@ karargâhları yıkılınca ya da görev tamamlanınca maç biter.
 
 **Görev seçimi (menüden):** *Senaryo Görevi* (her ülkenin kendi görevi), *Bölgeyi Tut* (iki taraf da haritanın
 ortasındaki kilit noktayı toplam 10 dakika tutmaya çalışır) ya da *Tam İmha* (düşmanın bütün binalarını ve birliklerini
-yok et; karargâh yıkılsa da savaş sürer, düşmanın binası kalmayınca kalan birlikleri küçük haritada gösterilir).
+yok et; karargâh yıkılsa da savaş sürer, düşmanın binası kalmayınca kalan birlikleri küçük haritada gösterilir) ya da
+*Karargâhı Yık* (tek hedef düşman karargâhı; haritada ele geçirilecek nokta ya da tutulacak bölge yoktur, karargâh
+geliri iki kattır, kaynak yatakları yine çıkar).
 Maç bitince ekranda gerçek neden yazar (karargâhın yıkıldı, düşman görevini tamamladı, ordun tamamen yok edildi...).
 
 **Büyük haritalar ve lojistik.** Haritalar ilk sürümün yaklaşık 7 katı alan kaplar (veride 720 x 440 yazılır, oyunda
@@ -125,8 +127,9 @@ Machbet, Herz-9, HQ-16FE, Akash; Patriot, S-400, Iron Dome, Bavar-373.
 **Binalar:** Karargâh, Santral, Kışla, Fabrika, Maden Ocağı (yalnızca kaynak yatağına), İleri Harekât Üssü, Hava Alanı,
 hava savunma (ülkeye göre adı değişir), Teknoloji Merkezi (7 araştırma, Kademe 3 için şart), Füze Üssü.
 
-**Füzeler:** Füze Üssü'nden füze seçilir, haritada **görebildiğin** bir yere (ya da yeri bilinen bir düşman kaynağına,
-stratejik tesise) dokunulur. Menzildeki düşman hava savunması
+**Füzeler:** Füze Üssü'nden füze seçilir, haritada yalnızca **o an görebildiğin** bir yere dokunulur (görülmeyen
+kaynak ve tesisler de keşif olmadan vurulamaz). Füze Üssü kurulunca soldaki menüde "Füze Üssü" düğmesi açılır: binayı
+seçer ve kamerayı götürür (birden çok üs varsa sırayla), üstünde hazır füze sayısı yazar. Menzildeki düşman hava savunması
 füzeyi önleyebilir; hipersonik füzeler (Fattah-2, BrahMos, Fatah-IV) önlenemez.
 
 **Animasyonlar:** tank ve zırhlıların kulesi gövdeden bağımsız hedefe döner; ateşte geri tepme, namlu alevi ve duman;
@@ -137,7 +140,18 @@ duman bırakarak düşer; yok edilen birimlerin yerinde yanık izi kalır.
 düşürür, büyük İHA'ların kilidini bozar. "Fiber Optik FPV" araştırmasıyla FPV'ler etkilenmez.
 
 **Siper ve mevzi:** piyade siper kazar (yarı hasar), köy evlerine girer (%60 az hasar, daha uzun menzil),
-tanksavar mayını döşer (araçlar tetikler, düşman yalnızca yakından görür) ve tanksavar engeli kurar (yolu kapatır).
+tanksavar mayını döşer (araçlar tetikler, düşman yalnızca yakından görür).
+
+**Sahada onarım:** piyade ve tanksavar timi yanındaki kendi binasını (~2,5 dakikada boştan doluya) ve zırhlı aracını
+(~1,5 dakikada) onarır; son vuruştan sonra 8 saniye beklenir, ikmal hattı dışında onarım yarı hızdadır. Onarılanın
+üstünde yeşil artı yanıp söner. Maden Ocağı kendi kuralıyla onarılır.
+
+**Birlik sınırı** 45'tir (Dengeli doktrinde 57). Sınır doluyken de birim üretim kuyruğuna verilir; üretimi biten birim
+sırada bekler ("Birlik sınırı dolu: sırada bekliyor"), yer açılınca çıkar.
+
+**Binalara ateş:** silahlı bütün kara birlikleri binalara ateş eder (dron savarlar ve zırhlı hava savunma da, zayıf
+hasarla); binanın kendi gövdesi görüş hattını kesmez, binanın dibine gelen birlik görüş aramadan ateş eder. Ateş
+edemeyen birlik (keşif, EH) "saldır" emrinde binanın içine girmeye çalışmaz, kenarında bekler.
 
 **Tecrübe ve geri çekilme:** hasar veren birimler rütbe kazanır (Er → Çavuş → Kıdemli → Gazi; her rütbe daha çok hasar,
 daha az kayıp). Geri çekilen birlik %25 hızlı gider ve %30 az hasar alır; karargâh yanında onarılır.
@@ -154,7 +168,9 @@ görevlerinde düşmanın hedef binaları 2. dakikadan sonra haritada gösterili
 ilerlemesi görünür.
 
 **Saldırı uyarısı:** kendi binan ya da kaynağın vurulunca küçük haritada o yer kırmızı yanıp söner, binanın üstünde
-"SALDIRI!" yazar. **Araştırmalar** ne işe yaradıklarını düğmenin üstünde yazar.
+"SALDIRI!" yazar. Ekranın sağında (Menü düğmesinin altında) her saldırı için kırmızı bir simge çıkar: neyin vurulduğu
+ve kaç saniye önce yazar; en yeni en üsttedir (en çok 5). Simgeye basınca kamera o yere gider. Birbirine yakın saldırılar
+tek simgede birleşir; 25 saniye vuruş olmazsa simge kalkar. Birliklerine yapılan saldırılar da listelenir. **Araştırmalar** ne işe yaradıklarını düğmenin üstünde yazar.
 
 **Birim kartları:** üretim düğmesinin köşesindeki çevirme simgesine basınca kart arkaya döner; can, kara gücü,
 hava gücü, menzil ve hız görünür, ekranın altında o birimin kullanım ipucu çıkar.
@@ -194,6 +210,8 @@ Henüz yok: deniz modu ve kilitli senaryolar.
 | İki parmak | Yakınlaştır / uzaklaştır (bilgisayarda fare tekerleği) |
 | Küçük harita | Dokunduğun yere kamerayı götürür |
 | Kara / Hava Sav. / Hava / Hepsi | O gruptaki bütün birimleri seçer |
+| Füze Üssü (solda) | Füze Üssünü seçer, kamerayı götürür |
+| Saldırı simgesi (sağda) | Kamerayı saldırı olan yere götürür |
 | İnşa | Bina menüsünü açar; bina seç, sonra haritada yerini göster. Vinç ve Kademe de burada |
 | Geri Çekil | Seçili birimler ateş etmeden en yakın karargâha ya da ileri üsse döner |
 | Köprü Yık | Seçili birimler dokunulan köprüye ateş eder |

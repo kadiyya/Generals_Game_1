@@ -449,7 +449,8 @@ func cover_at(p: Vector3) -> bool:
 
 ## Doğrudan atış için görüş hattı. Dağ her zaman keser; ağaç hattı, yıkıntı, binalar ve derin orman
 ## (üç hücreden fazlası) yalnızca tepede olmayan atıcı için keser. Atıcının ve hedefin hemen yanı sayılmaz.
-func los_clear(a: Vector3, b: Vector3) -> bool:
+## skip_b: hedefin çevresinde sayılmayan yarıçap (bina hedefinde binanın kendi hücreleri görüşü kesmez).
+func los_clear(a: Vector3, b: Vector3, skip_b := 3.0) -> bool:
 	var dist := Vector2(a.x - b.x, a.z - b.z).length()
 	if dist < 4.0:
 		return true
@@ -458,7 +459,7 @@ func los_clear(a: Vector3, b: Vector3) -> bool:
 	var woods := 0
 	for i in range(1, n):
 		var p := a.lerp(b, float(i) / n)
-		if Vector2(p.x - a.x, p.z - a.z).length() < 2.4 or Vector2(p.x - b.x, p.z - b.z).length() < 3.0:
+		if Vector2(p.x - a.x, p.z - a.z).length() < 2.4 or Vector2(p.x - b.x, p.z - b.z).length() < skip_b:
 			continue
 		var c := cell(p)
 		var idx := c.y * gw + c.x

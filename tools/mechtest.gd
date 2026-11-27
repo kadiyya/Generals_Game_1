@@ -202,10 +202,10 @@ func _run() -> void:
 	await _wait(0.6)
 	_check("mayin dusman aracinda patlar", victim.hp < hv - 100.0 and g.team_mines(0) == 0)
 
-	# ---- engel
-	var ob := _land(hq + Vector3(50, 0, -20))
-	_check("tanksavar engeli kurulur", g.place_obstacle(0, ob))
-	_check("engel yolu kapatir", ter.solid(ob))
+	# ---- engel kurma emri kaldırıldı
+	var eng_inf = g.spawn_unit(g.unit_of(0, "inf"), 0, _land(hq + Vector3(50, 0, -20)))
+	_check("engel kur emri yok", g.order_task([eng_inf], "obstacle") == 0)
+	eng_inf.die()
 
 	# ---- rütbe ve geri çekilme
 	var vet = g.spawn_unit(g.unit_of(0, "ifv"), 0, _land(hq + Vector3(30, 0, 30)))
@@ -580,6 +580,68 @@ func _run() -> void:
 	var f := FileAccess.open("user://mechtest_sayi.txt", FileAccess.WRITE)
 	f.store_string("%d %d %d" % [alive, int(g.teams[0].money), int(g.time)])
 	f = null
+
+	# ---- piyadenin sahada onarımı
+	var rp := _land(hq + Vector3(-40, 0, 40))
+	var rb := g.spawn_building(Defs.bid(0, "kisla"), 0, rp, true)
+	rb.hp = rb.max_hp * 0.5
+	var rv = g.spawn_unit(g.unit_of(0, "ifv"), 0, rp + Vector3(rb.radius + 5.0, 0, 0))
+	rv.hp = rv.max_hp * 0.5
+	var medic = g.spawn_unit(g.unit_of(0, "inf"), 0, rp + Vector3(rb.radius + 2.5, 0, 0))
+	await _wait(3.0)
+	_check("piyade yanindaki binayi onarir", rb.hp > rb.max_hp * 0.505 and rb.hp < rb.max_hp * 0.6)
+	_check("piyade yanindaki zirhliyi onarir", rv.hp > rv.max_hp * 0.51 and rv.hp < rv.max_hp * 0.62)
+	rv.take_damage(1.0)
+	var rv_hp: float = rv.hp
+	await _wait(2.0)
+	_check("yeni vurulan zirhli hemen onarilmaz", rv.hp <= rv_hp + 0.01)
+	medic.die()
+	rv.die()
+
+	# ---- birlik sınırında birim sırada bekler
+	var ts0 = g.teams[0]
+	var cap0: int = ts0.pop_cap
+	ts0.pop_cap = ts0.pop
+	ts0.money += 1000.0
+	var qn: int = rb.queue.size()
+	_check("birlik siniri doluyken birim kuyruga girer", g.queue_unit(rb, g.unit_of(0, "inf")) and rb.queue.size() == qn + 1)
+	rb.prod_t = 999.0
+	await _wait(0.5)
+	_check("sinir doluyken birim sirada bekler", rb.queue.size() == qn + 1 and rb.waiting_cap())
+	ts0.pop_cap = cap0
+	await _wait(0.5)
+	_check("yer acilinca birim cikar", rb.queue.size() == qn)
+	_check("birlik siniri 45", Defs.POP_CAP == 45)
+
+	# ---- saldırı simgeleri: yeniden eskiye
+	g.alert_base(hq + Vector3(100, 0, 0), "Deneme A")
+	await _wait(0.3)
+	g.alert_base(hq + Vector3(-100, 0, 0), "Deneme B")
+	var al: Array = g.attack_list()
+	_check("saldiri simgeleri yeniden eskiye", al.size() >= 2 and al[0].what == "Deneme B")
+
+	# ---- bütün silahlı kara birlikleri binaya ateş eder
+	var tp := _land(hq + Vector3(60, 0, -60))
+	var tb := g.spawn_building(Defs.bid(1, "kisla"), 1, tp, true)
+	tb.max_hp = 1.0e7
+	tb.hp = tb.max_hp
+	var shooters: Array = []
+	var k := 0
+	for id in Defs.UNITS:
+		var ud: Dictionary = Defs.UNITS[id]
+		if ud.cc != Defs.COUNTRY[0] or ud.get("air", false) or not ud.has("dmg"):
+			continue
+		var ang := k * TAU / 12.0
+		k += 1
+		var sp: Vector3 = g.terrain.nearest_free(tp + Vector3(cos(ang), 0, sin(ang)) * (tb.radius + 14.0 + float(ud.get("min_range", 0.0))))
+		var su = g.spawn_unit(id, 0, sp)
+		shooters.append(su)
+	g.order_attack(shooters, tb)
+	await _wait(25.0)
+	for su in shooters:
+		_check("%s binaya ates eder" % su.d.name, su.alive and su.xp > 0.0)
+		su.die()
+	tb.die()
 
 	print("MECHTEST BITTI  hata=%d" % fails)
 	get_tree().quit(1 if fails > 0 else 0)

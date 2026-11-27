@@ -57,13 +57,13 @@ const CLASSES := {
 		cat = "hs", from = "fabrika", cost = 550, time = 18.0, tier = 1,
 		hp = 560, speed = 4.2, vision = 14.0, radius = 1.5, armor = "light",
 		range = 14.0, dmg = 22.0, cd = 0.35, proj = "tracer",
-		mult = {air = 0.6, drone = 1.0},
+		mult = {air = 0.6, drone = 1.0, bld = 0.3},
 	},
 	"laser": {
 		cat = "hs", from = "fabrika", cost = 1400, time = 35.0, tier = 3,
 		hp = 500, speed = 3.6, vision = 16.0, radius = 1.5, armor = "light",
 		range = 18.0, dmg = 60.0, cd = 0.6, proj = "beam",
-		mult = {air = 0.5, drone = 3.0},
+		mult = {air = 0.5, drone = 3.0, bld = 0.15},
 	},
 	# Zırhlı hava savunma: paletli, uzun menzilli füzeler. Uçak ve büyük İHA'ları çok sert vurur,
 	# küçük dronlara ve yerdeki hedeflere neredeyse etkisizdir.
@@ -71,7 +71,7 @@ const CLASSES := {
 		cat = "hs", from = "fabrika", cost = 950, time = 24.0, tier = 2,
 		hp = 950, speed = 3.9, vision = 20.0, radius = 1.7, armor = "heavy",
 		range = 25.0, dmg = 150.0, cd = 2.6, proj = "missile",
-		mult = {air = 1.6, drone = 0.15, inf = 0.06, light = 0.08, heavy = 0.04, bld = 0.04},
+		mult = {air = 1.6, drone = 0.15, inf = 0.06, light = 0.08, heavy = 0.04, bld = 0.15},
 	},
 	"ew": {
 		cat = "hs", from = "fabrika", cost = 650, time = 20.0, tier = 1,
@@ -635,6 +635,7 @@ const GOALS := [
 	{id = "senaryo", name = "Senaryo Görevi", desc = "Her ülkenin senaryoya özel görevi (bölge tutma ya da hedef yok etme). Karargâhı yıkılan kaybeder."},
 	{id = "tut", name = "Bölgeyi Tut", desc = "İki taraf da haritanın ortasındaki kilit noktayı toplam 10 dakika elinde tutmaya çalışır. Karargâhı yıkılan kaybeder."},
 	{id = "imha", name = "Tam İmha", desc = "Düşmanın bütün binalarını ve birliklerini yok et. Karargâh yıkılsa da savaş sürer."},
+	{id = "karargah", name = "Karargâhı Yık", desc = "Tek hedef düşmanın karargâhı. Haritada ele geçirilecek nokta ya da tutulacak bölge yoktur; gelir karargâhtan (iki kat) ve kaynak yataklarına kurulan madenlerden gelir."},
 ]
 
 
@@ -811,7 +812,14 @@ static func objective(team: int) -> Dictionary:
 			return {type = "hold", point = 0, secs = 600.0, text = "%s noktasını toplam 10 dakika elinde tut" % pt[5]}
 		"imha":
 			return {type = "annihilate", text = "Düşmanı tamamen yok et: bütün binalarını ve birliklerini"}
+		"karargah":
+			return {}
 	return scn.obj.a if Defs.COUNTRY[team] == scn.a else scn.obj.b
+
+
+## Görev "Karargâhı Yık" mı: haritada ele geçirilecek nokta yok, karargâh geliri iki kat.
+static func hq_only() -> bool:
+	return not tutorial and GOALS[clampi(goal, 0, GOALS.size() - 1)].id == "karargah"
 
 
 ## Görev tam imha mı (karargâh kaybı savaşı bitirmez).

@@ -295,6 +295,8 @@ func _goal_detail(scn: Dictionary) -> String:
 	var id: String = Scenarios.GOALS[Scenarios.goal].id
 	if id == "imha":
 		return ""
+	if id == "karargah":
+		return "Haritada ele geçirilecek nokta yok."
 	if id == "tut":
 		return "Kilit nokta: %s." % Scenarios.MAPS[scn.map].points[0][5]
 	var ca: String = Scenarios.COUNTRIES[scn.a].name

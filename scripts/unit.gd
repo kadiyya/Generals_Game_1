@@ -221,7 +221,10 @@ func _engage(dt: float, chase: bool) -> void:
 	los_t -= dt
 	if los_t <= 0.0:
 		los_t = 0.5
-		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position)
+		los_ok = target.is_air or not needs_los() or Game.I.terrain.los_clear(global_position, target.global_position, Entity.los_skip(target))
+		# Binanın dibine gelmiş birlik görüş hattı aramadan ateş eder (binanın etrafında dönüp durmasın).
+		if not los_ok and target.is_building and dist < 4.0:
+			los_ok = true
 	if not los_ok:
 		# Arada engel var: görüş hattı açılana kadar yaklaş.
 		if chase:
@@ -399,6 +402,8 @@ func _animate(dt: float) -> void:
 
 func _on_damaged(attacker) -> void:
 	update_figures()
+	if team == Defs.PLAYER and attacker != null and is_instance_valid(attacker) and Defs.foe(attacker.team, team):
+		Game.I.log_attack(global_position, d.name)
 	if order == "idle" and target == null and attacker != null and is_instance_valid(attacker) and attacker.alive and can_hit(attacker):
 		target = attacker
 

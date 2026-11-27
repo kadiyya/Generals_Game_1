@@ -6,6 +6,8 @@ var team := 0
 var def_id := ""
 var d: Dictionary = {}
 var cls := ""
+var last_dmg := -100.0      # son hasar aldığı an (sahada onarım bekler)
+var repair_until := -100.0  # bu ana kadar piyade onarıyor (can çubuğunun yanında yeşil artı)
 var hp := 1.0
 var max_hp := 1.0
 var alive := true
@@ -133,6 +135,11 @@ func can_hit(e) -> bool:
 	return true
 
 
+## Görüş hattında hedefin çevresinde sayılmayan yarıçap: binanın kendi gövdesi kendini gizlemez.
+static func los_skip(e) -> float:
+	return maxf(3.0, float(e.radius) + 2.0) if e.is_building else 3.0
+
+
 func find_target(max_d: float, min_d := 0.0):
 	var best = null
 	var best_s := 1e9
@@ -142,7 +149,7 @@ func find_target(max_d: float, min_d := 0.0):
 		var dist: float = flat(global_position, e.global_position) - e.radius
 		if dist > max_d or dist < min_d:
 			continue
-		if not e.is_air and needs_los() and not Game.I.terrain.los_clear(global_position, e.global_position):
+		if not e.is_air and needs_los() and not Game.I.terrain.los_clear(global_position, e.global_position, Entity.los_skip(e)):
 			continue
 		var s: float = dist / (0.3 + float(d.mult.get(e.armor, 0.0)))
 		# Ateş edebilen hedefler, silahsız binalardan önce gelir.
@@ -226,6 +233,8 @@ func take_damage(amount: float, attacker = null, tag := "") -> void:
 	if tag == "drone" and (armor == "heavy" or armor == "light"):
 		amount *= Game.I.mod(team, "drone_resist")
 	amount *= damage_taken_mult()
+	if amount > 0.0:
+		last_dmg = Game.I.time
 	if attacker != null and is_instance_valid(attacker) and attacker.alive and Defs.foe(attacker.team, team):
 		attacker.gain_xp(minf(amount, maxf(hp, 0.0)) + (float(d.get("cost", 0)) * 0.3 if amount >= hp else 0.0))
 	hp -= amount
@@ -234,8 +243,9 @@ func take_damage(amount: float, attacker = null, tag := "") -> void:
 		die()
 
 
-func _on_damaged(_attacker) -> void:
-	pass
+func _on_damaged(attacker) -> void:
+	if team == Defs.PLAYER and attacker != null and is_instance_valid(attacker) and Defs.foe(attacker.team, team):
+		Game.I.log_attack(global_position, d.get("name", ""))
 
 
 func die() -> void:
